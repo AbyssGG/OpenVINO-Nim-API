@@ -622,10 +622,23 @@ task releaseCheck, "Verify version metadata is consistent across the repo":
   if not changelog.contains("## " & packageVersion):
     failures.add("CHANGELOG.md has no '## " & packageVersion & "' section")
 
-  let readme = readFile("README.md")
-  for needle in [packageName, packageVersion, openVinoVersion]:
+  let
+    readme = readFile("README.md")
+    displayName = stringMetadata("ProjectDisplayName")
+  for needle in [displayName, packageName, packageVersion, openVinoVersion]:
     if not readme.contains(needle):
       failures.add("README.md does not mention '" & needle & "'")
+
+  # The display name is for reading. It differs from the distribution name only
+  # in case, so the guard is that nothing a tool reads may be built from it: a
+  # mixed-case package or archive name is the kind of defect that works on one
+  # developer's file system and fails on the next.
+  if displayName == packageName:
+    failures.add("ProjectDisplayName and PackageName must differ; the first " &
+      "is for reading and the second is what tools consume")
+  if packageName != packageName.toLowerAscii():
+    failures.add("PackageName '" & packageName & "' must be lowercase, " &
+      "because file systems, URLs and package indexes disagree about case")
 
   reportFailures("Release metadata inconsistencies:", failures)
   echo "Release metadata consistent: ", packageName, " ", packageVersion,

@@ -37,6 +37,36 @@ suite "package metadata":
   test "public entry point exports the distribution name":
     check PackageName == "openvino-nim"
 
+  test "the display name is for reading and the distribution name for tools":
+    # The two differ only in case, and case is what a file system, a URL or a
+    # package index will treat inconsistently. Pinned here so that a refactor
+    # cannot make them the same and then use the mixed-case one where a
+    # lowercase identifier is required.
+    check ProjectDisplayName == "OpenVINO-Nim-API"
+    check ProjectDisplayName != PackageName
+    check PackageName == PackageName.toLowerAscii()
+    check ProjectDisplayName != ProjectDisplayName.toLowerAscii()
+
+  test "the display name lowercases to something close to the package name":
+    # Not equal: the display name ends in -API and the distribution name does
+    # not. Checked so that the relationship between them stays a deliberate
+    # one rather than a coincidence nobody reviewed.
+    check ProjectDisplayName.toLowerAscii() == "openvino-nim-api"
+    check ProjectDisplayName.toLowerAscii().startsWith(PackageName)
+
+  test "both names are recognisably about OpenVINO and Nim":
+    # So that a reader who meets one of them can find the other.
+    check "OpenVINO" in ProjectDisplayName
+    check "Nim" in ProjectDisplayName
+    check "openvino" in PackageName
+    check "nim" in PackageName
+
+  test "neither name contains a space":
+    # A space would break a slug, a path and an archive name. The display name
+    # is mixed case rather than spaced precisely so that it stays usable.
+    check ' ' notin ProjectDisplayName
+    check ' ' notin PackageName
+
   test "package version is a three-part numeric semantic version":
     checkpoint("PackageVersion=" & PackageVersion)
     let triple = parseVersionTriple(PackageVersion)

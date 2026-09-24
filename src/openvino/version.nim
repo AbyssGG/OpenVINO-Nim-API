@@ -14,6 +14,21 @@
 ## the host, and nothing here performs I/O or native calls.
 
 const
+  ProjectDisplayName* = "OpenVINO-Nim-API"
+    ## Human-readable project name, for titles, prose and the repository
+    ## description.
+    ##
+    ## It is deliberately **not** the distribution name. It differs in case,
+    ## and case is exactly the kind of difference that a file system, a URL or
+    ## a package index will treat inconsistently across platforms. Anywhere a
+    ## tool reads a name — the Nimble package, an import path, a release
+    ## archive, a tag — the answer is `PackageName`, which is lowercase for
+    ## that reason.
+    ##
+    ## Kept here rather than only in the README so that `nimble releaseCheck`
+    ## can assert the README still uses it, and so that a rename has one place
+    ## to happen.
+
   PackageName* = "openvino-nim"
     ## Public distribution name: repository name, release archive prefix and
     ## the name used in documentation. The Nimble package identifier and the
