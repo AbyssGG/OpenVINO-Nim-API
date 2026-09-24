@@ -1367,7 +1367,7 @@ nimble releaseArchive
 
 | Gate 条目 | 状态 | 证据 |
 |---|---|---|
-| Tier 1 阻断 CI 全绿 | 未关闭 | 9 个作业已写完并逐项校验（YAML 可解析、action 全部固定到 commit SHA、OpenVINO 按 SHA-256 固定），每个作业调用的 nimble 任务都在 Windows 与 Linux 两台真机上实测 exit 0。但本仓库没有远端，GitHub Actions 从未运行过，因此"CI 全绿"无法声明。这是本阶段唯一的保留项 |
+| Tier 1 阻断 CI 全绿 | 通过 | 重命名后的公开仓库 `AbyssGG/OpenVINO-Nim-API` 在 commit `cb826e9` 的首次完整运行 [CI #36055507482](https://github.com/AbyssGG/OpenVINO-Nim-API/actions/runs/36055507482) 成功；static、双平台 ABI/smoke/lifecycle/integration/examples-package、Nim 2.0.0/2.2.12 ORC/ARC 单元测试与 docs 全部通过。定时 memory 作业按设计不在 push 运行，其独立 valgrind 证据见 F12 |
 | README 代码与示例从干净安装真实编译运行 | 通过 | `nimble examples` 编译并运行五个示例；`nimble packagingCheck` 装进全新目录后，在一个不带 `--path:src` 的独立目录里编译 consumer 并断言推理输出。两个平台均通过 |
 | 兼容矩阵只列实测组合 | 通过 | `docs/compatibility.md` 用两栏并列 Windows 与 Linux 两台主机的实测结果，并把 macOS、GPU、NPU、refc、Nim 2.0.x/2.1.x、多线程逐条列入"未验证" |
 | Windows 非 ASCII 路径 | 通过 | 5 个集成测试，含一个记录窄入口实际行为的测试；实测推翻了最初的假设 |
@@ -1378,7 +1378,7 @@ nimble releaseArchive
 | formatter 零 diff | 通过 | 两平台实测，见 S07。第一次测得的是假通过，已查明并补测 |
 | 固定值可审计 | 通过 | OpenVINO 按 URL + SHA-256 固定且与库元数据交叉断言；四个 action 全部 40 位 commit SHA，由一个校验器在两平台断言 |
 
-结论：Phase 5 的可在本机完成的部分全部通过，唯一保留项是 CI 的首次真实运行——它需要远端，而推送需要单独授权。A 到 G 段 Checklist 至此全部勾选，只剩 H 段的 RC 与发布。
+结论：Phase 5 已关闭。公开仓库的首次完整 CI 已通过，先前 static 作业误扫 `.nim_runtime` 的失败也已修复并由该运行验证。A 到 G 段 Checklist 全部勾选；H 段只保留必须经用户明确授权的 RC/tag/正式发布动作。
 - 文档无未解释的 Resonance/Isvik 残留。
 - 包归档不包含 SDK、cache blob、临时目录、大模型或 secrets。
 - 所有 warning、skip 和 suppression 都有解释；不存在静默跳过的必测项。
@@ -1670,7 +1670,7 @@ docs: prepare OpenVINO Nim API 0.1.0 release
 ### G. CI、文档与示例
 
 - [x] G01 添加 Windows x64 与 Linux x64 阻断 CI。证据：`.github/workflows/ci.yml` 共 9 个作业，其中 `unit`、`abi`、`smoke`、`lifecycle`、`integration-cpu`、`examples-package` 六个都是 `[ubuntu-24.04, windows-2022]` 矩阵。没有任何作业允许跳过报成功——需要 header 的任务在找不到时失败，`memcheck` 在非 Linux 上以 exit 1 明确拒绝而不是静默通过。
-- [x] G02 固定 Nim、OpenVINO、CI actions 和下载 checksum。证据：Nim 版本与 runner 镜像写死；四个第三方 action **全部固定到 40 位 commit SHA**（`actions/checkout@11d5960a…` = v4.4.0、`actions/upload-artifact@ea165f8d…` = v4.6.2、`actions/setup-python@a26af69b…` = v5.6.0、`jiro4989/setup-nim-action@189b1458…` = v2.3.1），SHA 由查询各仓库的 tag 得到而非猜测，对应的 tag 写在旁边注释里以便审计。OpenVINO 由 `ci/install-openvino.py` 以不可变 URL + SHA-256 固定，下载后校验、不匹配即删除文件并以 1 退出，且用 `zipfile` 解包、`--no-deps` 式地完全不经过 pip 依赖解析（没有任何东西从 Python 里 import openvino）。一个本地校验器解析两个 workflow 并断言每个 `uses:` 都是 40 位十六进制，实测通过。
+- [x] G02 固定 Nim、OpenVINO、CI actions 和下载 checksum。证据：Nim 版本与 runner 镜像写死；四个第三方 action **全部固定到 40 位 commit SHA**（`actions/checkout@3d3c42e5…` = v7.0.1、`actions/upload-artifact@043fb46d…` = v7.0.1、`actions/setup-python@5fda3b95…` = v7.0.0、`jiro4989/setup-nim-action@189b1458…` = v2.3.1），SHA 由各 action 官方仓库 tag 查询得到，对应 tag 写在 workflow 注释中。前三者使用 Node.js 24，替换了 GitHub 已警告弃用的 Node.js 20 版本。OpenVINO 由 `ci/install-openvino.py` 以不可变 URL + SHA-256 固定，下载后校验、不匹配即删除文件并以 1 退出，且用 `zipfile` 解包、`--no-deps` 式地完全不经过 pip 依赖解析（没有任何东西从 Python 里 import openvino）。静态作业解析两个 workflow 并断言每个 `uses:` 都是 40 位十六进制。
 - [x] G03 完成 static、unit、abi、integration-cpu 作业。证据：`static` 9 步（check、formatCheck、真实 format 后 `git diff --exit-code`、lint、releaseCheck、Nim 版本固定一致性、OpenVINO 固定值与库元数据一致性）；`unit` 为 os × nim{2.0.0, 2.2.12} × mm{orc, arc} 矩阵；`abi` 与 `integration-cpu` 双平台，后者一次跑 debug 与 release。
 - [x] G04 完成 lifecycle、examples-package、docs 作业。证据：`lifecycle` 双平台跑 ORC 与 ARC；`examples-package` 双平台先 `nimble examples`（编译并运行五个示例）再 `nimble packagingCheck`；`docs` 生成 API 文档并上传产物。`packagingCheck` 是本轮新增的任务，把之前手工做的打包验证固化下来：装进一个全新目录，把 `tests/packaging/consumer.nim` 复制到别处、**不带 `--path:src`** 编译，运行后断言推理输出等于手算值，最后检查安装结果里除 `.nim`、`.nimble`、`nimblemeta.json` 之外没有别的文件。本机实测 `consumer OK`、安装包 29 个文件全部为源码或清单元数据。
 - [x] G05 完成定时/release 内存检查作业。证据：`memory` 作业，触发条件为 `schedule`（每周一 03:17 UTC，固定时刻以便把失败与上游变化而不是与时钟关联）与 `workflow_dispatch`，明确不进 PR；装 valgrind、装固定 OpenVINO、跑 `nimble memcheck`，并且无论成败都上传日志。
@@ -1692,20 +1692,20 @@ docs: prepare OpenVINO Nim API 0.1.0 release
 
 ### H. RC 与发布
 
-- [ ] H01 所有 Phase Gate 都有可复核证据。
+- [x] H01 所有 Phase Gate 都有可复核证据。证据：A–G 各 Checklist 项均给出文件、命令或测试依据；公开仓库 [CI #36055507482](https://github.com/AbyssGG/OpenVINO-Nim-API/actions/runs/36055507482) 验证完整 push 矩阵，[release dry run #36055719947](https://github.com/AbyssGG/OpenVINO-Nim-API/actions/runs/36055719947) 验证归档链路而未发布。
 - [x] H02 兼容矩阵只列真实测试组合。证据：`docs/compatibility.md` 将 Windows/Linux CPU 实测与 GPU、NPU、macOS、refc 等未验证项分栏记录，不从设备可发现推导推理支持。
 - [x] H03 所有版本号统一为 `0.1.0`。证据：`nimble releaseCheck`、`tests/unit/tmetadata_consistency.nim` 与 CI 静态作业共同断言 manifest、公开常量、CHANGELOG 和 README 一致。
 - [x] H04 CHANGELOG 和 release notes 完成。证据：`CHANGELOG.md` 包含完整 `0.1.0` 分类变更；`RELEASE_NOTES.md` 包含亮点、兼容范围、安装方法、规范资产说明和非官方声明，`releaseCheck` 要求两者存在。
 - [x] H05 包内容复核无 SDK、cache、临时文件、大模型、绝对路径或 secrets。证据：`nimble packagingCheck` 在干净目录安装并只接受 Nim 源码与 manifest 元数据；发布脚本拒绝 17 类 runtime、二进制和模型扩展名；本机复测安装包为 29 个合规文件。
-- [x] H06 无未解释 warning、skip、suppression 或高风险项。证据：修复 `expect` 包裹 `noReturn` 过程触发的 `UnreachableCode` 后，`nimble formatCheck`、`lint`、`releaseCheck`、单元测试与 runtime 测试均无 warning；CI 中 diagnostics 的条件 skip 只在前置步骤成功时发生，不是必测项静默跳过。
+- [x] H06 无未解释 warning、skip、suppression 或高风险项。证据：修复 `expect` 包裹 `noReturn` 过程触发的 `UnreachableCode`；GitHub 的 release dry run 又暴露 Node.js 20 action 弃用警告，随后将 checkout/setup-python/upload-artifact 更新为固定 SHA 的 Node.js 24 版本。`nimble formatCheck`、`lint`、`releaseCheck`、单元测试与 runtime 测试均无 warning；CI 中 diagnostics、tag-only 检查、memory 和 publish 的条件 skip 都有明确触发条件，不是必测项静默跳过。
 - [x] H07 全新 Windows/Linux 环境完成安装、runtime 加载和 CPU 推理。证据：`examples-package`、`smoke` 与 `integration-cpu` 已在 Windows/Linux 运行；本轮 Windows 再次运行 `packagingCheck`、ABI、smoke、debug/release integration、ORC/ARC lifecycle 全部通过。
 - [ ] H08 经授权创建并验证 `v0.1.0-rc.1`。
 - [ ] H09 RC 后只接受阻断性修复并重跑 release Gate。
 - [ ] H10 经用户明确授权后再创建正式 tag、push、release 或发布包。
 - [x] H11 对 `0.1.0`、`2026-9-24`、OpenVINO `2026.4.0` 生成精确基名 `openvino-nim-0-1-0-2026-9-24-ov2026-4-0`；元数据变化时按模板重算。证据：`ci/release-archive.py --self-test` 和 `--print-name` 本机通过，workflow 在归档前重复运行同一断言。
-- [ ] H12 生成同基名的 `.zip`、`.tar.gz`、`.zip.sha256` 和 `.tar.gz.sha256`。
-- [ ] H13 两种归档都只有一个与基名相同的顶层目录，且不包含 OpenVINO runtime/SDK。
-- [ ] H14 在相同 commit 和发布元数据下重复生成归档，逐项 checksum 一致。
+- [x] H12 生成同基名的 `.zip`、`.tar.gz`、`.zip.sha256` 和 `.tar.gz.sha256`。证据：commit `cb826e9` 的本机干净 worktree 和 [release dry run #36055719947](https://github.com/AbyssGG/OpenVINO-Nim-API/actions/runs/36055719947) 都生成并验证恰好四个规范文件。
+- [x] H13 两种归档都只有一个与基名相同的顶层目录，且不包含 OpenVINO runtime/SDK。证据：发布脚本读回 zip/tar 的每个 entry，检查唯一顶层目录并拒绝 17 类二进制、runtime 与模型扩展名；本机与 GitHub dry run 均通过。
+- [x] H14 在相同 commit 和发布元数据下重复生成归档，逐项 checksum 一致。证据：本机两次构建与 GitHub dry run 的重复构建均逐文件相等；本机规范归档摘要为 zip `171b2f6e…b3080da`、tar.gz `1d225555…1f0bb1`，两个 sidecar 本身也逐字节一致。
 - [x] H15 确认托管平台自动生成的源码包不被误写为规范命名资产；规范资产由受控发布流程上传。证据：`RELEASE_NOTES.md` 明确区分两者；tag-only `publish` 作业只接受 archive 作业验证过的四个文件，并创建或幂等更新 GitHub Release。
 - [x] H16 GitHub 仓库名精确为 `OpenVINO-Nim-API`，并与包/归档前缀 `openvino-nim` 分离。证据：仓库已重命名为 `AbyssGG/OpenVINO-Nim-API`；`RepositoryName`、单元测试与 `releaseCheck` 固定该映射。
 

@@ -107,6 +107,10 @@ Not released. Under development.
   Windows and Linux.
 - Every third-party GitHub Action is pinned to a commit SHA rather than a tag,
   with the tag it corresponded to recorded beside it.
+- Updated `actions/checkout`, `actions/setup-python` and
+  `actions/upload-artifact` to their Node.js 24 releases after GitHub warned
+  that the previous Node.js 20 actions were deprecated. The new versions stay
+  pinned to full commit SHAs.
 - Added `ci/install-openvino.py`, which installs OpenVINO for CI from an
   immutable wheel URL verified against a published sha256, on both platforms
   from one implementation. It refuses to run if its pinned version disagrees
