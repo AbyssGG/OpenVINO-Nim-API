@@ -145,6 +145,18 @@ proc handwrittenSources(): seq[string] =
       result.add(path)
   result.add("openvino.nimble")
 
+proc rawSources(): seq[string] =
+  ## Returns the raw ABI modules.
+  ##
+  ## They are checked separately from managed code because they must preserve
+  ## upstream `ov_*` spellings, which `--styleCheck:error` rejects. They still
+  ## have to compile and still have to pass `--styleCheck:usages`, so that a
+  ## name used inconsistently with its own declaration is caught.
+  result = @[]
+  for path in allNimSources():
+    if path.startsWith(rawLayerPrefix):
+      result.add(path)
+
 proc managedSources(): seq[string] =
   ## Returns the sources that must satisfy `--styleCheck:error`.
   ##
@@ -206,6 +218,9 @@ task lint, "Run style, whitespace and layering checks":
   for path in managedSources():
     exec "nim check --hints:off --styleCheck:error --path:src " & path
 
+  for path in rawSources():
+    exec "nim check --hints:off --styleCheck:usages --path:src " & path
+
   let sources = handwrittenSources()
   for path in sources:
     let content = readFile(path)
@@ -247,6 +262,70 @@ task test, "Run unit tests that do not require an OpenVINO runtime":
     quit(1)
   for path in sources:
     exec "nim c --hints:off --path:src -r " & path
+
+proc openvinoIncludeDir(): string =
+  ## Locates the pinned OpenVINO C headers.
+  ##
+  ## Checks `OPENVINO_INCLUDE_DIR` first, then derives the path from
+  ## `INTEL_OPENVINO_DIR`, which the official setup scripts export. Aborts with
+  ## an explicit message naming both variables when neither resolves, because a
+  ## task that quietly skips and reports success is worse than one that fails.
+  # Paths are joined with a forward slash rather than with os.`/`, which
+  # NimScript does not provide. Windows accepts forward slashes here.
+  const marker = "openvino/c/ov_common.h"
+  var
+    candidates: seq[string] = @[]
+    attempted: seq[string] = @[]
+
+  let direct = getEnv("OPENVINO_INCLUDE_DIR")
+  if direct.len > 0:
+    candidates.add(direct)
+  let root = getEnv("INTEL_OPENVINO_DIR")
+  if root.len > 0:
+    candidates.add(root & "/runtime/include")
+
+  for candidate in candidates:
+    attempted.add(candidate)
+    if fileExists(candidate & "/" & marker):
+      return candidate
+
+  echo "Cannot find the OpenVINO C headers."
+  echo "  Needed: <include dir>/" & marker
+  if attempted.len == 0:
+    echo "  Neither OPENVINO_INCLUDE_DIR nor INTEL_OPENVINO_DIR is set."
+  else:
+    echo "  Tried:"
+    for path in attempted:
+      echo "    " & path
+  echo "  Set OPENVINO_INCLUDE_DIR to the include directory of an OpenVINO " &
+    stringMetadata("TargetOpenVinoVersion") & " installation, or run the"
+  echo "  official setupvars script so that INTEL_OPENVINO_DIR is exported."
+  quit(1)
+
+proc addIncludePath(variable, path: string) =
+  ## Prepends `path` to the compiler include-search environment variable
+  ## `variable`, preserving any existing entries.
+  let separator = (when defined(windows): ";" else: ":")
+  let existing = getEnv(variable)
+  if existing.len == 0:
+    putEnv(variable, path)
+  else:
+    putEnv(variable, path & separator & existing)
+
+task testAbi, "Compare the raw bindings against the pinned OpenVINO headers":
+  let includeDir = openvinoIncludeDir().replace('\\', '/')
+  echo "OpenVINO headers: ", includeDir
+
+  # The include directory is handed to the C compiler through its own search
+  # variables rather than through --passC. Nim forwards a --passC value to the
+  # compiler verbatim, so a real Windows installation path such as
+  # "C:/Program Files (x86)/Intel/..." is split on its spaces and gcc reports
+  # "Files: No such file or directory". CPATH covers gcc and clang; INCLUDE
+  # covers MSVC. Neither needs quoting.
+  addIncludePath("CPATH", includeDir)
+  addIncludePath("INCLUDE", includeDir)
+
+  exec "nim c --hints:off --path:src -r tests/abi/tabi_layout.nim"
 
 task docs, "Generate API documentation for the public entry point":
   mkDir "build/docs"

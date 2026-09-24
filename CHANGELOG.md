@@ -66,6 +66,14 @@ Not released. Under development.
   `skipDirs` and `skipFiles`, so the installed package cannot hand a consumer
   the prototype binding. The exclusions are removed when `src/resonance` is
   deleted.
+- Added `openvino/raw/common`, binding `ov_status_e` and `ov_element_type_e`
+  from the pinned `2026.4.0` headers. Both are `cint` aliases with constants
+  rather than Nim enums, so a value the runtime returns and the binding does
+  not know stays representable instead of becoming an illegal enum value.
+- Added a C ABI probe and the `nimble testAbi` entry point. The probe is
+  compiled against the pinned headers and linked into the test, so every
+  comparison is against a value the C compiler produced. The task fails with
+  an explicit message when the headers cannot be found, and never skips.
 - Added the `-d:openvinoLib=...` compile-time option, which overrides the
   name or full path of the OpenVINO C API library. It changes only which file
   is opened, never an API signature, and it is not a way to target an

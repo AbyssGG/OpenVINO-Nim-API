@@ -180,6 +180,52 @@ implementation, the C ABI probe, the required-symbol test, the Core smoke
 test and the `nimble testAbi` entry point. No raw bindings exist yet, so
 nothing in the package calls OpenVINO.
 
+### 2026-09-24 Phase 2: first verified slice, status codes and element types
+
+Added `src/openvino/raw/common.nim`, a C ABI probe in `tests/abi/`, the
+`nimble testAbi` entry point, and a separate `--styleCheck:usages` pass over
+the raw layer in `nimble lint`.
+
+The probe is compiled against the pinned headers and linked into the Nim
+test, so the C side of every comparison is produced by the compiler rather
+than transcribed a second time. Each enumerator appears once, next to its own
+name, through a macro that stringifies it; an enumerator renamed upstream
+fails to compile in the probe, which is the intended alarm.
+
+22 ABI tests pass. The comparisons are driven from the C side, so a status
+code or element type that exists in the header but not in the binding fails
+the count check rather than going unnoticed.
+
+Verified the test is not vacuous by setting `U8` to `13`, the value the
+prototype bound. Two tests failed and `nimble testAbi` exited 1, so this
+check would have caught the data-corruption defect from the audit.
+
+Layout facts now confirmed rather than assumed. The `ov_profiling_info_t`
+status field has the same width as a C enum, which the prototype declared as
+`int32` without checking. `ov_shape_t` is an `int64` rank followed by a
+pointer. `ov_property_t`, `ov_version_t`, `ov_profiling_info_list_t` and
+`ov_callback_t` are all two-pointer structs. Nim's `bool` matches C `bool`,
+which matters because `ov_model_is_dynamic` returns one.
+
+Two Nimble and toolchain constraints surfaced while wiring the task.
+NimScript has no path `/` operator, so paths are joined as strings. More
+interesting, Nim forwards a `--passC` value to the C compiler verbatim, so an
+include path such as `C:/Program Files (x86)/Intel/...` is split on its
+spaces and gcc reports `Files: No such file or directory`. Rather than fight
+nested quoting, the task sets `CPATH` and `INCLUDE`, which gcc, clang and
+MSVC read and which need no quoting at all.
+
+`nimble testAbi` refuses to run without the headers. It looks at
+`OPENVINO_INCLUDE_DIR`, then at `INTEL_OPENVINO_DIR`, and on failure prints
+what it needed, what it tried and how to fix it, then exits 1. It never skips
+and reports success.
+
+Still to do in this phase: the loader implementation and the remaining raw
+modules for property, core, shape, node, model, compiled model, tensor and
+infer request, plus the required-symbol test, the Core smoke test and the
+`ov_tensor_set_shape` by-value regression. Nothing in the package calls
+OpenVINO yet.
+
 ## 中文
 
 ### 2026-09-24 Phase 0：审计原型并冻结范围
@@ -302,3 +348,41 @@ Checklist 项 C13 以及计划 §8.5 与 §12.3 要求的诊断在使用该 prag
 本阶段尚未完成：九个 raw 绑定模块、加载器实现、C ABI probe、必需符号测试、
 Core smoke test 以及 `nimble testAbi` 入口。目前尚无任何 raw 绑定，因此包内
 没有任何代码调用 OpenVINO。
+
+### 2026-09-24 Phase 2：第一个已验证切面，状态码与元素类型
+
+加入 `src/openvino/raw/common.nim`、`tests/abi/` 下的 C ABI probe、
+`nimble testAbi` 入口，以及 `nimble lint` 中对 raw 层单独执行的
+`--styleCheck:usages` 检查。
+
+probe 针对固定 header 编译并链接进 Nim 测试，因此每次比对的 C 一侧都由编译器
+产生，而不是再手抄一遍。每个枚举值只出现一次，紧挨着自己的名字，由一个宏做
+字符串化；上游改名会让 probe 编译失败，这正是预期的报警方式。
+
+22 个 ABI 测试通过。比对由 C 一侧驱动，因此 header 里存在而绑定里缺失的状态码
+或元素类型会让计数检查失败，不会被悄悄漏过。
+
+通过把 `U8` 改成原型绑定的 `13` 验证了该测试并非空转：两个测试失败，
+`nimble testAbi` 以 1 退出。也就是说这个检查确实能抓住审计发现的数据损坏缺陷。
+
+若干布局事实现在是确认的而非假定的。`ov_profiling_info_t` 的 status 字段宽度
+与 C enum 相同，而原型未经核对就声明为 `int32`。`ov_shape_t` 是一个 `int64`
+rank 后跟一个指针。`ov_property_t`、`ov_version_t`、
+`ov_profiling_info_list_t` 与 `ov_callback_t` 均为双指针结构。Nim 的 `bool`
+与 C `bool` 一致，这一点重要，因为 `ov_model_is_dynamic` 返回它。
+
+接线过程中暴露了两个 Nimble 与工具链约束。NimScript 没有路径 `/` 操作符，
+所以路径改用字符串拼接。更值得记的是，Nim 会把 `--passC` 的值原样转交 C
+编译器，于是像 `C:/Program Files (x86)/Intel/...` 这样的 include 路径会在
+空格处被切碎，gcc 报 `Files: No such file or directory`。与其和嵌套引号纠缠，
+该任务改为设置 `CPATH` 与 `INCLUDE`——gcc、clang 与 MSVC 都读取它们，且完全
+不需要引号。
+
+`nimble testAbi` 在缺少 header 时拒绝运行。它先查 `OPENVINO_INCLUDE_DIR`，
+再查 `INTEL_OPENVINO_DIR`，失败时打印需要什么、尝试过什么、如何修复，然后以
+1 退出。它绝不会跳过并报告成功。
+
+本阶段尚未完成：加载器实现，以及 property、core、shape、node、model、
+compiled model、tensor、infer request 各 raw 模块，加上必需符号测试、Core
+smoke test 和 `ov_tensor_set_shape` 的按值传参回归测试。包内目前仍无任何代码
+调用 OpenVINO。

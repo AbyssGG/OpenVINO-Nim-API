@@ -1525,7 +1525,7 @@ docs: prepare OpenVINO Nim API 0.1.0 release
 - [x] S03 添加 pinned `.clang-format`，基于 Google style，80 列、2 空格。证据：`.clang-format` 使用 `BasedOnStyle: Google`、`IndentWidth: 2`、`ColumnLimit: 80`，并关闭 `SortIncludes` 以保护本文要求的 include 分组顺序。
 - [x] S04 固定 `nimpretty`/Nim 版本并定义可重复的格式检查入口。证据：`STYLE_GUIDE.md` 的 Pinned tools 表；`nimble format` / `nimble formatCheck` 统一使用 `nimpretty --indent:2 --maxLineLen:80`。
 - [x] S05 managed 源码、示例和测试通过 `nim check --styleCheck:error`。证据：`nimble lint` 对 5 个 Nim 文件逐个执行该命令并通过（`src/openvino.nim`、`src/openvino/version.nim`、`tests/unit/tmetadata_consistency.nim`、`tools/mdcheck.nim` 及其余）。Resonance 原型文件按 §2.6 显式排除，`lint` 每次运行都逐个列出被排除项，不静默跳过。
-- [ ] S06 raw 层保留精确 C 名称，并通过独立 `--styleCheck:usages`、编译和 ABI 检查。**未开始**：raw 层由 Phase 2 落地。`nimble lint` 已预留 `src/openvino/raw` 前缀的排除逻辑与 `styleChecks: off` allowlist。
+- [ ] S06 raw 层保留精确 C 名称，并通过独立 `--styleCheck:usages`、编译和 ABI 检查。**部分完成**：机制已就位并生效——`nimble lint` 对 `src/openvino/raw` 下的模块单独执行 `nim check --styleCheck:usages`，`common.nim` 通过，`{.push styleChecks: off.}` 区间仅含 C 名称且由 allowlist 强制。其余 raw 模块尚未落地，因此不勾选。
 - [ ] S07 CI 验证 formatter 执行后工作树零 diff。**部分完成**：`nimble formatCheck` 实测通过，且实现方式不依赖 Git —— 它把 `nimpretty` 输出写到临时文件后逐字节比对，因此在当前无提交的仓库中同样有效。CI 的 `static` 作业已调用该任务，但尚无 CI 运行记录。
 - [x] S08 CI 拒绝 Tab、行尾空格、缺 final newline 和未解释 lint suppression。证据：`nimble lint` 对每个手写文件检查 Tab、CR、行尾空白与末尾换行，并强制 `styleChecks: off` 的目录 allowlist；实测通过，且该 allowlist 检查在开发中确实触发过一次误报（manifest 自身存放该字符串），已按最小范围修正。
 - [x] S09 Import 按 std/第三方/本地分组并在组内排序。证据：当前含 import 的三个文件（`src/openvino.nim`、`tests/unit/tmetadata_consistency.nim`、`tools/mdcheck.nim`）均符合，`std/[...]` 形式用于多标准库模块。
@@ -1541,9 +1541,9 @@ docs: prepare OpenVINO Nim API 0.1.0 release
 ### C. Raw binding 与 ABI
 
 - [ ] C01 建立 `docs/c-api-coverage.md` 并列出 0.1.0 所需 headers/symbols。
-- [ ] C02 绑定 status，并修正 `NOT_ALLOCATED` 与 `-14..-17`。
-- [ ] C03 绑定完整所需 element type，包含 2026.4 的 U2/U3/U6/低精度/string 值。
-- [ ] C04 验证 raw C enum 表示大小为 C ABI 所需大小。
+- [x] C02 绑定 status，并修正 `NOT_ALLOCATED` 与 `-14..-17`。证据：`src/openvino/raw/common.nim` 绑定全部 18 个值；`nimble testAbi` 由 C probe 驱动逐值比对通过，并单独钉住 `NOT_ALLOCATED == -10` 与 `-14..-17`。
+- [x] C03 绑定完整所需 element type，包含 2026.4 的 U2/U3/U6/低精度/string 值。证据：绑定全部 26 个值；probe 逐值比对通过。已反向测试：把 `U8` 改为原型的 `13` 后两个测试失败、`nimble testAbi` exit 1。
+- [x] C04 验证 raw C enum 表示大小为 C ABI 所需大小。证据：`sizeof(ov_status_e)` 与 `sizeof(ov_element_type_e)` 均与 probe 的 `sizeof` 相等；`ov_profiling_info_t.status` 字段宽度亦等于 C enum 宽度。
 - [ ] C05 绑定 `ov_get_error_info`、`ov_get_last_err_msg`、`ov_free`。
 - [ ] C06 绑定 version/Core/devices 与对应 free 函数。
 - [ ] C07 绑定 `ov_property_t`、官方 property key 和非 variadic properties API。
