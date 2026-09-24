@@ -73,6 +73,10 @@ Not released. Under development.
 
 ### Documentation
 
+- Added `DEVLOG.md`, a bilingual English and Chinese development log recording
+  decisions, measurements and overturned assumptions. `tools/mdcheck.nim`
+  requires the file to exist and requires both language halves to carry the
+  same number of entries, so one half cannot silently fall behind.
 - Added `docs/c-api-coverage.md`, recording the pinned `2026.4.0` headers with
   their checksums and classifying every C entry point as bound, planned or out
   of scope, together with its ownership and by-value facts.

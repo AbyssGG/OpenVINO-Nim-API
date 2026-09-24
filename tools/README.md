@@ -8,7 +8,7 @@ beyond the one the package already requires.
 
 | Tool | Purpose | Invoked by |
 |---|---|---|
-| `mdcheck.nim` | Checks the mechanically verifiable Markdown rules from `STYLE_GUIDE.md`: one ATX H1 per document, balanced fences, a language tag on every fence, LF endings, a final newline, no placeholder link text | `nimble lint` |
+| `mdcheck.nim` | Checks the mechanically verifiable Markdown rules from `STYLE_GUIDE.md`: one ATX H1 per document, balanced fences, a language tag on every fence, LF endings, a final newline, no placeholder link text. Also requires `DEVLOG.md` to exist and to carry the same number of entries in its English and Chinese halves | `nimble lint` |
 
 Run a tool directly during development:
 

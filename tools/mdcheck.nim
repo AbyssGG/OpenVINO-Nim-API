@@ -30,6 +30,14 @@ const
     ## Directories that never contain repository documentation. Pruning them
     ## keeps the walk fast and avoids reporting vendored or generated text.
 
+  devlogPath = "DEVLOG.md"
+    ## Bilingual development log, checked for entry parity between its two
+    ## language halves.
+
+  devlogEnglishHeading = "## English"
+  devlogChineseHeading = "## 中文"
+  devlogEntryPrefix = "### "
+
 type Problem = tuple[line: int, message: string]
   ## A single finding. `line` is 0 for whole-file problems.
 
@@ -92,14 +100,61 @@ proc checkMarkdown(path: string): seq[Problem] =
   if headingCount != 1:
     result.add((0, "has " & $headingCount & " H1 headings, expected exactly 1"))
 
+proc checkDevlogParity(raw: string): seq[Problem] =
+  ## Verifies that the bilingual development log carries the same number of
+  ## entries in its English and Chinese halves.
+  ##
+  ## The log is split by language rather than interleaved, which keeps heading
+  ## names unique but invites the two halves to drift. Counting entries is a
+  ## cheap guard: it cannot prove the entries say the same thing, but it does
+  ## catch an entry added to one half and forgotten in the other.
+  result = @[]
+  var
+    inFence = false
+    english = -1
+    chinese = -1
+  for line in raw.splitLines():
+    if line.startsWith(fence):
+      inFence = not inFence
+      continue
+    if inFence:
+      continue
+    if line.startsWith(devlogEnglishHeading):
+      english = 0
+      continue
+    if line.startsWith(devlogChineseHeading):
+      chinese = 0
+      continue
+    if not line.startsWith(devlogEntryPrefix):
+      continue
+    if chinese >= 0:
+      inc chinese
+    elif english >= 0:
+      inc english
+
+  if english < 0:
+    result.add((0, "missing the '" & devlogEnglishHeading & "' half"))
+  if chinese < 0:
+    result.add((0, "missing the '" & devlogChineseHeading & "' half"))
+  if english <= 0 and chinese <= 0:
+    return
+  if english != chinese:
+    result.add((0, "has " & $english & " English entries but " & $chinese &
+      " Chinese entries; both halves must be updated together"))
+
 proc main() =
   var paths: seq[string] = @[]
   collectMarkdown(".", paths)
   sort(paths)
 
-  var failed = false
+  var
+    failed = false
+    sawDevlog = false
   for path in paths:
-    let problems = checkMarkdown(path)
+    var problems = checkMarkdown(path)
+    if lastPathPart(path) == devlogPath:
+      sawDevlog = true
+      problems.add(checkDevlogParity(readFile(path)))
     if problems.len == 0:
       continue
     failed = true
@@ -109,6 +164,11 @@ proc main() =
         echo "    ", problem.message
       else:
         echo "    line ", problem.line, ": ", problem.message
+
+  if not sawDevlog:
+    echo "FAIL ", devlogPath
+    echo "    is required but was not found"
+    failed = true
 
   echo "Checked ", paths.len, " Markdown files."
   if failed:

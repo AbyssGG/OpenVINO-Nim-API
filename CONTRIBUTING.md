@@ -59,6 +59,10 @@ that owns their subject matter, so they do not exist yet:
    related failure-path test.
 7. `docs/c-api-coverage.md` or the managed API list is updated.
 8. `CHANGELOG.md` is updated whenever user-observable behaviour changes.
+9. `DEVLOG.md` records any decision, measurement or overturned assumption
+   worth remembering. It is bilingual: add the entry to both the `## English`
+   and the `## 中文` half in the same commit. `nimble lint` fails when the two
+   halves hold a different number of entries.
 
 ## Working with the raw layer
 

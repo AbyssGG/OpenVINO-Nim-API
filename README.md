@@ -143,9 +143,12 @@ These documents are written in the phases that own them, so some links are
 not live yet.
 
 - [Development plan](OPENVINO_NIM_0.1_DEVELOPMENT_PLAN.md)
+- [Development log, English and Chinese](DEVLOG.md)
 - [Style guide](STYLE_GUIDE.md)
 - [Contributing](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
+- [C API coverage](docs/c-api-coverage.md)
+- [Decision records](docs/decisions/0001-symbol-loading.md)
 - [Resonance prototype audit](docs/resonance-audit.md)
 
 ## License
