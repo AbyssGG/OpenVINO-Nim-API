@@ -4,6 +4,9 @@ OpenVINO-Nim-API 0.1.0 is the first release of the community-maintained Nim
 bindings for the OpenVINO Runtime C API. It is not an official Intel or
 OpenVINO project.
 
+Published as [`v0.1.0`](https://github.com/AbyssGG/OpenVINO-Nim-API/releases/tag/v0.1.0)
+on 2026-09-25.
+
 ## Highlights
 
 - A managed, idiomatic Nim API for synchronous inference with `Core`, `Model`,
@@ -38,6 +41,13 @@ Until the package is present in the Nimble package index, install from a local
 checkout with `nimble install`.
 
 ## Release assets
+
+The published `v0.1.0` assets are:
+
+- `openvino-nim-0-1-0-2026-9-25-ov2026-4-0.zip`
+- `openvino-nim-0-1-0-2026-9-25-ov2026-4-0.tar.gz`
+- `openvino-nim-0-1-0-2026-9-25-ov2026-4-0.zip.sha256`
+- `openvino-nim-0-1-0-2026-9-25-ov2026-4-0.tar.gz.sha256`
 
 The release workflow uploads exactly these four canonical assets, all sharing
 one generated base name:

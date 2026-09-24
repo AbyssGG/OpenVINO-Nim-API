@@ -10,7 +10,9 @@ Corporation 的认可或附属关系。** OpenVINO 是 Intel Corporation 的商�
 
 ## 项目状态
 
-版本 `0.1.0` 仍在开发中，尚未发布。当前已经验证的范围是：
+版本 `0.1.0` 已于 2026-09-25 发布。请从
+[GitHub Release](https://github.com/AbyssGG/OpenVINO-Nim-API/releases/tag/v0.1.0)
+下载四个校验过的源码资产。当前已经验证的范围是：
 
 - Windows x86_64 和 Linux x86_64；
 - Nim 2.2.12 和 2.2.4；

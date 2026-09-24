@@ -79,11 +79,10 @@ The current documentation surface is English-first with a Chinese entry point:
 Chinese companion. API and implementation names remain in English so that
 examples, diagnostics and generated symbol links are copyable.
 
-The current release state is pre-release. CI and the release archive dry run
-have passed, but no `v0.1.0` tag or GitHub Release has been created. H08--H10
-remain unchecked because creating an RC, tag or release requires explicit owner
-authorization. The local recovery tag `archive/resonance-before-openvino-nim`
-is not a public release asset.
+The current release state is released. The `v0.1.0` annotated tag and GitHub
+Release were created on 2026-09-25 after the clean-worktree archive check.
+The local recovery tag `archive/resonance-before-openvino-nim` is not a public
+release asset.
 
 The open-source completeness work tracked after the Phase H evidence adds the
 documentation hub, getting-started guide, API overview, roadmap, examples and
@@ -1731,8 +1730,8 @@ docs: prepare OpenVINO Nim API 0.1.0 release
 - [x] H07 全新 Windows/Linux 环境完成安装、runtime 加载和 CPU 推理。证据：`examples-package`、`smoke` 与 `integration-cpu` 已在 Windows/Linux 运行；本轮 Windows 再次运行 `packagingCheck`、ABI、smoke、debug/release integration、ORC/ARC lifecycle 全部通过。
 - [ ] H08 经授权创建并验证 `v0.1.0-rc.1`。
 - [ ] H09 RC 后只接受阻断性修复并重跑 release Gate。
-- [ ] H10 经用户明确授权后再创建正式 tag、push、release 或发布包。
-- [x] H11 对 `0.1.0`、`2026-9-24`、OpenVINO `2026.4.0` 生成精确基名 `openvino-nim-0-1-0-2026-9-24-ov2026-4-0`；元数据变化时按模板重算，且发布日期必须是真实日历日期。证据：`ci/release-archive.py --self-test`、`--print-name` 本机通过，普通 CI static job 也会运行 self-test；`2026-99-99` 与非闰年的 `2026-2-29` 被拒绝；workflow 在归档前重复运行同一断言。
+- [x] H10 经用户明确授权后创建正式 tag、push、release 和发布包。证据：tag `v0.1.0` 的 release workflow [#36061882708](https://github.com/AbyssGG/OpenVINO-Nim-API/actions/runs/36061882708) 在干净提交 `1171f91` 上完成 archive、可重复性和 publish；GitHub Release [v0.1.0](https://github.com/AbyssGG/OpenVINO-Nim-API/releases/tag/v0.1.0) 为非 draft、非 prerelease。
+- [x] H11 对 `0.1.0`、`2026-9-25`、OpenVINO `2026.4.0` 生成精确基名 `openvino-nim-0-1-0-2026-9-25-ov2026-4-0`；元数据变化时按模板重算，且发布日期必须是真实日历日期。证据：`ci/release-archive.py --self-test`、`--print-name` 本机通过，普通 CI static job 也会运行 self-test；`2026-99-99` 与非闰年的 `2026-2-29` 被拒绝；release workflow 在归档前重复运行同一断言。
 - [x] H12 生成同基名的 `.zip`、`.tar.gz`、`.zip.sha256` 和 `.tar.gz.sha256`。证据：commit `cb826e9` 的本机干净 worktree 和 commit `de49201` 的 [release dry run #36056222987](https://github.com/AbyssGG/OpenVINO-Nim-API/actions/runs/36056222987) 都生成并验证恰好四个规范文件。
 - [x] H13 两种归档都只有一个与基名相同的顶层目录，且不包含 OpenVINO runtime/SDK。证据：发布脚本读回 zip/tar 的每个 entry，检查唯一顶层目录并拒绝 17 类二进制、runtime 与模型扩展名；本机与 GitHub dry run 均通过。
 - [x] H14 在相同 commit 和发布元数据下重复生成归档，逐项 checksum 一致。证据：本机两次构建与 GitHub dry run 的重复构建均逐文件相等；本机规范归档摘要为 zip `171b2f6e…b3080da`、tar.gz `1d225555…1f0bb1`，两个 sidecar 本身也逐字节一致。
@@ -1746,7 +1745,7 @@ This follow-up phase improves the repository surface without expanding the
 maintained entry point rather than a second API vocabulary.
 
 - [x] I01 Add an English-first README with CI, license, Nim, OpenVINO and
-  pre-release badges, a quick-start path, a feature matrix, project layout and
+  release-status badges, a quick-start path, a feature matrix, project layout and
   support/security links. Evidence: `README.md`.
 - [x] I02 Add the Chinese companion README and explicit language switching.
   Evidence: `README_zh-CN.md` links back to the English canonical document and
@@ -1779,8 +1778,8 @@ maintained entry point rather than a second API vocabulary.
   Evidence: `README.md` and `RELEASE_NOTES.md` list the exact `.zip`, `.tar.gz`
   and two `.sha256` assets; `.github/workflows/release.yml` publishes only
   those four files after the archive verifier checks the top-level directory,
-  forbidden extensions and reproducibility. No tag or Release was created by
-  this documentation update.
+  forbidden extensions and reproducibility. Release `v0.1.0` contains exactly
+  the four generated assets.
 
 ---
 

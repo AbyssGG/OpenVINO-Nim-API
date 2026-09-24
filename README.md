@@ -4,7 +4,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Nim](https://img.shields.io/badge/Nim-%E2%89%A52.0.0-yellow.svg)](https://nim-lang.org/)
 [![OpenVINO](https://img.shields.io/badge/OpenVINO-2026.4.x-6b4fbb.svg)](https://docs.openvino.ai/)
-[![Status](https://img.shields.io/badge/status-pre--release-orange.svg)](CHANGELOG.md)
+[![Status](https://img.shields.io/badge/status-v0.1.0-brightgreen.svg)](https://github.com/AbyssGG/OpenVINO-Nim-API/releases/tag/v0.1.0)
 
 **English** | [简体中文](README_zh-CN.md)
 
@@ -21,8 +21,9 @@ Corporation.** OpenVINO is a trademark of Intel Corporation.
 
 ## Status
 
-Version `0.1.0` is under active development and is not released yet. The
-work is tracked phase by phase in
+Version `0.1.0` was released on 2026-09-25. Download the source archives from
+the [GitHub Release](https://github.com/AbyssGG/OpenVINO-Nim-API/releases/tag/v0.1.0).
+The work is tracked phase by phase in
 [OPENVINO_NIM_0.1_DEVELOPMENT_PLAN.md](OPENVINO_NIM_0.1_DEVELOPMENT_PLAN.md).
 
 Synchronous inference works. `Core`, `Model`, `CompiledModel`,
@@ -78,9 +79,8 @@ below and is compiled from the same source as `examples/minimal.nim`.
 
 ## Release artifacts
 
-The release workflow follows the packaging contract in the development plan.
-For an authorized release it produces exactly four canonical assets with one
-shared base name:
+The `v0.1.0` Release follows the packaging contract in the development plan
+and contains exactly four canonical assets with one shared base name:
 
 ```text
 openvino-nim-{version}-{date}-ov{openvino-version}.zip
@@ -90,10 +90,9 @@ openvino-nim-{version}-{date}-ov{openvino-version}.tar.gz.sha256
 ```
 
 Both archives contain one top-level directory named after the base name and
-are checked for reproducibility and forbidden runtime/model files. The
-workflow's manual trigger is a dry run; a Git tag is required before assets
-can be uploaded to a GitHub Release. See [RELEASE_NOTES.md](RELEASE_NOTES.md)
-for the consumer-side checksum command.
+were checked for reproducibility and forbidden runtime/model files. See
+[RELEASE_NOTES.md](RELEASE_NOTES.md) for the published asset names and the
+consumer-side checksum command.
 
 ## Six naming roles
 
@@ -171,8 +170,8 @@ modifies environment variables or the process search path on your behalf.
 nimble install openvino
 ```
 
-The Nimble package index entry may not exist yet while `0.1.0` is
-unreleased. Until then, install from a local checkout:
+The Nimble package index entry is not published yet. Until then, install from
+a local checkout:
 
 ```shell
 nimble install

@@ -13,22 +13,16 @@ and the OpenVINO runtime baseline evolve independently:
 
 ## Unreleased
 
-- Added an English-first README with a Chinese companion, quick-start path,
-  feature matrix, project layout and support links.
-- Added the documentation hub, getting-started guide, API overview, roadmap,
-  examples guide and tests guide.
-- Added generated API pages for every public managed module and the explicit
-  raw entry point, with a merged symbol index under `build/docs`.
-- Added `SECURITY.md`, `SUPPORT.md`, `CODE_OF_CONDUCT.md`, issue forms and a
-  pull-request template.
-- Corrected stale implementation, CI and C API coverage documentation so it
-  describes the current repository rather than the original audit snapshot.
-- Hardened the release archive date input: impossible and non-leap-year dates
-  are rejected before an archive name can be generated.
+No changes yet.
 
 ## 0.1.0
 
-Not released. Under development.
+Released on 2026-09-25 as
+[`v0.1.0`](https://github.com/AbyssGG/OpenVINO-Nim-API/releases/tag/v0.1.0).
+
+The release also includes the English-first README and Chinese companion,
+generated API pages, community health files, the manual Pages workflow, strict
+release-date validation, and the four checksummed source assets.
 
 ### Nim API
 
