@@ -1,0 +1,56 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# Manual API documentation publishing. The repository keeps this workflow
+# separate from blocking CI so Pages can be enabled by a maintainer when the
+# repository settings and deployment environment are ready.
+
+name: docs-pages
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: build API pages
+    runs-on: ubuntu-24.04
+    steps:
+      # actions/checkout v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      # jiro4989/setup-nim-action v2.3.1
+      - uses: jiro4989/setup-nim-action@189b145833368cc92f1e7b3e166a25a3e057a693
+        with:
+          nim-version: 2.2.12
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate API documentation
+        run: nimble docs
+
+      # actions/configure-pages v6.0.0
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d
+
+      # actions/upload-pages-artifact v5.0.0
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9
+        with:
+          path: build/docs
+
+  deploy:
+    name: deploy API pages
+    needs: build
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      # actions/deploy-pages v5.0.1
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346

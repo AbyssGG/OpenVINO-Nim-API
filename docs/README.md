@@ -31,6 +31,14 @@ The task generates a page for every public managed module, the explicit raw
 entry point, and a merged symbol index under `build/docs`. The output is an
 artifact in CI and can also be opened locally at `build/docs/index.html`.
 
+## Optional GitHub Pages deployment
+
+The manual `docs-pages` workflow builds the same output and deploys it to
+GitHub Pages. A maintainer must first enable Pages for GitHub Actions and allow
+the `github-pages` environment; until then, the normal CI artifact remains the
+supported hosted copy. The workflow is deliberately manual so an unopened
+Pages setting cannot break the required test workflow.
+
 Markdown is checked by `nimble lint`. New documents need one H1 heading,
 language-tagged fenced blocks, descriptive links and a final newline.
 

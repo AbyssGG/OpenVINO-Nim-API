@@ -1770,8 +1770,11 @@ maintained entry point rather than a second API vocabulary.
   and `.github/pull_request_template.md`.
 - [x] I08 Keep the project free of unwanted editor metadata. Evidence: the
   repository tree and tracked-text search contain no such entry.
-- [ ] I09 Publish API pages through GitHub Pages. Deferred until repository
-  Pages settings and a deploy permission are explicitly authorized.
+- [ ] I09 Publish API pages through GitHub Pages. Evidence prepared:
+  `.github/workflows/docs-pages.yml` builds the same `nimble docs` output and
+  uses SHA-pinned Pages actions, while `docs/README.md` documents the required
+  repository setting and `github-pages` environment. The first deployment is
+  still deferred until those settings and deploy permission are enabled.
 - [x] I10 Keep the release package contract visible at the point of use.
   Evidence: `README.md` and `RELEASE_NOTES.md` list the exact `.zip`, `.tar.gz`
   and two `.sha256` assets; `.github/workflows/release.yml` publishes only
