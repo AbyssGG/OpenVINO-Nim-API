@@ -67,9 +67,11 @@ proc loaderHint*(): string =
   ## Kept free of machine-specific paths on purpose: a hint that quotes one
   ## developer's installation directory is misleading everywhere else.
   when defined(windows):
-    "Ensure openvino_c.dll and the rest of the OpenVINO runtime directory " &
-      "are on the DLL search path, for example by running the official " &
-      "setupvars.bat, or set -d:openvinoLib=<full path to openvino_c.dll>."
+    "Ensure the OpenVINO runtime directory and its 3rdparty dependency " &
+      "directories are on the DLL search path. Running the official " &
+      "setupvars.bat does this. Pointing -d:openvinoLib at openvino_c.dll " &
+      "alone is not enough, because that library loads further libraries " &
+      "from other directories."
   elif defined(macosx):
     "Ensure libopenvino_c.dylib is on the dynamic loader path, for example " &
       "via DYLD_LIBRARY_PATH or the official setupvars.sh, or set " &

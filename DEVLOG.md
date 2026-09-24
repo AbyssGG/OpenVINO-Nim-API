@@ -226,6 +226,56 @@ infer request, plus the required-symbol test, the Core smoke test and the
 `ov_tensor_set_shape` by-value regression. Nothing in the package calls
 OpenVINO yet.
 
+### 2026-09-24 Phase 2: the loader, and the first real calls into OpenVINO
+
+Added `openvino/raw/loader`, `error`, `shape`, `core` and `tensor`, plus
+`tests/abi/tsmoke_runtime.nim` and `nimble testSmoke`. All 8 smoke tests pass
+against the installed runtime, so the package now genuinely calls OpenVINO.
+
+Before writing the loader, one more measurement settled its shape. A `dynlib`
+given as a runtime variable rather than a constant still loads during module
+initialisation, and the diagnostic is worse: the message reads
+`could not load: ` with an empty name, because the variable has not been
+assigned yet when the init-time load runs. The variable form is therefore
+strictly worse than the constant form, and ADR 0001 stands.
+
+Bindings are declared through an `{.openvinoImport.}` macro pragma, so a
+binding is a single declaration that reads like the C prototype it mirrors:
+
+```nim
+proc ov_core_create*(core: ptr ptr ov_core_t): ov_status_e {.openvinoImport.}
+```
+
+The expansion adds a cached procedure pointer, resolves it through
+`functionSymbol` on first call, and forwards the arguments. The imported C
+name is the Nim procedure's own name, so the two cannot disagree, and there is
+no per-function boilerplate to keep in step.
+
+The by-value regression for `ov_tensor_set_shape` asserts more than a success
+status. It creates a tensor, replaces its shape, then reads the shape back and
+requires the observed dimensions, element count, byte size and element type to
+match what was requested. A pointer-passing declaration, which is what the
+prototype had, would hand OpenVINO the wrong bytes; only checking the observed
+result distinguishes a correct signature from one that merely fails to crash.
+
+A deployment lesson came out of getting the smoke test to run. The library
+would not load even when given its full path, with the file demonstrably
+present on disk. The cause was a missing dependency: `openvino_c.dll` needs
+`openvino.dll` beside it, and that needs the bundled oneTBB library from the
+runtime's `3rdparty` directory, which is a different directory. This is
+exactly the case the deployment hint warns about, so the loader now
+distinguishes "no such file" from "file exists but could not be loaded" and
+says that the second means a dependency is missing, not a wrong path.
+
+Two Nim details worth recording. `return` is not allowed inside a `unittest`
+`test` block, because the block is a template body, so early-exit guards are
+written as nested conditions. And Nim now warns that an implicit `string` to
+`cstring` conversion from a non-const location will become an error, so
+`symAddr` calls convert explicitly.
+
+Still to do in this phase: raw modules for property, node, model, compiled
+model and infer request, and extending the required-symbol list as they land.
+
 ## 中文
 
 ### 2026-09-24 Phase 0：审计原型并冻结范围
@@ -386,3 +436,44 @@ rank 后跟一个指针。`ov_property_t`、`ov_version_t`、
 compiled model、tensor、infer request 各 raw 模块，加上必需符号测试、Core
 smoke test 和 `ov_tensor_set_shape` 的按值传参回归测试。包内目前仍无任何代码
 调用 OpenVINO。
+
+### 2026-09-24 Phase 2：加载器，以及第一次真正调用 OpenVINO
+
+加入 `openvino/raw/loader`、`error`、`shape`、`core`、`tensor`，以及
+`tests/abi/tsmoke_runtime.nim` 与 `nimble testSmoke`。8 个 smoke 测试针对已
+安装的 runtime 全部通过，包内现在确实会调用 OpenVINO 了。
+
+写加载器之前又做了一次测量来确定其形态。把 `dynlib` 写成运行期变量而非常量，
+仍然在模块初始化阶段加载，而且诊断更差：消息是 `could not load: `，库名为空，
+因为初始化期加载时该变量还没被赋值。所以变量形式严格差于常量形式，ADR 0001
+的结论成立。
+
+绑定通过 `{.openvinoImport.}` 宏 pragma 声明，因此一个绑定就是一行、读起来
+与它镜像的 C 原型一致：
+
+```nim
+proc ov_core_create*(core: ptr ptr ov_core_t): ov_status_e {.openvinoImport.}
+```
+
+展开后会添加一个缓存的过程指针，首次调用时经 `functionSymbol` 解析，然后转发
+参数。导入的 C 名称就是 Nim 过程自己的名字，两者无法不一致，也没有需要同步
+维护的逐函数样板。
+
+`ov_tensor_set_shape` 的按值回归测试断言的不只是成功状态。它创建 tensor、
+替换 shape，然后把 shape 读回来，要求观测到的维度、元素数、字节数与元素类型
+都与请求一致。传指针的声明——也就是原型的写法——会把错误的字节交给 OpenVINO；
+只有检查观测结果才能区分"签名正确"与"恰好没崩"。
+
+让 smoke 测试跑起来的过程带来一个部署层面的教训。即使给出完整路径、文件明明
+存在于磁盘上，库依然加载失败。原因是依赖缺失：`openvino_c.dll` 需要同目录的
+`openvino.dll`，而后者需要 runtime 的 `3rdparty` 目录下自带的 oneTBB 库——那
+是另一个目录。这正是 deployment hint 警告的情形，因此加载器现在会区分"文件
+不存在"与"文件存在但加载失败"，并说明后者意味着依赖缺失，而不是路径写错。
+
+两个值得记录的 Nim 细节。`unittest` 的 `test` 块内不允许 `return`，因为那是
+模板体，所以提前退出改写成嵌套条件。另外 Nim 现在会警告：从非 const 位置发生
+的 `string` 到 `cstring` 隐式转换将来会成为错误，因此 `symAddr` 调用改为显式
+转换。
+
+本阶段尚未完成：property、node、model、compiled model、infer request 各 raw
+模块，以及随其落地扩充必需符号列表。

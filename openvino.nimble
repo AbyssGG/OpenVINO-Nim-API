@@ -327,6 +327,12 @@ task testAbi, "Compare the raw bindings against the pinned OpenVINO headers":
 
   exec "nim c --hints:off --path:src -r tests/abi/tabi_layout.nim"
 
+task testSmoke, "Load a real OpenVINO runtime and exercise the raw layer":
+  # Needs an installed runtime on the loader path, not just the headers. The
+  # test itself reports a missing or incomplete runtime as a failure with the
+  # full diagnostic, so there is nothing to detect here.
+  exec "nim c --hints:off --path:src -r tests/abi/tsmoke_runtime.nim"
+
 task docs, "Generate API documentation for the public entry point":
   mkDir "build/docs"
   exec "nim doc --hints:off --project --index:on --path:src " &
