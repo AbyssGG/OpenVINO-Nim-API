@@ -1,4 +1,0 @@
-# Placeholder so the internal implementation directory exists before Phase 2
-# lands library discovery and handle helpers. Delete this file once private
-# modules exist. Nothing in this directory may be re-exported by
-# src/openvino.nim.

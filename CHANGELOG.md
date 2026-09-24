@@ -66,3 +66,15 @@ Not released. Under development.
   `skipDirs` and `skipFiles`, so the installed package cannot hand a consumer
   the prototype binding. The exclusions are removed when `src/resonance` is
   deleted.
+- Added the `-d:openvinoLib=...` compile-time option, which overrides the
+  name or full path of the OpenVINO C API library. It changes only which file
+  is opened, never an API signature, and it is not a way to target an
+  OpenVINO version other than the pinned baseline.
+
+### Documentation
+
+- Added `docs/c-api-coverage.md`, recording the pinned `2026.4.0` headers with
+  their checksums and classifying every C entry point as bound, planned or out
+  of scope, together with its ownership and by-value facts.
+- Added `docs/decisions/0001-symbol-loading.md`, recording why the raw layer
+  resolves symbols explicitly instead of using Nim's `dynlib` pragma.

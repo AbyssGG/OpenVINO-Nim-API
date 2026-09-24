@@ -246,6 +246,44 @@ openvino/version.nim
 的 `packages_official.json` 可绕过。这是本机网络环境问题，不是包的问题，
 但会让干净环境安装测试不稳定，Phase 5 的 `examples-package` 作业需要考虑。
 
+### 2.10 Phase 2 起步实验：两个决定 raw 层形态的约束
+
+在写任何 raw 绑定之前，用两个最小实验验证了本文隐含的两个假设。两者都推翻了原假设。
+
+**实验一：Nim 接受降序 enum。**
+
+本文 §2.2 与 `docs/resonance-audit.md` 曾推测旧 `c_api.nim` 的 `OvStatus`
+可能根本无法编译，因为它按 `OK = 0`、`GENERAL_ERROR = -1` 的降序给值。
+实测编译通过（exit 0）。因此旧绑定的状态码错误是**语义错误而非编译错误**，
+不会被编译器拦住，这也解释了它为何能长期存在。
+
+但这不改变 raw 层的选择。把 C 返回的任意 `int` 转成 Nim enum 是危险的：
+一旦 runtime 返回未绑定的值，该 enum 就持有非法值，`$` 与 `case` 的行为
+不再可靠。因此 **raw 层的 `ov_status_e` 与 `ov_element_type_e` 使用
+`cint` 类型别名加常量，而不是 Nim enum**，以保证 C `int` ABI 并容忍未知值。
+友好的枚举表示留给 managed 层，并在转换时校验取值范围。
+
+**实验二：`dynlib` pragma 在进程启动时加载，失败不可捕获。**
+
+对一个不存在的库声明 `{.dynlib: "definitely_absent_lib.dll".}` 并运行：
+
+```text
+could not load: definitely_absent_lib.dll
+RUN_EXIT=1
+```
+
+程序主体的第一条 `echo` 从未执行。Nim 在模块初始化阶段加载，失败时直接
+向 stderr 写一行并 `quit(1)`。
+
+后果是硬性的：**只要 raw 层使用 `dynlib` pragma，本文 §9.1 的
+`OpenVinoLibraryError`、C13 的可操作诊断、§8.5 要求的"目标平台 / 尝试的库名
+/ 期望版本 / 环境配置提示"和 §12.3 的版本不匹配可操作错误，全部无法实现**
+——因为没有任何 Nim 代码有机会运行。
+
+因此 raw 层改为显式 `loadLib` / `symAddr` 加载，决策与代价记录在
+`docs/decisions/0001-symbol-loading.md`。这同时让 C15（必需符号解析测试）
+和 Phase 2 Gate 的 `_props` 符号检查成为加载器的自然产物，而不是额外机制。
+
 ---
 
 ## 3. 范围与非目标
