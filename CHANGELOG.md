@@ -55,3 +55,14 @@ Not released. Under development.
   now travels with the repository instead of depending on each contributor's
   `core.autocrlf` setting, which would otherwise produce CRLF working trees
   that fail `nimble lint`.
+- Package metadata is declared as literals in `openvino.nimble` rather than
+  derived from `openvino/version.nim` at manifest evaluation time. Nimble
+  copies the manifest into the installed package, where `srcDir` has been
+  flattened, so reading a file under `src/` broke `nimble install` for every
+  consumer. `nimble releaseCheck` asserts each literal against the version
+  module instead, and rejects any manifest that reads files while being
+  evaluated.
+- `openvino.nimble` excludes the Resonance prototype from installation via
+  `skipDirs` and `skipFiles`, so the installed package cannot hand a consumer
+  the prototype binding. The exclusions are removed when `src/resonance` is
+  deleted.

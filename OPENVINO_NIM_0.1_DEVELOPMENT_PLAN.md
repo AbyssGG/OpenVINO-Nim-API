@@ -178,7 +178,73 @@ Nimble 对每个包只接受一个 manifest。在两个 `.nimble` 并存时，`n
 
 处理方式：新增 `.gitattributes`，声明 `* text=auto eol=lf`。`eol=lf` 优先于 `core.autocrlf`，因此 LF 策略随仓库传播，而不依赖每位开发者的 Git 配置。二进制 fixture 扩展名单独标记为 `binary`，防止被转换。这条修复不改动任何 Git 配置。
 
-`user.name` / `user.email` 未设置是 A08 的实际执行阻断项。按 §17 规则 2 与本文的 Git 安全约束，AI 开发代理不得自行设定提交身份，也不得凭猜测填写邮箱——错误的作者信息一旦进入历史，只能靠被禁止的历史改写来纠正。因此基线提交需要项目所有者提供确切的 name 与 email。
+`user.name` / `user.email` 未设置曾是 A08 的执行阻断项。按 §17 规则 2 与本文的 Git 安全约束，AI 开发代理不得自行设定提交身份，也不得凭猜测填写邮箱——错误的作者信息一旦进入历史，只能靠被禁止的历史改写来纠正。
+
+已由项目所有者提供 GitHub 账户后解除。采用的身份为 GitHub 账户对应的
+noreply 地址，并且只写入仓库本地配置（`git config --local`），不触碰全局
+配置：
+
+```text
+user.name  = AbyssGG
+user.email = 97943633+AbyssGG@users.noreply.github.com
+```
+
+该邮箱是从账户数值 ID 按 GitHub 官方格式推导的，不是猜测。账户的公开
+`email` 字段为 `null`，即已启用邮箱隐私保护，因此 noreply 形式既能正确
+归属提交，也不会泄露真实邮箱。
+
+### 2.9 Phase 1 打包实测发现的缺陷
+
+双 manifest 解除后，`nimble install` 首次可执行，并立刻暴露两个只有打包
+才能发现的问题。二者都已修复。
+
+**缺陷一：manifest 在安装后的包中不可读。**
+
+Nimble 安装时把 `srcDir` 的内容摊平到包根目录，并把 manifest 复制进去
+重新读取。原实现用 `staticRead("src/openvino/version.nim")` 派生版本号，
+在开发目录成立，在安装后的包中该路径不存在：
+
+```text
+Error:  Could not read package info file in ...\openvino-0.1.0-...\openvino.nimble
+    Evaluating as NimScript file failed with:
+      openvino.nimble(16, 29) Error: cannot open file: src/openvino/version.nim
+```
+
+后果是任何依赖该包的项目在解析依赖时都会失败。修复方式与 §2.7 的
+`requires` 约束相同：manifest 只用字面量，`nimble releaseCheck` 反向断言
+每个字面量与 `version.nim` 一致，并新增一条回归检查，禁止 manifest 在求值
+期读取文件。
+
+这条回归检查本身经历了两次自指失败：先是匹配到自己的错误信息文本，再是
+匹配到自己的检查字面量。最终以运行期拼接构造 needle。同类自指问题在
+`styleChecks: off` 的 allowlist 检查中也出现过一次。结论：任何"扫描仓库
+文本"的检查都必须确认它不会命中自己的实现。
+
+**缺陷二：安装包携带 Resonance 原型。**
+
+`src/resonance/` 仍在 `srcDir` 下，因此被一并安装，使消费者可以
+`import resonance` 拿到带已知 ABI 缺陷、且在 Linux 上无法编译的绑定。
+
+修复方式为 `skipDirs` / `skipFiles`。实测语义：**这两个列表的路径相对包根
+目录，因此必须保留 `src/` 前缀**，尽管安装过程会把 `srcDir` 摊平。按
+`srcDir` 相对路径书写（`resonance`）不会报错，但什么也不排除——是一个静默
+失效的配置。
+
+修复后安装包内容为四个文件，无原型、无文档、无测试、无 SDK、无绝对路径：
+
+```text
+nimblemeta.json
+openvino.nim
+openvino.nimble
+openvino/version.nim
+```
+
+`src/resonance` 在 Phase 2 删除时，这两行 skip 配置必须同时移除。
+
+**环境附注。** 本机在向 `raw.githubusercontent.com` 下载 Nimble 官方包
+列表时出现间歇性 `Failed to verify the SSL certificate`。重试或复用已下载
+的 `packages_official.json` 可绕过。这是本机网络环境问题，不是包的问题，
+但会让干净环境安装测试不稳定，Phase 5 的 `examples-package` 作业需要考虑。
 
 ---
 
@@ -1111,20 +1177,21 @@ nimble releaseArchive
 
 | Gate 条目 | 状态 | 证据 |
 |---|---|---|
-| `nimble check` 通过 | 副本通过，工作树阻断 | 副本输出 `Success: The package "openvino" is valid.`；工作树因双 manifest 失败（§2.6） |
-| `import openvino` 可编译 | Windows 通过，Linux 未验证 | `nim check --styleCheck:error --path:src src/openvino.nim` 零输出退出；Linux 仅有 CI 定义 |
-| 包归档不含构建产物/runtime/开发路径 | **未通过** | 打包实测被 §2.6 阻断；`.gitignore` 已覆盖但未实测 |
+| `nimble check` 通过 | 通过 | 真实工作树输出 `Success: The package "openvino" is valid.`；双 manifest 冲突已由基线提交后删除 `resonance.nimble` 解除 |
+| `import openvino` 可编译 | Windows 通过，Linux 未验证 | `nim check --styleCheck:error --path:src src/openvino.nim` 零输出退出；Linux 仅有 CI 定义，无运行记录 |
+| 包归档不含构建产物/runtime/开发路径 | 通过 | `nimble install` exit 0，安装结果仅四个文件；见 B09 与 §2.9 |
 | 项目名、版本、许可证三处一致 | 通过 | `nimble releaseCheck` 输出 `openvino-nim 0.1.0 against OpenVINO 2026.4.0`，并已反向测试 |
 | README 说明四种名称的用途 | 通过 | `README.md` 的 "Four names, four purposes" 表 |
-| managed 代码通过 `nimpretty` 与 `--styleCheck:error` | 通过 | `nimble formatCheck` 报 5 个文件零差异；`nimble lint` 逐文件 `nim check --styleCheck:error` 通过 |
+| managed 代码通过 `nimpretty` 与 `--styleCheck:error` | 通过 | `nimble formatCheck` 零差异；`nimble lint` 逐文件 `nim check --styleCheck:error` 通过 |
 | C probe 通过 pinned `clang-format` | 不适用 | 尚无手写 C 文件；`.clang-format` 已就位，检查随 Phase 2 的 probe 接入 |
 | 不存在仓库级 style/lint 关闭 | 通过 | `styleChecks: off` 零出现，且 `nimble lint` 强制其目录 allowlist |
 
-已完成 Checklist：B01–B07、B11、S01–S05、S08、S09、S11、S14、S16、S17。
-部分完成：B08、B10、B12、S07、S10、S15。
-阻断：B09 与 `nimble check`、打包实测，均由 §2.6 的双 manifest 冲突造成。
+已完成 Checklist：B01–B07、B09、B11、S01–S05、S08、S09、S11、S14、S16、S17。
+部分完成：B08（Linux 侧未实测）、B10、B12、S07、S10、S15。
 
-结论：Phase 1 的实现内容已完成并逐项验证，但 Gate 未通过。唯一根因是 §2.6：`resonance.nimble` 与 `openvino.nimble` 并存使 Nimble 拒绝包级操作，而移除旧 manifest 需要 §2.6 列出的两种授权之一。不得在授权到达前进入 Phase 2。
+结论：Phase 1 Gate 通过，唯一保留项是 Linux 侧的编译验证——它只能由 CI 的第一次运行关闭，不可能在本机完成，因此不作为进入 Phase 2 的阻断项，但必须在 Phase 5 的 Tier 1 CI 全绿前关闭。
+
+可进入 Phase 2。
 
 ### Phase 2：Raw C ABI 基础
 
@@ -1386,7 +1453,7 @@ docs: prepare OpenVINO Nim API 0.1.0 release
 - [x] B06 建立 raw、managed、private 分层目录。证据：`src/openvino/`（managed）、`src/openvino/raw/`、`src/openvino/private/`，后两者以带说明的 `.gitkeep` 占位。
 - [x] B07 建立单一版本事实来源或自动一致性检查。证据：`src/openvino/version.nim` 为唯一来源，`openvino.nimble` 用 `staticRead` 派生 `version`；`nimble releaseCheck` 通过，并已用反向测试验证：把 `PackageVersion` 改为 `0.2.0` 后该任务以 exit 1 报出 CHANGELOG/README 不一致。
 - [ ] B08 在 Windows/Linux 验证最小 `import openvino` 编译。**部分完成**：Windows x86_64 + Nim 2.2.12 实测 `nim check --styleCheck:error` 通过、8 个单元测试全过。Linux 侧仅由 `.github/workflows/ci.yml` 的 `unit` 作业定义，尚无 CI 运行记录，因此不勾选。
-- [ ] B09 验证 Nimble 包归档不含本机路径、SDK/runtime 或临时文件。**阻断中**：工作树同时存在 `resonance.nimble` 与 `openvino.nimble`，Nimble 拒绝任何包级操作（见 §2.6）。`.gitignore` 已覆盖构建产物、runtime 库、blob 与模型权重，但打包实测需先解除双 manifest 冲突。
+- [x] B09 验证 Nimble 包归档不含本机路径、SDK/runtime 或临时文件。证据：`nimble install --nimbleDir:<temp>` 以 exit 0 完成，安装结果为 `nimblemeta.json`、`openvino.nim`、`openvino.nimble`、`openvino/version.nim` 四个文件，无绝对路径、无 SDK/runtime、无临时文件、无文档与测试。过程发现并修复了两个缺陷，记录于 §2.9。
 - [ ] B10 为翻译/生成自上游 C headers 的声明记录 SPDX、tag/commit 和来源，并复核是否需要 NOTICE/归属说明。**部分完成**：全部手写源文件已带 `SPDX-License-Identifier: Apache-2.0`；上游 tag/commit 已记录为 `version.nim` 的 `TargetOpenVinoTag`/`TargetOpenVinoCommit`。真正翻译自 header 的声明尚不存在（Phase 2），NOTICE 结论随 raw 层一并给出。
 - [x] B11 README 解释对外名 `openvino-nim`、Nimble 标识 `openvino`、清单 `openvino.nimble` 和导入入口 `import openvino` 的区别。证据：`README.md` 的 "Four names, four purposes" 表，四项逐条给出用途与原因。
 - [ ] B12 查询官方 Nimble 包索引，确认 `openvino` 在采用时未被其他项目占用；发布前再次查询并保留证据。**首次查询已完成**：2026-09-24 拉取 `nim-lang/packages` 的 `packages.json`，共 2945 个包，`name` 精确等于 `openvino` 的记录数为 0，且不存在任何包含 `openvino` 或 `vino` 的近似名。发布前的第二次查询尚未进行，故不勾选。

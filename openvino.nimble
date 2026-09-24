@@ -6,14 +6,14 @@
 # Nimble package identifier : openvino   (Nimble identifiers forbid hyphens)
 # Nim import root           : import openvino
 #
-# Every metadata value below is derived from src/openvino/version.nim so that
-# the manifest and the library can never disagree about the version.
+# The metadata below is written as literals on purpose. See the comment above
+# the assignments; `nimble releaseCheck` asserts every literal against
+# src/openvino/version.nim, which remains the single source of truth.
 
 import std/strutils
 
 const
   versionModule = "src/openvino/version.nim"
-  versionSource = staticRead(versionModule)
   formatArgs = "--indent:2 --maxLineLen:80"
   styleOffPragma = "styleChecks: off"
   rawLayerPrefix = "src/openvino/raw"
@@ -33,9 +33,15 @@ const
 proc stringMetadata(name: string): string =
   ## Reads the exported string constant `name` from the version module.
   ##
-  ## Raises `ValueError` when the constant is missing, so that a renamed or
-  ## deleted constant fails the manifest loudly instead of silently
-  ## producing an empty version.
+  ## Only safe to call from a task body, which runs in a development
+  ## checkout. The manifest body must never read the version module: Nimble
+  ## also evaluates this manifest from the *installed* package, where
+  ## `srcDir` has been flattened into the package root and
+  ## `src/openvino/version.nim` does not exist.
+  ##
+  ## Raises `ValueError` when the constant is missing, so a renamed or
+  ## deleted constant fails loudly instead of yielding an empty string.
+  let versionSource = readFile(versionModule)
   for rawLine in versionSource.splitLines():
     let parts = rawLine.split('=', 1)
     if parts.len != 2:
@@ -51,18 +57,40 @@ proc stringMetadata(name: string): string =
   raise newException(ValueError,
     "cannot read string constant '" & name & "' from " & versionModule)
 
-version = stringMetadata("PackageVersion")
+# These assignments must stay literals, for two independent reasons.
+#
+# First, Nimble parses this manifest twice, declaratively and in the VM, and
+# rejects the package when the two disagree; a computed `requires` is
+# invisible to the declarative parser.
+#
+# Second, Nimble copies the manifest into the installed package and re-reads
+# it there. Installation flattens `srcDir`, so a manifest that reads
+# `src/openvino/version.nim` at evaluation time fails with "cannot open
+# file" for every consumer of the installed package.
+#
+# `nimble releaseCheck` closes the loop by asserting each literal against
+# src/openvino/version.nim, so the single source of truth still wins.
+version = "0.1.0"
 author = "WANG"
 description = "Community-maintained Nim bindings for the OpenVINO Runtime " &
   "C API. Not an official Intel or OpenVINO project."
 license = "Apache-2.0"
 srcDir = "src"
 
-# This requirement must stay a string literal. Nimble parses the manifest
-# twice, once declaratively and once in the VM, and rejects the package when
-# the two disagree; a computed value is invisible to the declarative parser.
-# `nimble releaseCheck` asserts that this literal matches MinimumNimVersion in
-# src/openvino/version.nim, so the single source of truth is still enforced.
+# The Resonance prototype still lives under srcDir until Phase 2 replaces it.
+# Without these exclusions `nimble install` ships it inside the installed
+# package, where `import resonance` would hand a consumer the binding whose
+# ABI defects are catalogued in docs/resonance-audit.md, and which does not
+# compile on Linux at all.
+#
+# These paths are relative to the package root and therefore keep the `src/`
+# prefix, even though installation flattens srcDir away. Spelling them
+# relative to srcDir silently skips nothing.
+#
+# Remove both lines when src/resonance is deleted.
+skipDirs = @["src/resonance"]
+skipFiles = @["src/resonance.nim"]
+
 requires "nim >= 2.0.0"
 
 # --------------------------------------------------------------------------
@@ -242,10 +270,29 @@ task releaseCheck, "Verify version metadata is consistent across the repo":
   let
     manifest = readFile("openvino.nimble")
     expectedRequires = "requires \"nim >= " & minimumNim & "\""
+    expectedVersion = "version = \"" & packageVersion & "\""
   if not manifest.contains(expectedRequires):
     failures.add("openvino.nimble does not contain the literal '" &
       expectedRequires & "' required by MinimumNimVersion '" &
       minimumNim & "'")
+  if not manifest.contains(expectedVersion):
+    failures.add("openvino.nimble does not contain the literal '" &
+      expectedVersion & "' required by PackageVersion '" &
+      packageVersion & "'")
+
+  # Regression guard for a defect found by the packaging test: Nimble copies
+  # this manifest into the installed package and re-reads it there, and
+  # installation flattens srcDir. A manifest that reads a file under src/ at
+  # evaluation time therefore breaks every consumer of the installed package
+  # with "cannot open file: src/openvino/version.nim".
+  # The needle is assembled at run time so that this guard cannot match its
+  # own source line. Writing the call spelling as a literal here would make
+  # the check fail against a manifest that is in fact correct.
+  let forbiddenCall = "static" & "Read" & "("
+  if manifest.contains(forbiddenCall):
+    failures.add("openvino.nimble must not read files at evaluation time: " &
+      "the installed package has no src/ directory, so evaluating the " &
+      "manifest there fails with 'cannot open file'")
 
   if not openVinoVersion.startsWith(expectedPrefix):
     failures.add("TargetOpenVinoVersion '" & openVinoVersion &
