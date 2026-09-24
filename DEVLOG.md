@@ -276,6 +276,48 @@ written as nested conditions. And Nim now warns that an implicit `string` to
 Still to do in this phase: raw modules for property, node, model, compiled
 model and infer request, and extending the required-symbol list as they land.
 
+### 2026-09-25 Phase 3: errors and the handle lifetime model
+
+Added `openvino/errors`, `openvino/private/handles`,
+`openvino/private/conversions`, [ADR 0002](docs/decisions/0002-handle-model.md),
+`docs/ownership.md`, and three test files. `nimble testLifecycle` runs the
+lifetime and error-path tests under both ORC and ARC; all eight nimble tasks
+exit 0.
+
+Handles are `ref` objects rather than non-copyable value types. The plan allowed
+either, and the deciding argument is what each one risks. A value type risks a
+copy slipping through and two owners releasing the same pointer. A shared `ref`
+makes that impossible by construction, because there is one pointer field and
+every alias reads it; what remains is release happening later than expected,
+which is a resource-timing question rather than a memory-safety one. Trading a
+memory-safety risk for a timing risk is the right direction for a binding whose
+failures would otherwise be native crashes, and `close()` exists for callers who
+need a known release point.
+
+`handles.nim` takes its release function as a parameter and knows nothing about
+OpenVINO. That is what makes the lifetime tests meaningful: a counting stub
+stands in for `ov_*_free`, so the tests assert that a release happened *exactly
+once*. A test that cannot count releases cannot detect a double free, which is
+the bug that matters. Closing three times still counts one release, aliases
+share one closed state, and a thousand abandoned handles are all collected.
+
+The last-error ordering is now implemented in exactly one place. The pointer is
+fetched, copied, and released in a `finally`, and only then is
+`ov_get_error_info` called, because that is itself an OpenVINO call and any call
+may replace the global last-error slot. A test reads a nonexistent model 200
+times and requires every captured detail to be identical, which is what a freed
+or overwritten buffer would break.
+
+`conversions.nim` holds the checked arithmetic. The index helper is the one
+worth naming: converting `-1` to `csize_t` yields 18446744073709551615, so
+checking before the conversion is the whole point rather than a formality. The
+overflow checks test the divisor form before multiplying, because a wrapped
+product looks like a plausible small count and would be used to size a buffer.
+
+Two small Nim frictions: `"needle" in haystack` for strings needs `std/strutils`
+rather than coming from `system`, and a `nimcall` release procedure cannot
+capture, so the test's counter is a global.
+
 ### 2026-09-24 Phase 2 complete: full raw surface, prototype deleted
 
 Added the remaining raw modules for property, node, model, compiled model and
@@ -508,6 +550,39 @@ proc ov_core_create*(core: ptr ptr ov_core_t): ov_status_e {.openvinoImport.}
 
 本阶段尚未完成：property、node、model、compiled model、infer request 各 raw
 模块，以及随其落地扩充必需符号列表。
+
+### 2026-09-25 Phase 3：错误体系与 handle 生命周期模型
+
+加入 `openvino/errors`、`openvino/private/handles`、
+`openvino/private/conversions`、[ADR 0002](docs/decisions/0002-handle-model.md)、
+`docs/ownership.md` 以及三个测试文件。`nimble testLifecycle` 在 ORC 与 ARC 下
+分别运行生命周期与错误路径测试；八个 nimble 任务全部 exit 0。
+
+handle 采用 `ref` 对象而非不可复制的值类型。计划允许二者之一，决定性的理由是
+各自的风险性质不同。值类型的风险是某个复制漏过检查，导致两个所有者释放同一个
+指针。共享 `ref` 从构造上排除了这一点——只有一个指针字段，所有别名读的都是它；
+剩下的风险是释放时机晚于预期，那是资源占用问题而不是内存安全问题。对一个失败
+形态本会是原生崩溃的绑定而言，用内存安全风险换时机风险是正确方向，而 `close()`
+正是为需要确定释放点的调用者准备的。
+
+`handles.nim` 把释放函数作为参数传入，对 OpenVINO 一无所知。这正是生命周期
+测试有意义的前提：用一个计数 stub 顶替 `ov_*_free`，测试就能断言释放**恰好
+发生一次**。无法计数释放的测试根本检测不出 double free，而那才是真正要防的
+缺陷。连续 close 三次仍只计一次释放，别名共享同一关闭状态，一千个被遗弃的
+handle 全部被回收。
+
+last-error 的取用顺序现在只实现在一处。先取指针、复制、在 `finally` 中释放，
+然后才调用 `ov_get_error_info`——因为后者本身也是一次 OpenVINO 调用，而任何
+调用都可能覆盖全局 last-error 槽位。有一个测试连续 200 次读取不存在的模型，
+要求每次捕获的详情完全一致；被释放或被覆盖的缓冲区会在这里暴露。
+
+`conversions.nim` 承载各项受检算术。index 那个尤其值得点出：把 `-1` 转成
+`csize_t` 会得到 18446744073709551615，所以"在转换之前检查"是这个 helper 的
+全部意义，而不是形式主义。溢出检查采用先做除法比较再相乘的形式，因为溢出后的
+乘积看起来像一个合理的小数值，而它会被用来给缓冲区定尺寸。
+
+两个 Nim 小摩擦：字符串的 `"needle" in haystack` 需要 `std/strutils` 而非来自
+`system`；`nimcall` 释放过程无法捕获外部变量，所以测试的计数器是全局的。
 
 ### 2026-09-24 Phase 2 收尾：raw 面补齐，原型删除
 

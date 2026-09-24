@@ -316,6 +316,25 @@ task testAbi, "Compare the raw bindings against the pinned OpenVINO headers":
 
   exec "nim c --hints:off --path:src -r tests/abi/tabi_layout.nim"
 
+task testLifecycle, "Run lifetime and error-path tests under ORC and ARC":
+  # The handle model has to hold under both memory managers, because a
+  # destructor that fires at a different time is exactly the kind of difference
+  # that turns into a double free. The unit tests need no runtime; the tests
+  # under tests/lifecycle do.
+  var unitSources: seq[string] = @[]
+  collectNimSources("tests/unit", unitSources)
+  var runtimeSources: seq[string] = @[]
+  collectNimSources("tests/lifecycle", runtimeSources)
+  if runtimeSources.len == 0:
+    echo "No lifecycle tests found under tests/lifecycle."
+    quit(1)
+
+  for memoryManager in ["orc", "arc"]:
+    echo "--- memory manager: ", memoryManager, " ---"
+    for path in unitSources & runtimeSources:
+      exec "nim c --hints:off --path:src --mm:" & memoryManager &
+        " -r " & path
+
 task testSmoke, "Load a real OpenVINO runtime and exercise the raw layer":
   # Needs an installed runtime on the loader path, not just the headers. The
   # test itself reports a missing or incomplete runtime as a failure with the

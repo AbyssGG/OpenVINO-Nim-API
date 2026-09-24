@@ -1562,20 +1562,20 @@ docs: prepare OpenVINO Nim API 0.1.0 release
 
 ### D. Managed 错误与生命周期
 
-- [ ] D01 实现 `OpenVinoError`，含 operation/status/status info/native detail/context。
-- [ ] D02 实现 library/version 专用错误或同等可区分诊断。
-- [ ] D03 实现唯一的 managed status 检查入口。
-- [ ] D04 证明 status 失败后在下一次 C 调用前复制 last error。
-- [ ] D05 建立 handle ADR，选择全库统一的所有权表示。
-- [ ] D06 所有 native handle 字段改为私有。
-- [ ] D07 所有 owner 提供幂等 `close()` 和非抛异常析构兜底。
-- [ ] D08 所有 public 方法在进入 C 层前检查 closed state。
-- [ ] D09 实现输出指针零初始化与失败中途清理。
-- [ ] D10 实现原生字符串/数组复制后释放。
-- [ ] D11 创建并维护 `docs/ownership.md`。
-- [ ] D12 double close、别名 close、use-after-close 测试通过。
-- [ ] D13 异常中途清理和析构不抛测试通过。
-- [ ] D14 ORC/ARC 生命周期测试通过；refc 状态有明确结论。
+- [x] D01 实现 `OpenVinoError`，含 operation/status/status info/native detail/context。证据：`src/openvino/errors.nim` 五个字段齐备；`tests/lifecycle/terror_paths.nim` 验证真实失败时全部字段被填充。
+- [x] D02 实现 library/version 专用错误或同等可区分诊断。证据：`OpenVinoLibraryError`（定义于 `raw/loader`，由 `errors` 再导出）、`OpenVinoVersionError`、`OpenVinoArgumentError`（派生自 `ValueError`）四类可区分，各对应不同修法。
+- [x] D03 实现唯一的 managed status 检查入口。证据：`checkStatus` 是全库唯一入口，因此 last-error 顺序只需在一处正确，而不是依赖每个调用者复述。
+- [x] D04 证明 status 失败后在下一次 C 调用前复制 last error。证据：`lastNativeDetail` 先取指针、复制、在 `finally` 中 `ov_free`，之后才调用 `ov_get_error_info`。`terror_paths.nim` 连续 200 次触发真实失败并要求每次捕获的详情完全一致——被释放或被覆盖的缓冲区会在此暴露。
+- [x] D05 建立 handle ADR，选择全库统一的所有权表示。证据：`docs/decisions/0002-handle-model.md` 选定共享 `ref` 并论证为何用内存安全风险换释放时机风险；`src/openvino/private/handles.nim` 单点实现。
+- [x] D06 所有 native handle 字段改为私有。证据：`HandleObj` 的 `native` 字段未导出，唯一取用途径是 `native()`。
+- [x] D07 所有 owner 提供幂等 `close()` 和非抛异常析构兜底。证据：`thandle_lifetime.nim` 验证连续 close 三次只释放一次、释放函数抛异常时 `close` 不传播、被遗弃 handle 由析构释放。
+- [x] D08 所有 public 方法在进入 C 层前检查 closed state。证据：`native()` 在关闭后抛 `OpenVinoArgumentError` 并在消息中点出对象类型名；use-after-close 测试覆盖。
+- [x] D09 实现输出指针零初始化与失败中途清理。证据：`newHandle` 拒绝 nil；`docs/ownership.md` 的失败清理一节规定输出先零初始化、仅在 status OK 且输出满足合约后才建立 owner。
+- [x] D10 实现原生字符串/数组复制后释放。证据：`conversions.nim` 的 `takeString`、`takeDeviceNames`、`takeVersion`、`takeShape` 全部先复制、再在 `finally` 中释放。
+- [x] D11 创建并维护 `docs/ownership.md`。证据：该文件逐函数列出 owned / borrowed / static 三种归属、释放函数与有效期，并单列 last-error 顺序与借用视图失效条件。
+- [x] D12 double close、别名 close、use-after-close 测试通过。证据：`thandle_lifetime.nim`；计数 stub 使"恰好释放一次"成为可断言的性质——无法计数释放的测试检测不出 double free。
+- [x] D13 异常中途清理和析构不抛测试通过。证据：同文件的 destructor backstop 一组，含异常展开中被遗弃的 handle 仍被释放。
+- [x] D14 ORC/ARC 生命周期测试通过；refc 状态有明确结论。证据：`nimble testLifecycle` 在 ORC 与 ARC 下分别运行全部生命周期与错误路径测试，均 exit 0。refc 未实测，因此不声明支持。
 
 ### E. Managed 功能
 
