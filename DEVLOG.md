@@ -573,6 +573,16 @@ stated in our API docs, or not measured. Nothing here takes a lock, and no
 concurrency test exists; the table says so rather than implying otherwise by
 omission.
 
+**A second false pass from our own harness, caught the same way as the first.**
+The zero-diff check reported success on Linux while doing nothing. The extracted
+tree had been `git init`ed with no commit, so Nimble refused to read package info
+at all, `nimble format` never ran, and `git diff` then reported no change, which
+was true and meaningless. Reading the formatter's log rather than only its verdict
+is what found it. Redone with a commit first: formatter runs, exit 0, tree
+unchanged, on both platforms. The lesson is the same as the `tail` incident
+earlier: a harness that reports on a command is a second thing that can be wrong,
+and its output deserves the same suspicion as the code under test.
+
 Still open, and only one thing: CI has never run. The repository has no remote,
 so nine jobs that have each been exercised by hand are still nine jobs no runner
 has executed. That is the whole of the Phase 5 gate's remaining item, and closing
@@ -1017,6 +1027,13 @@ OpenVINO、磁盘上有什么、runtime 看见了什么。收集器就报这些�
 都写了共享语义，`docs/ownership.md` 有一张表，第三列专门写"这条说法的依据有多强"：上游
 的声明、我们 API 文档里的陈述、还是根本没测过。本包不加任何锁，也没有任何并发测试；表格
 直接这么写，而不是靠省略暗示别的。
+
+**又一次来自我们自己测试脚手架的假通过，发现方式与上次相同。** 零 diff 检查在 Linux 上
+报了成功，而它什么都没做：那个解压出来的树 `git init` 之后没有提交，Nimble 因此完全拒绝
+读取包信息，`nimble format` 根本没运行，随后的 `git diff` 当然没有差异——结论为真而毫无
+意义。是去读 formatter 的日志、而不是只看它的判定，才发现这一点。补测时先建了提交：
+formatter 运行、exit 0、树未变，两个平台都如此。教训与前面 `tail` 那次一样：报告命令结果
+的脚手架本身是第二个可能出错的东西，它的输出值得与被测代码同等的怀疑。
 
 仍然未关闭的只有一件：CI 从未运行过。仓库没有远端，于是九个已被逐一手工验证过的作业，
 仍然是九个没有任何 runner 执行过的作业。这就是 Phase 5 Gate 剩下的全部内容，关闭它需要

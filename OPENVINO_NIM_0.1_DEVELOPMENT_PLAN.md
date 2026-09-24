@@ -1373,6 +1373,8 @@ nimble releaseArchive
 | 干净目录安装 | 通过 | `nimble packagingCheck`，已纳入 CI |
 | Linux 内存检查 | 通过 | valgrind 两个目标 0 错误 0 泄漏，见 F12 |
 | Resonance/Isvik 依赖与品牌扫描 | 通过 | 见 G14、G15 |
+| formatter 零 diff | 通过 | 两平台实测，见 S07。第一次测得的是假通过，已查明并补测 |
+| 固定值可审计 | 通过 | OpenVINO 按 URL + SHA-256 固定且与库元数据交叉断言；四个 action 全部 40 位 commit SHA，由一个校验器在两平台断言 |
 
 结论：Phase 5 的可在本机完成的部分全部通过，唯一保留项是 CI 的首次真实运行——它需要远端，而推送需要单独授权。A 到 G 段 Checklist 至此全部勾选，只剩 H 段的 RC 与发布。
 - 文档无未解释的 Resonance/Isvik 残留。
@@ -1574,7 +1576,7 @@ docs: prepare OpenVINO Nim API 0.1.0 release
 - [x] S04 固定 `nimpretty`/Nim 版本并定义可重复的格式检查入口。证据：`STYLE_GUIDE.md` 的 Pinned tools 表；`nimble format` / `nimble formatCheck` 统一使用 `nimpretty --indent:2 --maxLineLen:80`。
 - [x] S05 managed 源码、示例和测试通过 `nim check --styleCheck:error`。证据：`nimble lint` 对 5 个 Nim 文件逐个执行该命令并通过（`src/openvino.nim`、`src/openvino/version.nim`、`tests/unit/tmetadata_consistency.nim`、`tools/mdcheck.nim` 及其余）。Resonance 原型文件按 §2.6 显式排除，`lint` 每次运行都逐个列出被排除项，不静默跳过。
 - [x] S06 raw 层保留精确 C 名称，并通过独立 `--styleCheck:usages`、编译和 ABI 检查。证据：11 个 raw 模块全部落地，`nimble lint` 对每一个单独执行 `nim check --styleCheck:usages` 并通过；`{.push styleChecks: off.}` 只出现在 `src/openvino/raw` 下且由 allowlist 强制；`nimble testAbi` 21 项对着真实 header 编译的 C 探针比对名字与数值。两个平台各跑一遍，均 exit 0。
-- [x] S07 CI 验证 formatter 执行后工作树零 diff。证据：`static` 作业先跑 `nimble formatCheck`（把 `nimpretty` 输出写到临时文件逐字节比对，不依赖 Git），再跑一步更强的断言——真的执行 `nimble format`，然后要求 `git diff --exit-code` 无输出。该性质在本轮于两个平台本地实测：`nimble format` 后 `git status --short` 为空。CI 作业调用的就是同样两条命令。
+- [x] S07 CI 验证 formatter 执行后工作树零 diff。证据：`static` 作业先跑 `nimble formatCheck`（把 `nimpretty` 输出写到临时文件逐字节比对，不依赖 Git），再跑一步更强的断言——真的执行 `nimble format`，然后要求 `git diff --exit-code` 无输出。该性质在两个平台上实测：Windows 真实仓库、干净工作树，`git status --short` 为空 → `nimble format` exit 0 → 仍为空；Linux 在 `git archive HEAD` 展开的树里建一个提交后，`nimble format` exit 0、`git status --porcelain` 为空。**第一次测这一项时得到的是假通过**：那个解压出来的树 `git init` 之后没有任何提交，Nimble 因拿不到 VCS revision 直接报 "Failed to get VCS revision of your project!" 而失败，于是 `nimble format` 根本没运行，随后的 `git diff` 当然没有差异——结论为真但毫无意义。查了 format 的日志才发现。因此本条的证据是补测的那一次，而不是第一次。
 - [x] S08 CI 拒绝 Tab、行尾空格、缺 final newline 和未解释 lint suppression。证据：`nimble lint` 对每个手写文件检查 Tab、CR、行尾空白与末尾换行，并强制 `styleChecks: off` 的目录 allowlist；实测通过，且该 allowlist 检查在开发中确实触发过一次误报（manifest 自身存放该字符串），已按最小范围修正。
 - [x] S09 Import 按 std/第三方/本地分组并在组内排序。证据：当前含 import 的三个文件（`src/openvino.nim`、`tests/unit/tmetadata_consistency.nim`、`tools/mdcheck.nim`）均符合，`std/[...]` 形式用于多标准库模块。
 - [x] S10 public API 文档包含所有权、复制、阻塞、异常和线程契约。证据：所有权与复制语义在每个 handle 类型的 `##` 文档里（"Copying shares the native object and the closed state"）并在 `docs/ownership.md` 逐函数列出；阻塞用 `**Blocks**`/`**Performs file I/O**` 显式标注在 `readModel`、`compileModel`、`importModel`、`infer`、`exportTo`；异常在每个会抛的过程里逐类型写明。**线程契约本轮补齐**：`Core`、`Model`、`CompiledModel`、`Tensor` 各自新增 Threads 段落，`InferRequest` 原有的保留，并在 `docs/ownership.md` 新增 Threads 一节用表格给出每个类型的"谁需要小心"与"该说法的依据有多强"——把 OpenVINO 的上游声明与本项目的实测严格区分，同时写明三条推论：`close()` 绝不能与使用并发、全局 last-error 槽位是共享的、profiling 结果是副本因此可跨线程。明确记录本包不加任何锁，且并发未做任何实测。
