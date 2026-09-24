@@ -13,7 +13,16 @@ and the OpenVINO runtime baseline evolve independently:
 
 ## Unreleased
 
-Nothing yet.
+- Added an English-first README with a Chinese companion, quick-start path,
+  feature matrix, project layout and support links.
+- Added the documentation hub, getting-started guide, API overview, roadmap,
+  examples guide and tests guide.
+- Added generated API pages for every public managed module and the explicit
+  raw entry point, with a merged symbol index under `build/docs`.
+- Added `SECURITY.md`, `SUPPORT.md`, `CODE_OF_CONDUCT.md`, issue forms and a
+  pull-request template.
+- Corrected stale implementation, CI and C API coverage documentation so it
+  describes the current repository rather than the original audit snapshot.
 
 ## 0.1.0
 
@@ -26,8 +35,8 @@ Not released. Under development.
   the raw C ABI layer.
 - Added `openvino/version` as the single source of truth for the package
   version, the minimum supported Nim version and the pinned OpenVINO
-  baseline. The Nimble manifest derives its fields from this module, so the
-  manifest cannot drift from the library.
+  baseline. The Nimble manifest repeats parser-compatible literals and
+  `nimble releaseCheck` verifies that they cannot drift from this module.
 - Added the error hierarchy: `OpenVinoError` carrying the operation name, the
   numeric status, the stable status description and the native detail captured
   at the moment of failure, plus `OpenVinoLibraryError`,

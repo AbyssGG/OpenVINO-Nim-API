@@ -1772,6 +1772,12 @@ maintained entry point rather than a second API vocabulary.
   repository tree and tracked-text search contain no such entry.
 - [ ] I09 Publish API pages through GitHub Pages. Deferred until repository
   Pages settings and a deploy permission are explicitly authorized.
+- [x] I10 Keep the release package contract visible at the point of use.
+  Evidence: `README.md` and `RELEASE_NOTES.md` list the exact `.zip`, `.tar.gz`
+  and two `.sha256` assets; `.github/workflows/release.yml` publishes only
+  those four files after the archive verifier checks the top-level directory,
+  forbidden extensions and reproducibility. No tag or Release was created by
+  this documentation update.
 
 ---
 

@@ -39,10 +39,27 @@ checkout with `nimble install`.
 
 ## Release assets
 
-The four uploaded assets whose names begin with
-`openvino-nim-0-1-0-` are the canonical source archives and SHA-256 sidecars.
+The release workflow uploads exactly these four canonical assets, all sharing
+one generated base name:
+
+| Asset | Purpose |
+|---|---|
+| `openvino-nim-{version}-{date}-ov{openvino-version}.zip` | Reproducible ZIP source archive |
+| `openvino-nim-{version}-{date}-ov{openvino-version}.tar.gz` | Reproducible tarball source archive |
+| `openvino-nim-{version}-{date}-ov{openvino-version}.zip.sha256` | SHA-256 sidecar for the ZIP |
+| `openvino-nim-{version}-{date}-ov{openvino-version}.tar.gz.sha256` | SHA-256 sidecar for the tarball |
+
+Each archive has exactly one top-level directory whose name is the generated
+base name. It contains no OpenVINO runtime, SDK, model weights or credentials.
 GitHub's automatically generated “Source code” archives are convenient mirrors
 but are not the project's reproducible, checksummed release artifacts.
+
+Verify a downloaded archive with the sidecar from the same Release:
+
+```shell
+sha256sum -c openvino-nim-0-1-0-YYYY-M-D-ov2026-4-0.zip.sha256
+sha256sum -c openvino-nim-0-1-0-YYYY-M-D-ov2026-4-0.tar.gz.sha256
+```
 
 For the complete change list, see [CHANGELOG.md](CHANGELOG.md). For deployment
 and loader problems, see [the troubleshooting guide](docs/troubleshooting.md).

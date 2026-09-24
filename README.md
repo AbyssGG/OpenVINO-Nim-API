@@ -76,6 +76,25 @@ The [getting started guide](docs/getting-started.md) has platform-specific
 loader checks and troubleshooting. The complete inference snippet is kept
 below and is compiled from the same source as `examples/minimal.nim`.
 
+## Release artifacts
+
+The release workflow follows the packaging contract in the development plan.
+For an authorized release it produces exactly four canonical assets with one
+shared base name:
+
+```text
+openvino-nim-{version}-{date}-ov{openvino-version}.zip
+openvino-nim-{version}-{date}-ov{openvino-version}.tar.gz
+openvino-nim-{version}-{date}-ov{openvino-version}.zip.sha256
+openvino-nim-{version}-{date}-ov{openvino-version}.tar.gz.sha256
+```
+
+Both archives contain one top-level directory named after the base name and
+are checked for reproducibility and forbidden runtime/model files. The
+workflow's manual trigger is a dry run; a Git tag is required before assets
+can be uploaded to a GitHub Release. See [RELEASE_NOTES.md](RELEASE_NOTES.md)
+for the consumer-side checksum command.
+
 ## Six naming roles
 
 These names are deliberately different. Mixing them up is the most common
