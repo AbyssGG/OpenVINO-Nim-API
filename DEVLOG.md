@@ -276,6 +276,37 @@ written as nested conditions. And Nim now warns that an implicit `string` to
 Still to do in this phase: raw modules for property, node, model, compiled
 model and infer request, and extending the required-symbol list as they land.
 
+### 2026-09-24 Phase 2 complete: full raw surface, prototype deleted
+
+Added the remaining raw modules for property, node, model, compiled model and
+infer request, plus `openvino/raw` as the explicit entry point for the layer.
+9 smoke tests pass against the installed runtime.
+
+Deleted `src/resonance/`, `src/resonance.nim`, `examples/basic_infer.nim` and
+with them `perf_count_wrapper.c`. That wrapper existed to bridge MinGW to MSVC
+varargs so that profiling could be switched on; the non-variadic
+`ov_compiled_model_set_properties` and the exported
+`ov_property_key_enable_profiling` data symbol replace it outright, and both
+are now bound and exercised. The prototype is recoverable from the
+`archive/resonance-before-openvino-nim` tag and from `AbyssGG/Resonance`.
+
+With the prototype gone, the `skipDirs` and `skipFiles` exclusions in
+`openvino.nimble` are removed, and the legacy exclusion list that `lint`
+reported on every run is now empty.
+
+Ownership asymmetries that the header forced into the design, each recorded in
+the doc comment of the function it applies to. `ov_get_error_info` returns a
+process-lifetime pointer that must never be freed, while
+`ov_get_last_err_msg` returns an allocated string that must be. Ports come in
+const and mutable flavours with separate release functions, and only the const
+one accepts the metadata getters. Property keys are exported data symbols, so
+each is a nullary procedure rather than a Nim `const`, because a `const`
+cannot hold a value resolved at run time.
+
+Windows wide-path model reading is declared as `ptr uint16` rather than a Nim
+wide-string type, so that the element width is stated rather than assumed, and
+only under `when defined(windows)` because the header guards it.
+
 ## 中文
 
 ### 2026-09-24 Phase 0：审计原型并冻结范围
@@ -477,3 +508,29 @@ proc ov_core_create*(core: ptr ptr ov_core_t): ov_status_e {.openvinoImport.}
 
 本阶段尚未完成：property、node、model、compiled model、infer request 各 raw
 模块，以及随其落地扩充必需符号列表。
+
+### 2026-09-24 Phase 2 收尾：raw 面补齐，原型删除
+
+补上 property、node、model、compiled model、infer request 各 raw 模块，以及
+`openvino/raw` 作为该层的显式入口。9 个 smoke 测试针对已安装 runtime 通过。
+
+删除 `src/resonance/`、`src/resonance.nim`、`examples/basic_infer.nim`，连带
+`perf_count_wrapper.c`。那个 wrapper 的存在只为桥接 MinGW 到 MSVC 的 variadic
+调用以便开启 profiling；非 variadic 的 `ov_compiled_model_set_properties` 与
+导出的 `ov_property_key_enable_profiling` 数据符号把它完全取代，两者现在都已
+绑定并被测试覆盖。原型可从 `archive/resonance-before-openvino-nim` 标签以及
+`AbyssGG/Resonance` 恢复。
+
+原型删除后，`openvino.nimble` 里的 `skipDirs` 与 `skipFiles` 排除项一并移除，
+`lint` 每次运行都会报告的 legacy 排除列表现在为空。
+
+header 强加给设计的几处所有权不对称，各自记录在对应函数的文档注释里。
+`ov_get_error_info` 返回进程生命周期指针、绝不能释放，而
+`ov_get_last_err_msg` 返回必须释放的分配字符串。port 分 const 与可变两种、
+各有独立释放函数，且只有 const 那种能用于 metadata getter。property key 是
+导出的数据符号，因此每个都是无参过程而不是 Nim `const`——`const` 无法持有运行期
+解析的值。
+
+Windows 宽路径读模型声明为 `ptr uint16` 而非 Nim 宽字符串类型，以便显式陈述
+元素宽度而不是假定，并且只在 `when defined(windows)` 下声明，因为 header 对它
+加了守卫。

@@ -1540,25 +1540,25 @@ docs: prepare OpenVINO Nim API 0.1.0 release
 
 ### C. Raw binding 与 ABI
 
-- [ ] C01 建立 `docs/c-api-coverage.md` 并列出 0.1.0 所需 headers/symbols。
+- [x] C01 建立 `docs/c-api-coverage.md` 并列出 0.1.0 所需 headers/symbols。 证据：`docs/c-api-coverage.md` 列出全部 header 与符号，逐项标注 bound / planned / out of scope，并记录所有权与按值传参事实。
 - [x] C02 绑定 status，并修正 `NOT_ALLOCATED` 与 `-14..-17`。证据：`src/openvino/raw/common.nim` 绑定全部 18 个值；`nimble testAbi` 由 C probe 驱动逐值比对通过，并单独钉住 `NOT_ALLOCATED == -10` 与 `-14..-17`。
 - [x] C03 绑定完整所需 element type，包含 2026.4 的 U2/U3/U6/低精度/string 值。证据：绑定全部 26 个值；probe 逐值比对通过。已反向测试：把 `U8` 改为原型的 `13` 后两个测试失败、`nimble testAbi` exit 1。
 - [x] C04 验证 raw C enum 表示大小为 C ABI 所需大小。证据：`sizeof(ov_status_e)` 与 `sizeof(ov_element_type_e)` 均与 probe 的 `sizeof` 相等；`ov_profiling_info_t.status` 字段宽度亦等于 C enum 宽度。
-- [ ] C05 绑定 `ov_get_error_info`、`ov_get_last_err_msg`、`ov_free`。
-- [ ] C06 绑定 version/Core/devices 与对应 free 函数。
-- [ ] C07 绑定 `ov_property_t`、官方 property key 和非 variadic properties API。
-- [ ] C08 绑定 shape/Tensor，并正确声明 by-value `ov_tensor_set_shape`。
-- [ ] C09 绑定 node/port/Model 所需 API。
-- [ ] C10 绑定 CompiledModel/import/export 所需 API。
-- [ ] C11 绑定 InferRequest/sync infer/profiling 所需 API。
-- [ ] C12 集中实现 Windows/Linux 动态库名和编译期覆盖。
-- [ ] C13 动态库缺失/符号缺失时给出可操作诊断。
-- [ ] C14 创建 C ABI probe，覆盖 size/align/offset/enum/constants。
-- [ ] C15 创建必需符号解析测试。
-- [ ] C16 创建 raw 版本查询和 Core 创建/释放 smoke test。
-- [ ] C17 创建 `ov_tensor_set_shape` by-value 回归测试。
-- [ ] C18 Windows/Linux 2026.4.0 ABI 与 raw smoke 全部通过。
-- [ ] C19 新架构完全不依赖 `perf_count_wrapper.c` 或 `nv_*`。
+- [x] C05 绑定 `ov_get_error_info`、`ov_get_last_err_msg`、`ov_free`。 证据：`raw/error.nim` 绑定三者，文档注释写明 `ov_get_error_info` 绝不可释放、`ov_get_last_err_msg` 必须释放。
+- [x] C06 绑定 version/Core/devices 与对应 free 函数。 证据：`raw/core.nim`；smoke 测试读取 runtime 版本、创建并释放 Core、枚举并释放设备列表。
+- [x] C07 绑定 `ov_property_t`、官方 property key 和非 variadic properties API。 证据：`raw/property.nim` 绑定 `ov_property_t` 与 10 个 key 数据符号；`raw/core.nim`、`raw/compiled_model.nim` 绑定非 variadic properties API。smoke 测试验证每个 key 解析为非空字符串。
+- [x] C08 绑定 shape/Tensor，并正确声明 by-value `ov_tensor_set_shape`。 证据：`raw/shape.nim` 与 `raw/tensor.nim`，全部 shape 参数按值传递；由 C17 的回归测试覆盖。
+- [x] C09 绑定 node/port/Model 所需 API。 证据：`raw/node.nim` 与 `raw/model.nim`，只绑定 const port 及其独立释放函数。
+- [x] C10 绑定 CompiledModel/import/export 所需 API。 证据：`raw/compiled_model.nim` 含显式 export，`raw/core.nim` 含 `ov_core_import_model`。
+- [x] C11 绑定 InferRequest/sync infer/profiling 所需 API。 证据：`raw/infer_request.nim`，仅同步路径，不含 callback。
+- [x] C12 集中实现 Windows/Linux 动态库名和编译期覆盖。 证据：`private/library.nim` 集中平台库名并提供 `-d:openvinoLib=` 编译期覆盖。
+- [x] C13 动态库缺失/符号缺失时给出可操作诊断。 证据：`raw/loader.nim` 抛出 `OpenVinoLibraryError`，消息含目标平台、期望 OpenVINO 版本、尝试过的库名、加载提示与部署提示，并区分「文件不存在」与「文件存在但加载失败即依赖缺失」。该诊断在本机因 oneTBB 缺失真实触发过。
+- [x] C14 创建 C ABI probe，覆盖 size/align/offset/enum/constants。证据：`tests/abi/abi_probe.c` 对着固定 header 编译并链接进测试；22 个 ABI 测试覆盖 status 与 element type 全部取值、关键 struct 的 sizeof 与 offsetof、bool 与 size_t 宽度、以及嵌套 profiling enum。
+- [x] C15 创建必需符号解析测试。 证据：smoke 测试 `every symbol the 0.1.0 surface needs resolves` 校验 55 个必需符号，含全部 `_props` 入口。
+- [x] C16 创建 raw 版本查询和 Core 创建/释放 smoke test。 证据：smoke 测试读取 runtime 版本并完成 Core 创建与释放。
+- [x] C17 创建 `ov_tensor_set_shape` by-value 回归测试。 证据：smoke 测试 `setting a larger shape by value is observed by the tensor`——不只断言状态码，而是把 shape 读回并要求维度、元素数、字节数、元素类型全部与请求一致。
+- [ ] C18 Windows/Linux 2026.4.0 ABI 与 raw smoke 全部通过。**部分完成**：Windows 侧 `nimble testAbi` 22 项与 `nimble testSmoke` 9 项全部通过；Linux 侧只能由 CI 首次运行关闭。
+- [x] C19 新架构完全不依赖 `perf_count_wrapper.c` 或 `nv_*`。 证据：`perf_count_wrapper.c` 与整个 `src/resonance/` 已删除；仓库内 `nv_*` 零出现。
 
 ### D. Managed 错误与生命周期
 

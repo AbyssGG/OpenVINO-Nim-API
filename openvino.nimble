@@ -18,17 +18,13 @@ const
   styleOffPragma = "styleChecks: off"
   rawLayerPrefix = "src/openvino/raw"
 
-  legacyPrototypePaths = [
-    "src/resonance.nim",
-    "src/resonance",
-    "examples/basic_infer.nim",
-    "resonance.nimble"
-  ]
-    ## Resonance prototype files that the migration replaces rather than
-    ## adapts. They are excluded from formatting and style checking on
-    ## purpose: reformatting code that is scheduled for deletion would
-    ## create an unrelated bulk diff and hide the real migration. `lint`
-    ## names them explicitly so the exclusion is never silent.
+  legacyPrototypePaths: array[0, string] = []
+    ## Resonance prototype paths still awaiting migration.
+    ##
+    ## Now empty: the prototype has been deleted, so nothing is excluded from
+    ## formatting or style checking any more. Kept as a declaration rather
+    ## than removed so that `lint` keeps reporting an empty exclusion set
+    ## instead of silently having no concept of one.
 
 proc stringMetadata(name: string): string =
   ## Reads the exported string constant `name` from the version module.
@@ -77,19 +73,12 @@ description = "Community-maintained Nim bindings for the OpenVINO Runtime " &
 license = "Apache-2.0"
 srcDir = "src"
 
-# The Resonance prototype still lives under srcDir until Phase 2 replaces it.
-# Without these exclusions `nimble install` ships it inside the installed
-# package, where `import resonance` would hand a consumer the binding whose
-# ABI defects are catalogued in docs/resonance-audit.md, and which does not
-# compile on Linux at all.
-#
-# These paths are relative to the package root and therefore keep the `src/`
-# prefix, even though installation flattens srcDir away. Spelling them
-# relative to srcDir silently skips nothing.
-#
-# Remove both lines when src/resonance is deleted.
-skipDirs = @["src/resonance"]
-skipFiles = @["src/resonance.nim"]
+# No skipDirs or skipFiles are needed. They previously excluded the Resonance
+# prototype from installation; the prototype is now deleted, so everything
+# under srcDir belongs in the package. Should an exclusion be needed again,
+# note that those paths are relative to the package root and keep the `src/`
+# prefix even though installation flattens srcDir away; spelling them relative
+# to srcDir silently skips nothing.
 
 requires "nim >= 2.0.0"
 

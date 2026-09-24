@@ -66,6 +66,31 @@ Not released. Under development.
   `skipDirs` and `skipFiles`, so the installed package cannot hand a consumer
   the prototype binding. The exclusions are removed when `src/resonance` is
   deleted.
+- Added `openvino/raw` as the explicit entry point for the C ABI layer, with
+  modules for common, error, property, shape, node, model, tensor, compiled
+  model, infer request, core and the symbol loader. Bindings cover the
+  synchronous `0.1.0` surface and no variadic entry point.
+- Added `nimble testSmoke`, which loads a real runtime and checks the library
+  load, 55 required symbols, every bound property key, the runtime version,
+  Core lifetime, device enumeration and the by-value shape regression.
+- The OpenVINO library loader reports a missing library and a missing symbol
+  as `OpenVinoLibraryError` with a diagnostic naming the platform, the expected
+  OpenVINO version, the names tried and how to fix the search path. It
+  distinguishes a file that is absent from one that exists but cannot be
+  loaded, because the latter means a dependency such as the bundled oneTBB is
+  missing and needs a different fix.
+
+### Removed
+
+- Removed the Resonance prototype: `src/resonance/`, `src/resonance.nim`,
+  `examples/basic_infer.nim` and `perf_count_wrapper.c`. The wrapper bridged
+  MinGW to MSVC varargs so profiling could be enabled; the non-variadic
+  `ov_compiled_model_set_properties` together with the exported
+  `ov_property_key_enable_profiling` data symbol replaces it. The prototype
+  remains available from the `archive/resonance-before-openvino-nim` tag.
+- Removed the `skipDirs` and `skipFiles` install exclusions, which existed only
+  to keep the prototype out of the installed package.
+
 - Added `openvino/raw/common`, binding `ov_status_e` and `ov_element_type_e`
   from the pinned `2026.4.0` headers. Both are `cint` aliases with constants
   rather than Nim enums, so a value the runtime returns and the binding does

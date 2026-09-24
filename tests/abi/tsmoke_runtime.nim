@@ -19,12 +19,7 @@
 
 import std/unittest
 
-import openvino/raw/common
-import openvino/raw/core
-import openvino/raw/error
-import openvino/raw/loader
-import openvino/raw/shape
-import openvino/raw/tensor
+import openvino/raw
 
 proc describe(status: ov_status_e; operation: string): string =
   ## Builds a failure message carrying the operation, the numeric status and
@@ -77,13 +72,29 @@ suite "runtime loading":
       checkpoint("missing: " & $missing)
     check missing.len == 0
 
-  test "the exported enable_profiling property key is a non-empty string":
+  test "every bound property key resolves to a non-empty string":
     # Property keys are exported data symbols, not macros, so this also proves
     # the data-symbol path works. The prototype hand-wrote "PERF_COUNT".
-    let key = stringDataSymbol("ov_property_key_enable_profiling")
-    checkpoint("ov_property_key_enable_profiling = " & $key)
-    check key != nil
-    check ($key).len > 0
+    let keys = {
+      "enable_profiling": ov_property_key_enable_profiling(),
+      "available_devices": ov_property_key_available_devices(),
+      "device_full_name": ov_property_key_device_full_name(),
+      "supported_properties": ov_property_key_supported_properties(),
+      "cache_dir": ov_property_key_cache_dir(),
+      "num_streams": ov_property_key_num_streams(),
+      "inference_num_threads": ov_property_key_inference_num_threads(),
+      "hint_performance_mode": ov_property_key_hint_performance_mode(),
+      "hint_inference_precision": ov_property_key_hint_inference_precision(),
+      "log_level": ov_property_key_log_level()}
+    for (label, key) in keys:
+      checkpoint(label & " = " & $key)
+      check key != nil
+      check ($key).len > 0
+
+  test "the profiling status enumerators match the probed header values":
+    check PROFILING_NOT_RUN == ov_status_e(0)
+    check PROFILING_OPTIMIZED_OUT == ov_status_e(1)
+    check PROFILING_EXECUTED == ov_status_e(2)
 
 suite "runtime version":
   test "the runtime reports a build number and a description":
