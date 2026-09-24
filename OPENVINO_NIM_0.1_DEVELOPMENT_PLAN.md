@@ -1292,6 +1292,19 @@ nimble releaseArchive
 - 析构不抛异常，异常中途已创建资源不泄漏。
 - ORC 与 ARC 生命周期测试通过；refc 支持状态已明确记录。
 
+**Gate 状态（2026-09-25）**
+
+| Gate 条目 | 状态 | 证据 |
+|---|---|---|
+| native allocation 有释放映射 | 通过 | `docs/ownership.md` 逐函数列出 owned / borrowed / static、释放函数与有效期 |
+| double close 无害、状态统一 | 通过 | `thandle_lifetime.nim` 用计数 stub 断言连续 close 三次只释放一次；别名共享同一关闭状态 |
+| use-after-close 不进入 C 层 | 通过 | `native()` 在关闭后抛 `OpenVinoArgumentError` 并在消息里点出对象类型名 |
+| status 失败后立即复制错误详情 | 通过 | `terror_paths.nim` 连续 200 次失败，每次捕获的详情完全一致——被释放或被覆盖的缓冲区会在这里暴露 |
+| 析构不抛、异常中途不泄漏 | 通过 | 同文件 destructor backstop 一组，含异常展开中被遗弃的 handle 仍被释放 |
+| ORC/ARC 通过，refc 状态明确 | 通过 | `nimble testLifecycle` 在 ORC 与 ARC 下各跑一遍全部生命周期与错误路径测试，exit 0。refc 未实测，因此不声明支持 |
+
+结论：Phase 3 Gate 通过。
+
 ### Phase 4：Model、Port、Tensor 与同步推理闭环
 
 **任务**
@@ -1310,6 +1323,26 @@ nimble releaseArchive
 - profiling 使用官方 property 与 `_props` API，不再存在 `nv_*`。
 - import/export 是显式操作，不自动创建业务 cache。
 - 1000 次创建/推理/释放压力测试无 double-free、invalid access 或包装层泄漏。
+
+**Gate 状态（2026-09-25）**
+
+验证环境：Windows x86_64、Nim 2.2.12、OpenVINO 2026.4.0（`C:\Program Files (x86)\Intel\openvino_2026`）、本机活动代码页 936。
+
+| Gate 条目 | 状态 | 证据 |
+|---|---|---|
+| Debug 与 Release 都得到固定 CPU 推理输出 | 部分通过 | Windows 两种构建各 50 个集成测试通过，ReLU 输出 `@[0.0, 2.0, 0.0, 4.0]`。**Linux 未实测**，只能由 CI 首次运行关闭 |
+| 顶层流程不要求接触 raw pointer | 通过 | 5 个示例与 README 示例全程不 import raw；裸 handle 只能经显式命名的 `unsafeRawHandle` 取得 |
+| 设备/模型/属性/shape/index 错误有上下文 | 通过 | F07 列出的九类失败路径，消息分别携带 device 名、调用者写的路径、维度序号、实际元素数与合法范围 |
+| profiling 使用官方 property 与 `_props`，无 `nv_*` | 通过 | `enableProfiling()` 的 key 来自 runtime 导出的数据符号；grep 确认仓库无 `nv_` 前缀符号；`perf_count_wrapper.c` 已随原型删除 |
+| import/export 显式，不自动建 cache | 通过 | `exportTo` 写调用者给的路径，`importModel` 接受字节；包不创建目录、不发明文件名、不自行开启 cache |
+| 1000 次压力测试无 double-free/非法访问/泄漏 | 通过 | tensor、request（各自完成真实推理）、Core 三类各 1000 次循环，模型读取 100 次；unsafe 外部 buffer 1000 次循环后 buffer 仍属调用者 |
+
+本阶段另有两项**推翻自身假设**的实测，均已按实测结论改写代码与文档，而不是保留原先的断言：
+
+1. profiling。原测试断言"未设置属性时查询返回空"，CPU plugin 返回了 3 条。实测数据：未设属性时 3 条全 `psNotRun`、0 µs；设置后 1 条 `psExecuted`、2 µs。结论改为"条目存在不证明 profiling 开启，时间大于零才证明"。
+2. Windows 非 ASCII 路径。实现宽字符入口的理由原本是"窄入口会按代码页解码而破坏路径"。在代码页 936 的本机上，窄入口用中文+西里尔的 UTF-8 路径同样返回 `OK`。宽入口保留，但理由改为"UTF-16 不依赖任何未文档化的字节解释"，并新增测试记录窄入口的实际答案。
+
+结论：Phase 4 Gate 在 Windows 侧通过，唯一保留项与 Phase 1 相同——Linux 侧只能由 CI 关闭，必须在 Phase 5 的 Tier 1 CI 全绿前完成。可进入 Phase 5。
 
 ### Phase 5：跨平台、CI、文档和打包加固
 
@@ -1500,8 +1533,8 @@ docs: prepare OpenVINO Nim API 0.1.0 release
 - [ ] A05 固定 OpenVINO 2026.4.0 header/runtime 来源、版本、tag/commit 和 checksum。**部分完成**：本机 18 个 C header 的 SHA-256、安装布局与 tag/commit 已记录在 `docs/resonance-audit.md` §4；官方发布物下载 URL 与其归档 checksum 留待 Phase 2 在 `docs/c-api-coverage.md` 固定并与本机值交叉核对后才可勾选。
 - [x] A06 确认 Tier 1 为 Windows x64/Linux x64、CPU 为发布基线。证据：`docs/resonance-audit.md` §5，本次确认不变。
 - [x] A07 确认最低 Nim 候选和需要实测的 ORC/ARC/refc 范围。证据：`docs/resonance-audit.md` §5；最低候选 2.0.0，本机 2.2.12，ORC/ARC 阻断、refc 仅记录结论。
-- [ ] A08 经授权后建立可恢复的 Resonance 基线 commit/branch/tag。**阻断中**：仓库零提交，需项目所有者按 §17 规则 13 明确授权，或明确决定放弃 Git 基线并记录风险。
-- [ ] A09 确认所有 Phase 0 Gate 后再开始重命名或删除。取决于 A05、A08。
+- [x] A08 经授权后建立可恢复的 Resonance 基线 commit/branch/tag。证据：用户明确选择方案 1 后建立基线提交 `db9ab98` 并打 tag `archive/resonance-before-openvino-nim`。用 tag 而不是同名分支，因为同名分支加 tag 会让 `git checkout` 产生歧义，而"归档"本身意味着不可变。另已确认原型在 `AbyssGG/Resonance` 以 Apache-2.0 公开发布，11 个本地文件与其 `main` 字节级一致，因此基线不是唯一恢复途径。
+- [x] A09 确认所有 Phase 0 Gate 后再开始重命名或删除。证据：`resonance.nimble` 与 `src/resonance/` 的删除都发生在基线 tag 建立之后——前者在 `ab55aab`，后者在 `fe0ee71`，两者都晚于 `db9ab98`。
 
 ### B. 包与法律文件
 
@@ -1579,41 +1612,41 @@ docs: prepare OpenVINO Nim API 0.1.0 release
 
 ### E. Managed 功能
 
-- [ ] E01 实现 runtime 版本查询和 2026.4 支持诊断。
-- [ ] E02 实现 `Core` 和 available devices。
-- [ ] E03 实现 `Model` 读取和输入/输出 metadata。
-- [ ] E04 实现 owned `Port`/const port 释放语义。
-- [ ] E05 实现 properties 构造、set/get 和 compile properties。
-- [ ] E06 实现 `CompiledModel`、explicit import/export。
-- [ ] E07 实现 OpenVINO-owned Tensor。
-- [ ] E08 实现从 Nim 数据安全复制创建 Tensor。
-- [ ] E09 决定并实现外部 buffer：强 owner 或显式 unsafe；禁止模糊入口。
-- [ ] E10 实现 dtype、shape、元素数、byte size 和 checked overflow。
-- [ ] E11 实现安全数据复制与有约束的数据 view。
-- [ ] E12 实现 `InferRequest`、set input、get output 和同步 `infer`。
-- [ ] E13 实现 profiling property 与 profiling 结果复制。
-- [ ] E14 所有 index 转 `csize_t` 前验证非负/范围。
-- [ ] E15 Windows 非 ASCII 模型路径方案实现并测试。
-- [ ] E16 顶层同步流程不暴露 raw pointer。
-- [ ] E17 `compileOrImportModel`、默认 cache/device/fallback 不进入稳定 API。
+- [x] E01 实现 runtime 版本查询和 2026.4 支持诊断。证据：`runtimeVersion()` 不需要 `Core`，复制并释放 OpenVINO 的字符串；`isSupported()` 对无法解析的 build 串返回 false——"测不出来"不等于"没问题"；`requireSupportedRuntime()` 提供显式早失败，但不自动调用。集成测试实测 `2026.4.0-22959-99c81491cc3-releases/2026/4` 解析为 2026.4。
+- [x] E02 实现 `Core` 和 available devices。证据：`newCore()`/`close()`/`availableDevices()`；本机实测发现 4 个 device（CPU、GPU.0、GPU.1、NPU），名字来自已安装 plugin 而非编译期假设。
+- [x] E03 实现 `Model` 读取和输入/输出 metadata。证据：`readModel`、`inputCount`/`outputCount`、`input(i)`/`output(i)`、`friendlyName`、`isDynamic`；fixture 实测 name=input、type=etF32、shape=[1, 4]。
+- [x] E04 实现 owned `Port`/const port 释放语义。证据：`Port` 包装 `ov_output_const_port_t`，必须 `close()`；metadata getter 只接受 const port，这是 header 的约束而非选择，已记录在 `docs/ownership.md` 与 `docs/c-api-coverage.md`。
+- [x] E05 实现 properties 构造、set/get 和 compile properties。证据：`initProperty`、`enableProfiling`、`cacheDirectory`、`inferenceThreadCount`、`streamCount`、`logLevel`；key 从 runtime 导出的数据符号解析，不写字符串字面量。`withRawProperties` 是模板而非过程，因为 C API 在调用期借用 key/value 指针，backing 存储必须留在调用者作用域。
+- [x] E06 实现 `CompiledModel`、explicit import/export。证据：`exportTo` 与 `Core.importModel`（接受字节而非路径）；集成测试做了完整 round-trip 并比对推理结果，临时文件由测试自己管理。
+- [x] E07 实现 OpenVINO-owned Tensor。证据：`newTensor(type, shape)` 基于 `ov_tensor_create`——原型完全没有绑定它，这正是原型只能走外部指针路径的根因。
+- [x] E08 实现从 Nim 数据安全复制创建 Tensor。证据：`tensorFrom`；集成测试证明它真的复制——改动源数据后 tensor 内容不变。若它是视图，每个"安全"调用者都会在不知情中走上 unsafe 路径。
+- [x] E09 决定并实现外部 buffer：强 owner 或显式 unsafe；禁止模糊入口。证据：选择显式 unsafe，入口只有一个 `unsafeTensorFromPointer`，文档写明地址稳定性、对齐、容量与生命周期四项要求；`ownsStorage()` 让归属可被观测和断言。
+- [x] E10 实现 dtype、shape、元素数、byte size 和 checked overflow。证据：`Shape` 在构造时校验，`ElementType` 是真 enum 且对 runtime 返回的未知值在边界处拒绝；`byteSize` 对 sub-byte 类型拒绝而不四舍五入——取整后的字节数会被用来定缓冲区尺寸。18 个 `tests/unit/tshape.nim` 测试覆盖。
+- [x] E11 实现安全数据复制与有约束的数据 view。证据：`toSeq`/`copyFrom` 校验元素数与元素宽度；`unsafeDataPointer` 是唯一裸视图入口，文档说明 reshape 后立即失效。
+- [x] E12 实现 `InferRequest`、set input、get output 和同步 `infer`。证据：按下标与按名字两种绑定、`inputTensor`（免分配路径）、`outputTensor`、`infer`；ReLU 在 CPU 上的输出与手算值逐元素相等。
+- [x] E13 实现 profiling property 与 profiling 结果复制。证据：`profilingInfo()` 返回全 Nim 拥有的副本，成功即按合约释放原生列表，不以 size 判断。实测：未设置属性时 CPU plugin 仍返回 3 条，但全为 `psNotRun` 且 0 µs；设置后 1 条 `psExecuted`、2 µs。
+- [x] E14 所有 index 转 `csize_t` 前验证非负/范围。证据：`checkedIndex` 集中实现；`-1` 转 `csize_t` 得 18446744073709551615，所以"转换前检查"是这个 helper 的全部意义。单元测试与集成测试都覆盖越界与负值。
+- [x] E15 Windows 非 ASCII 模型路径方案实现并测试。证据：新增 `src/openvino/private/paths.nim`（UTF-8→UTF-16，拒绝非法 UTF-8 与被编码的 surrogate），非 ASCII 路径走 `ov_core_read_model_unicode` 与 `ov_core_compile_model_from_file_unicode_props`；14 个单元测试加 5 个集成测试（在中文+西里尔目录与文件名下真实读取、编译、推理）。**实测推翻了原假设**：在代码页 936 的本机上，窄入口同样接受 UTF-8 并返回 `OK`，因此宽入口不是"非 ASCII 能工作"的原因。保留它的理由改为：UTF-16 不依赖任何未文档化的字节解释；并新增一个测试记录窄入口的实际答案而不是断言某个答案。
+- [x] E16 顶层同步流程不暴露 raw pointer。证据：`examples/minimal.nim` 等 5 个示例全程不 import raw，grep 确认；裸 handle 只能经显式命名的 `unsafeRawHandle` 取得，且文档写明是借用。
+- [x] E17 `compileOrImportModel`、默认 cache/device/fallback 不进入稳定 API。证据：grep 确认公共 API 无 `compileOrImportModel`、`blobCachePath`、`cacheHit`、`compileModelWithProfiling`；`compileModel` 强制要求 device 名、失败不改选其他 device、不创建目录、不自行开启 cache。替代组合方式与理由写入 `docs/resonance-migration.md`。
 
 ### F. 测试与 fixture
 
-- [ ] F01 选择或可重现生成小型确定性模型 fixture。
-- [ ] F02 记录 fixture 来源、许可证、生成方法和 SHA-256。
-- [ ] F03 单元测试覆盖状态、错误、properties、shape 和 overflow。
-- [ ] F04 ABI 测试覆盖全部 0.1.0 关键类型、常量和符号。
-- [ ] F05 Windows/Linux 完整 CPU 推理得到固定输出。
-- [ ] F06 Debug/Release 均运行核心集成测试。
-- [ ] F07 失败路径覆盖无效模型、device、property、shape、dtype、index。
-- [ ] F08 import/export 集成测试通过，测试自行管理临时文件。
-- [ ] F09 profiling on/off 行为测试通过。
-- [ ] F10 外部 buffer owner/unsafe 生命周期测试通过。
-- [ ] F11 1000 次生命周期压力测试通过。
-- [ ] F12 Linux 内存/非法访问检查通过。
-- [ ] F13 干净临时目录 Nimble 安装/打包测试通过。
-- [ ] F14 README 最小代码真实编译运行。
-- [ ] F15 所有示例只使用公共 managed API。
+- [x] F01 选择或可重现生成小型确定性模型 fixture。证据：`tests/fixtures/relu_1x4_f32.xml`，手写 IR、三个节点、无权重文件。选 ReLU 而非恒等模型，因为恒等模型无法区分"推理确实执行了"与"输出恰好还是输入"；不选乘常数，因为 `Const` 需要二进制权重文件，fixture 会变成两个可能失去同步的文件。"可重现"由"文件本身就是定义"实现，没有生成脚本要维护。
+- [x] F02 记录 fixture 来源、许可证、生成方法和 SHA-256。证据：`tests/fixtures/README.md`。**此处发现并修复了一个自身缺陷**：最初记录的 SHA-256 是写下但从未计算过的，而且是错的——没有校验和比错的校验和好，因为读者会相信它。现已算出真实值 `6c6964e5…`，并新增 `tools/sha256.nim` 与 `tools/fixturecheck.nim` 接入 `nimble lint` 反复验证。检查器先用公开的 FIPS 180-4 向量验证自己的实现，再哈希文件；未记录的 fixture 与记录了却不存在的文件都会失败。
+- [x] F03 单元测试覆盖状态、错误、properties、shape 和 overflow。证据：`tests/unit/tconversions.nim`（元素数/字节数/index 的溢出与负值）、`tests/unit/tshape.nim`（shape 校验、element type 宽度、sub-byte 拒绝、property 构造）、`tests/unit/tpaths.nim`（路径编码）、`tests/unit/tmetadata_consistency.nim`（版本元数据）、`tests/lifecycle/terror_paths.nim`（全部 18 个状态码的稳定描述与 last-error 顺序）。`nimble test` 与 `nimble testLifecycle` 均 exit 0。
+- [x] F04 ABI 测试覆盖全部 0.1.0 关键类型、常量和符号。证据：`nimble testAbi` 22 个测试由 C 探针驱动，header 中存在而绑定缺失会让计数检查失败；`nimble testSmoke` 对真实 runtime 解析 55 个必需符号。反向测试过：把 `U8` 改回原型的 13 会让 2 个测试失败。
+- [ ] F05 Windows/Linux 完整 CPU 推理得到固定输出。**仅 Windows 完成**：`nimble testIntegration` 在 Windows x86_64 上 50 个测试通过，ReLU 输出 `@[0.0, 2.0, 0.0, 4.0]` 与手算值相等。Linux 侧只能由 CI 首次运行关闭，因此本项保持未勾选。
+- [x] F06 Debug/Release 均运行核心集成测试。证据：`testIntegration` 对 `["", "-d:release"]` 两种构建各跑一遍；release 改变边界检查与对象布局，正是所有权错误开始表现不同的地方。两次均 50 个测试通过。
+- [x] F07 失败路径覆盖无效模型、device、property、shape、dtype、index。证据：不存在的模型路径（在进入 C 层前拒绝，消息带调用者写的路径）、未知 device（消息含 device 名与 `NO_SUCH_DEVICE`）、空 property key、负维度与溢出 shape、按 float64 读 f32 tensor、越界与负 index、空 blob import、非法 UTF-8 路径。分布在 `tconversions`、`tshape`、`tpaths`、`terror_paths`、`tcpu_inference` 五个文件。
+- [x] F08 import/export 集成测试通过，测试自行管理临时文件。证据：`tcpu_inference.nim` 的 "export and import" 套件；export 到测试自选的临时文件、close、读回字节、import、再推理并比对输出。包不创建目录、不发明缓存文件名——这正是包与应用的职责分界。
+- [x] F09 profiling on/off 行为测试通过。证据：两个测试。**其中一个推翻了我们自己的假设**：最初断言未设置属性时查询返回空，CPU plugin 照样返回 3 条。测试改为记录 plugin 的实际行为。实测数据：未设属性时 3 条全为 `psNotRun`、总计 0 µs；设置后 1 条 `psExecuted`、2 µs。结论写入 `examples/profiling.nim` 与 `docs/troubleshooting.md`：条目存在不证明 profiling 开启，时间大于零才证明。
+- [x] F10 外部 buffer owner/unsafe 生命周期测试通过。证据：`tcpu_inference.nim` 的 "external buffers and the unsafe path" 套件，7 个测试：归属标志、`tensorFrom` 真的复制、外部 buffer 双向共享可见、用外部 buffer 完成真实推理且 tensor/request 关闭后 buffer 仍属调用者、关闭 unsafe tensor 不释放调用者内存、1000 个 unsafe tensor 只释放各自的部分、两种构造器对同一 shape/type 给出相反的归属。
+- [x] F11 1000 次生命周期压力测试通过。证据：`tcpu_inference.nim` 的 "lifecycle under repetition"（1000 个 tensor、1000 个各自完成真实推理的 request、100 次模型读取）与 `terror_paths.nim` 的 1000 次 Core 与 tensor 循环。request 循环累计不一致次数而不是在循环内断言，失败时报告有多少次迭代出错而不是停在第一次。
+- [ ] F12 Linux 内存/非法访问检查通过。未执行：需要 Linux runner，只能由 CI 关闭。
+- [x] F13 干净临时目录 Nimble 安装/打包测试通过。证据：向全新 `--nimbleDir` 安装后，包内恰好是 1 个 manifest、1 个 `nimblemeta.json` 与 30 个 `.nim`（managed + private + raw），没有 tests、examples、tools、docs、fixture、`.exe` 或原型残留；`srcDir` 被摊平为包根。随后在一个只能看到已安装包的独立目录里编译并运行 consumer 程序，真实推理输出 `@[0.0, 2.0, 0.0, 4.0]`。
+- [x] F14 README 最小代码真实编译运行。证据：README 的示例就是 `examples/minimal.nim`，由 `nimble examples` 编译并运行（实测输出 `@[0.0, 2.0, 0.0, 4.0]`）；`tools/mdcheck.nim` 比对两者的代码行（忽略注释与空行），不一致则 `nimble lint` 失败。改这一项之前 README 里那段是"声称将来会有"的伪代码。
+- [x] F15 所有示例只使用公共 managed API。证据：grep 确认 `examples/` 下 5 个文件都不 import `openvino/raw` 或任何 `private/` 模块；`nimble examples` 编译**并运行**每一个，因为能编译却运行失败的示例比没有示例更糟——它看起来像一个可用的参考。
 
 ### G. CI、文档与示例
 
@@ -1623,16 +1656,16 @@ docs: prepare OpenVINO Nim API 0.1.0 release
 - [ ] G04 完成 lifecycle、examples-package、docs 作业。
 - [ ] G05 完成定时/release 内存检查作业。
 - [ ] G06 CI 失败产物包含 ABI/runtime/设备诊断且不泄露 secrets。
-- [ ] G07 完成 `list_devices.nim`。
-- [ ] G08 完成真正端到端的 `sync_infer.nim`。
-- [ ] G09 完成 `tensor_basics.nim`。
-- [ ] G10 完成 `profiling.nim` 或明确移到后续版本。
-- [ ] G11 完成 architecture、ownership、compatibility 文档。
-- [ ] G12 完成 Resonance migration 和 troubleshooting 文档。
-- [ ] G13 生成 API 文档并检查内部链接。
-- [ ] G14 检查 `src/openvino` 不 import Resonance/Isvik。
-- [ ] G15 检查公共符号/错误/用户文档无业务品牌残留。
-- [ ] G16 确认 macOS/GPU/NPU 只按实测状态声明。
+- [x] G07 完成 `list_devices.nim`。证据：实测打印 runtime 版本、是否匹配固定基线，以及 4 个 device 的完整名称；对不支持某属性的 device，把拒绝当作信息而不是失败。它是部署排障的第一步，因为它把"OpenVINO 不可达"与"我的模型有问题"分开。
+- [x] G08 完成真正端到端的 `sync_infer.nim`。证据：从命令行取模型路径与 device，打印模型 metadata，绑定输入、推理、读回输出，并逐元素验证 `max(0, x)`。实测输出 `@[0.0, 2.0, 0.0, 4.0]`。
+- [x] G09 完成 `tensor_basics.nim`。证据：shape/element type/byte size、被拒绝的负维度与 sub-byte 字节数、owned tensor 的复制与宽度检查、reshape 后指针失效的说明，以及 unsafe 路径的双向可见性演示。此文件曾因 `initShape([])` 二义而编译失败——空数组字面量没有元素类型，两个重载都能匹配；改为 `initShape()` 后无二义，并在 `tests/unit/tshape.nim` 里固定了这个写法。
+- [x] G10 完成 `profiling.nim` 或明确移到后续版本。证据：已完成。它把有属性与无属性两次运行并排打印，按耗时排序（插入顺序是 plugin 的，对调用者没有意义），并写明节点名是 plugin 经过融合等图变换后的名字、不应期望与 IR 中的名字对应。
+- [x] G11 完成 architecture、ownership、compatibility 文档。证据：`docs/architecture.md`（两层、依赖方向、边界转换、刻意缺失的东西、以及每条规则由哪个任务强制）、`docs/ownership.md`（逐函数归属与释放）、`docs/compatibility.md`（把实测组合与未实测组合分开列，Linux/macOS/GPU/NPU/refc 明确列为未验证）。
+- [x] G12 完成 Resonance migration 和 troubleshooting 文档。证据：`docs/resonance-migration.md`（逐名对照、三项刻意不迁移的行为及其理由、重写修掉的 ABI 缺陷清单、7 步迁移清单）与 `docs/troubleshooting.md`（按失败发生的早晚排序，第一条就是 oneTBB 搜索路径——那是让一个明明存在的 `openvino_c.dll` 看起来缺失的依赖）。
+- [x] G13 生成 API 文档并检查内部链接。证据：`nimble docs` exit 0，产出到 `build/docs`。内部链接检查已机械化：`tools/mdcheck.nim` 校验每个相对 Markdown 链接的目标真实存在，并按包含它的文档所在目录解析——这正是它要抓的错误（在 `docs/` 里写 `docs/x.md` 看起来对，实际解析为 `docs/docs/x.md`）。该检查的第一版把 `` `newTensor[T](shape)` `` 里的 `](` 当成链接，报了一个不存在的文件 `shape`；现已先剥离行内代码段。17 个 Markdown 文件通过。
+- [x] G14 检查 `src/openvino` 不 import Resonance/Isvik。证据：grep `resonance|Resonance|Isvik|NimVoice` 在 `src/` 下只命中 6 处文档注释，全部是解释原型缺陷的历史说明（如 last-error 泄漏、按值 shape），没有任何 import 或符号。
+- [x] G15 检查公共符号/错误/用户文档无业务品牌残留。证据：同一次 grep 确认公共符号与错误消息中没有品牌名；面向用户的文档里只有 `docs/resonance-migration.md` 与 `docs/resonance-audit.md` 提到 Resonance，且是它们的主题本身——为迁移者服务的历史说明，不是残留。
+- [x] G16 确认 macOS/GPU/NPU 只按实测状态声明。证据：`docs/compatibility.md` 把 GPU 与 NPU 记为"本机能发现并报出完整名称，但未在其上执行过任何推理"，macOS 记为"从未运行，两个方向都不声明"，`--mm:refc` 同样不声明。README 的 Status 一节改为只声明 Windows x86_64 + CPU。
 - [ ] G17 发布 CI 从版本、明确发布日期和 OpenVINO 固定版本生成归档名，不读取 runner 本地日期。
 - [ ] G18 发布 CI 校验 tag、Release 标题、归档名、归档顶层目录和 checksum 一致。
 - [ ] G19 发布 CI 支持只生成不上传的 dry run；PR/fork 无上传权限。

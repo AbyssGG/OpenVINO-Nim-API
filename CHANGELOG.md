@@ -28,6 +28,46 @@ Not released. Under development.
   version, the minimum supported Nim version and the pinned OpenVINO
   baseline. The Nimble manifest derives its fields from this module, so the
   manifest cannot drift from the library.
+- Added the error hierarchy: `OpenVinoError` carrying the operation name, the
+  numeric status, the stable status description and the native detail captured
+  at the moment of failure, plus `OpenVinoLibraryError`,
+  `OpenVinoVersionError` and `OpenVinoArgumentError`. Argument mistakes are
+  refused in Nim before entering the C layer.
+- Added the handle model. Every managed type owns exactly one native handle
+  behind a shared `ref`, offers an idempotent `close()`, refuses use after
+  close with a message naming the type, and keeps a destructor as a backstop
+  for an abandoned handle rather than as the normal release path.
+- Added `Core` with device discovery, `readModel`, `compileModel` from a
+  `Model` or from a path, `importModel` from a blob, and per-device
+  properties. No default device, no fallback after a failure, no implicit
+  cache and no directory creation.
+- Added `Model` and `Port` with input and output counts, names, element types,
+  shapes and a dynamic-shape query. Port indices are range-checked before
+  conversion to `csize_t`.
+- Added `CompiledModel` with properties, `createInferRequest` and `exportTo`
+  for an explicit blob. Export and import are separate operations; there is no
+  entry point that decides between compiling and importing for you.
+- Added `InferRequest` with positional and by-name input binding, output
+  tensors, a synchronous `infer`, and `profilingInfo` returning Nim-owned
+  copies.
+- Added `Shape` and `ElementType`. A shape is validated when built, so a
+  negative dimension or an element count that would overflow `int64` is
+  rejected once rather than at some later call. `ElementType` is a real Nim
+  enum, and a value an installed runtime reports that this build does not know
+  is refused at the boundary instead of stored as an illegal enumerator.
+- Added `Tensor` with three constructors separated by ownership:
+  `newTensor` for OpenVINO-allocated storage, `tensorFrom` for a checked copy
+  of Nim data, and `unsafeTensorFromPointer` for a caller-owned buffer. Typed
+  access checks element width and refuses sub-byte types rather than rounding
+  a byte size.
+- Added `Property` with `enableProfiling`, `cacheDirectory`,
+  `inferenceThreadCount`, `streamCount` and `logLevel`. Keys are resolved from
+  the runtime's own exported symbols rather than written as string literals.
+- Non-ASCII model paths on Windows go through OpenVINO's wide-character entry
+  points, so the result cannot depend on the process's active code page.
+  Measured: `2026.4` also accepts UTF-8 through the narrow entry point on a
+  host with code page 936, so this is insurance against an undocumented
+  behaviour rather than a fix for a reproduced failure.
 
 ### OpenVINO compatibility
 
@@ -50,7 +90,32 @@ Not released. Under development.
   Linux x86_64.
 - Added `tools/mdcheck.nim`, a Nim implementation of the mechanically
   checkable Markdown rules, wired into `nimble lint` so documentation style
-  is enforced without adding a non-Nim toolchain dependency.
+  is enforced without adding a non-Nim toolchain dependency. It also requires
+  the README's Nim example to be the same code as `examples/minimal.nim`, which
+  `nimble examples` compiles and runs, so the first thing a reader tries cannot
+  rot.
+- Added `nimble testLifecycle`, running the lifetime and error-path suites
+  under both ORC and ARC, because a destructor that fires at a different time
+  is exactly the kind of difference that turns into a double free.
+- Added `nimble testIntegration`, running the CPU inference suite in debug and
+  release. Release changes bounds checking and object layout, which is where an
+  ownership mistake starts behaving differently.
+- Added `nimble examples`, which compiles **and runs** every example. An
+  example that builds but fails at run time is worse than none, because it
+  looks like a working reference.
+- Added `nimble checkFixtures`, plus `tools/sha256.nim` and
+  `tools/fixturecheck.nim`. The checker verifies its own SHA-256 implementation
+  against published FIPS 180-4 vectors, then recomputes every digest recorded
+  in `tests/fixtures/README.md` and fails on an undocumented fixture or a
+  documented file that is absent. It exists because the first digest written
+  into that file had never been computed and was wrong.
+- Added `tests/fixtures/relu_1x4_f32.xml`, a hand-written IR model computing
+  `max(0, x)` over shape `[1, 4]`. Hand-written so the licence is unambiguous,
+  the expected output is obvious by inspection, and reproducing it needs no
+  tooling. ReLU rather than an identity model, because an identity model cannot
+  distinguish "inference ran" from "the output happens to hold the input".
+- Added `examples/minimal.nim`, `list_devices.nim`, `sync_infer.nim`,
+  `tensor_basics.nim` and `profiling.nim`. All use the public managed API only.
 - Added `.gitattributes` declaring `* text=auto eol=lf`. The LF requirement
   now travels with the repository instead of depending on each contributor's
   `core.autocrlf` setting, which would otherwise produce CRLF working trees
@@ -115,3 +180,25 @@ Not released. Under development.
   of scope, together with its ownership and by-value facts.
 - Added `docs/decisions/0001-symbol-loading.md`, recording why the raw layer
   resolves symbols explicitly instead of using Nim's `dynlib` pragma.
+- Added `docs/decisions/0002-handle-model.md`, recording why handles are shared
+  `ref` objects rather than non-copyable value types: a copy that slipped
+  through a value type would produce two owners of one pointer, and the `ref`
+  makes a double free inexpressible.
+- Added `docs/ownership.md`, listing per function what is owned, borrowed or
+  static, which function releases it, how long it is valid, and the order in
+  which a last-error message must be read and released.
+- Added `docs/architecture.md`, describing the two layers, the direction of
+  every dependency, where the boundary conversions live, what is deliberately
+  absent and which task enforces each of those rules.
+- Added `docs/compatibility.md`, separating combinations that were actually run
+  from those that were not. Linux, macOS, GPU, NPU and `--mm:refc` are listed
+  as unverified rather than claimed.
+- Added `docs/troubleshooting.md`, ordered by how early each failure happens.
+  It leads with the oneTBB search path, which is the dependency that makes a
+  present `openvino_c.dll` look missing.
+- Added `docs/resonance-migration.md`, mapping the prototype's API onto this
+  one, listing the three behaviours that were deliberately not carried over,
+  and naming the ABI defects the rewrite fixed.
+- Added `tests/fixtures/README.md`, recording each fixture's format, shapes,
+  computation, checksum, origin and licence, and the exact expected output for
+  the input the tests use.

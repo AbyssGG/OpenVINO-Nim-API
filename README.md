@@ -17,11 +17,14 @@ Version `0.1.0` is under active development and is not released yet. The
 work is tracked phase by phase in
 [OPENVINO_NIM_0.1_DEVELOPMENT_PLAN.md](OPENVINO_NIM_0.1_DEVELOPMENT_PLAN.md).
 
-At this point the package provides compile-time metadata only. `Core`,
-`Model`, `CompiledModel`, `InferRequest` and `Tensor` are not implemented
-yet, so the minimal inference example below is the target shape of the API
-rather than working code. Nothing in this README should be read as a claim
-that a feature already works.
+Synchronous inference works. `Core`, `Model`, `CompiledModel`,
+`InferRequest`, `Tensor`, properties, profiling and explicit blob
+export/import are implemented and covered by tests that run real inference on
+CPU, including a thousand-iteration lifetime loop. What is verified so far is
+Windows x86_64 with OpenVINO `2026.4.0` on CPU; Linux is built by CI but is
+not yet claimed as verified, and no claim is made for GPU, NPU or macOS.
+Nothing in this README should be read as a claim that a feature already works
+unless it says so.
 
 ## Four names, four purposes
 
@@ -96,18 +99,52 @@ nimble install
 
 ## Minimal synchronous inference
 
-Target shape of the managed API. Not yet implemented.
-
 ```nim
 import openvino
 
-echo PackageName, " ", PackageVersion
-echo "built against OpenVINO ", TargetOpenVinoVersion
+const modelPath = "tests/fixtures/relu_1x4_f32.xml"
+
+proc main() =
+  let core = newCore()
+  defer: core.close()
+
+  let compiled = core.compileModel(modelPath, "CPU")
+  defer: compiled.close()
+
+  let request = compiled.createInferRequest()
+  defer: request.close()
+
+  let input = tensorFrom(etF32, initShape(1, 4),
+                         [float32(-1.5), 2.0, -0.25, 4.0])
+  defer: input.close()
+
+  request.setInputTensor(0, input)
+  request.infer()
+
+  let output = request.outputTensor(0)
+  defer: output.close()
+  echo output.toSeq(float32)
+
+main()
 ```
 
-The example above is the part that compiles today: package metadata. The
-full read-compile-infer example replaces it in the phase that implements
-synchronous inference, and it is compiled by CI from that point on.
+Prints `@[0.0, 2.0, 0.0, 4.0]`: the model is a ReLU, so the two negative
+inputs become zero and the two positive ones pass through.
+
+This is not a transcription. The same code is `examples/minimal.nim`, which
+`nimble examples` compiles and runs, and `nimble lint` fails if the two drift
+apart. Note what is absent: no device is chosen for you, no cache directory
+appears, and every object is closed where it was created.
+
+More examples, all using the public API only:
+
+| Example | What it shows |
+|---|---|
+| `examples/list_devices.nim` | Runtime version and device discovery, useful first when a deployment misbehaves |
+| `examples/minimal.nim` | The block above |
+| `examples/sync_infer.nim` | The same loop with the model path and device taken from the command line, plus model metadata |
+| `examples/tensor_basics.nim` | Shapes, element types, and the difference between the safe data paths and the unsafe one |
+| `examples/profiling.nim` | Per-node timings, and what the numbers do and do not mean |
 
 ## Error diagnosis
 
@@ -139,17 +176,23 @@ Two rules cover most of what you need to know:
 
 ## Documentation
 
-These documents are written in the phases that own them, so some links are
-not live yet.
+Start with whichever question you have:
 
-- [Development plan](OPENVINO_NIM_0.1_DEVELOPMENT_PLAN.md)
-- [Development log, English and Chinese](DEVLOG.md)
-- [Style guide](STYLE_GUIDE.md)
-- [Contributing](CONTRIBUTING.md)
-- [Changelog](CHANGELOG.md)
-- [C API coverage](docs/c-api-coverage.md)
-- [Decision records](docs/decisions/0001-symbol-loading.md)
-- [Resonance prototype audit](docs/resonance-audit.md)
+| Question | Document |
+|---|---|
+| How is this put together, and why? | [Architecture](docs/architecture.md) |
+| What has actually been tested? | [Compatibility](docs/compatibility.md) |
+| Something does not work | [Troubleshooting](docs/troubleshooting.md) |
+| Who releases what? | [Ownership rules](docs/ownership.md) |
+| Which C entry points are bound? | [C API coverage](docs/c-api-coverage.md) |
+| I have Resonance code | [Migration guide](docs/resonance-migration.md) |
+| Why was it done this way? | [Symbol loading](docs/decisions/0001-symbol-loading.md), [handle model](docs/decisions/0002-handle-model.md) |
+
+Project documents: [development plan](OPENVINO_NIM_0.1_DEVELOPMENT_PLAN.md),
+[development log in English and Chinese](DEVLOG.md),
+[style guide](STYLE_GUIDE.md), [contributing](CONTRIBUTING.md),
+[changelog](CHANGELOG.md),
+[prototype audit](docs/resonance-audit.md).
 
 ## License
 

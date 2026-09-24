@@ -241,7 +241,18 @@ task lint, "Run style, whitespace and layering checks":
   # beyond the pinned Nim. It exits non-zero on any violation.
   exec "nim r --hints:off tools/mdcheck.nim"
 
+  # Fixture documentation is checked here rather than only in the test tasks
+  # because it needs no OpenVINO runtime, and because a wrong checksum is a
+  # documentation defect. It was a real one: the first recorded digest had been
+  # written down without being computed.
+  exec "nim r --hints:off tools/fixturecheck.nim"
+
   echo "Lint passed for ", sources.len, " Nim files."
+
+task checkFixtures, "Recompute every fixture checksum recorded in the docs":
+  # Also reachable through `nimble lint`; available on its own so that a
+  # fixture change can be checked without waiting for the whole lint pass.
+  exec "nim r --hints:off tools/fixturecheck.nim"
 
 task test, "Run unit tests that do not require an OpenVINO runtime":
   var sources: seq[string] = @[]
@@ -334,6 +345,38 @@ task testLifecycle, "Run lifetime and error-path tests under ORC and ARC":
     for path in unitSources & runtimeSources:
       exec "nim c --hints:off --path:src --mm:" & memoryManager &
         " -r " & path
+
+task examples, "Build and run every example against the test fixture":
+  # Examples are compiled and run, not merely compiled. An example that builds
+  # but fails at run time is worse than none, because it looks like a working
+  # reference.
+  var sources: seq[string] = @[]
+  collectNimSources("examples", sources)
+  if sources.len == 0:
+    echo "No examples found under examples/."
+    quit(1)
+  for path in sources:
+    echo "--- ", path, " ---"
+    let arguments =
+      if path.endsWith("sync_infer.nim"):
+        " tests/fixtures/relu_1x4_f32.xml CPU"
+      else:
+        ""
+    exec "nim c --hints:off --path:src -r " & path & arguments
+
+task testIntegration, "Run the CPU inference loop through the public API":
+  # Needs a working runtime with the CPU plugin. Run in both debug and release,
+  # because a release build changes bounds checking and object layout, which is
+  # where an ownership mistake can start behaving differently.
+  var sources: seq[string] = @[]
+  collectNimSources("tests/integration", sources)
+  if sources.len == 0:
+    echo "No integration tests found under tests/integration."
+    quit(1)
+  for buildMode in ["", "-d:release"]:
+    echo "--- build: ", (if buildMode.len == 0: "debug" else: "release"), " ---"
+    for path in sources:
+      exec "nim c --hints:off --path:src " & buildMode & " -r " & path
 
 task testSmoke, "Load a real OpenVINO runtime and exercise the raw layer":
   # Needs an installed runtime on the loader path, not just the headers. The

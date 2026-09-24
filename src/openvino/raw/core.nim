@@ -113,6 +113,17 @@ proc ov_core_compile_model_from_file_props*(
   {.openvinoImport.}
   ## Reads and compiles in one step. Non-variadic form.
 
+when defined(windows):
+  proc ov_core_compile_model_from_file_unicode_props*(
+      core: ptr ov_core_t; model_path: ptr uint16; device_name: cstring;
+      num_properties: csize_t; properties: ptr ov_property_t;
+      compiled_model: ptr ptr ov_compiled_model_t): ov_status_e
+    {.openvinoImport.}
+    ## Windows-only wide-path form of `ov_core_compile_model_from_file_props`.
+    ##
+    ## Note that only the model path widens: `device_name` stays a narrow
+    ## string, because a device name is ASCII by construction.
+
 proc ov_core_set_properties*(core: ptr ov_core_t; device_name: cstring;
                              num_properties: csize_t;
                              properties: ptr ov_property_t): ov_status_e

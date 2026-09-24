@@ -349,6 +349,91 @@ Windows wide-path model reading is declared as `ptr uint16` rather than a Nim
 wide-string type, so that the element width is stated rather than assumed, and
 only under `when defined(windows)` because the header guards it.
 
+### 2026-09-25 Phase 4: the managed API, and inference that actually runs
+
+Added the managed layer: `shape`, `properties`, `tensor`, `node`, `model`,
+`compiled_model`, `infer_request` and `core`, plus the test fixture, the
+integration suite, five examples, and the tasks `testIntegration`, `examples`
+and `checkFixtures`. 50 integration tests and 18 new unit tests pass, including
+real ReLU inference on CPU in both debug and release.
+
+The fixture is hand-written IR rather than an exported model, and the model is a
+ReLU. Both choices were between alternatives. Hand-written means the licence is
+unambiguous, the expected output can be computed mentally, and reproducing it
+needs no tooling; an exported model needs provenance tracing and a framework
+version. ReLU was chosen over an identity model because an identity model cannot
+distinguish "inference ran" from "the output tensor happens to hold the input",
+and over multiply-by-constant because a `Const` node needs a binary weights
+file, which would make the fixture two files that can desynchronise. The test
+input is `[-1.5, 2.0, -0.25, 4.0]`: two signs and a fraction, so an
+implementation that transposed, scaled or reordered anything fails on it.
+
+One of our own assumptions was disproved during this phase. A test asserted that
+`profilingInfo()` returns nothing when the profiling property was never set. The
+CPU plugin returned three entries anyway. The test was rewritten to record what
+the plugin does rather than to assert what we expected, and the conclusion is
+now stated in `examples/profiling.nim`: the presence of entries does not prove
+profiling is on, timings above zero do. Running that example gives the numbers:
+without the property, three entries, none executed, zero microseconds total;
+with it, the same three entries, one executed, two microseconds.
+
+A second assumption was disproved the same way. Non-ASCII model paths on Windows
+now go through OpenVINO's wide-character entry points, on the reasoning that a
+narrow `const char*` would be decoded in the active code page and mangled. A
+direct measurement, calling `ov_core_read_model` with a UTF-8 path containing
+both Chinese and Cyrillic on a host with code page 936, returned `OK`. So 2026.4
+treats those bytes as UTF-8 and the wide path is not what makes non-ASCII paths
+work. It is kept, because "works in the version we measured" is not "is
+specified to work" and UTF-16 removes the question entirely, and a test now
+records the narrow entry point's answer rather than asserting one.
+
+The fixture documentation carried a SHA-256 that had been written down without
+ever being computed, and it was wrong. That is worse than no checksum, because a
+reader would trust it. Fixed by computing the real digest and by adding
+`tools/sha256.nim` and `tools/fixturecheck.nim`, wired into `nimble lint`. The
+checker verifies its own implementation against published FIPS 180-4 vectors
+before hashing anything, so a broken implementation reports itself instead of
+agreeing with an equally broken expectation; its digest for the fixture also
+agrees with an independent implementation. It fails on an undocumented fixture
+and on a documented file that is absent, so the documentation cannot drift in
+either direction. SHA-256 is written out in full because the Nim standard
+library has only SHA-1 and the `checksums` package is not bundled with a Nim
+installation.
+
+The README example was in the same category: prose claiming an API that nothing
+compiled. It is now `examples/minimal.nim`, which `nimble examples` runs, and
+`tools/mdcheck.nim` compares the README block against that file, ignoring
+comments and blank lines so each can carry the text that suits it.
+
+`examples/tensor_basics.nim` failed to compile on `initShape([])`, because an
+empty array literal has no element type and both the `varargs[int]` and
+`openArray[int64]` overloads match it. Written as `initShape()` it is
+unambiguous. Worth recording because it is a wart any caller wanting a scalar
+shape would hit.
+
+Lifetime behaviour under repetition is now measured rather than reasoned about: a
+thousand tensors, a thousand inference requests each used for a real inference,
+and a hundred model reads, all created and released in a loop. The request loop
+counts mismatches instead of checking inside the loop, so a failure reports how
+many iterations went wrong rather than stopping at the first.
+
+The external-buffer split is held in place by tests rather than by documentation
+alone. One asserts that `tensorFrom` really copies, by mutating the source
+afterwards: if that read back the new value, every caller of the safe
+constructor would silently be on the unsafe path. Another writes through the
+caller's pointer after closing the unsafe tensor, which is a use-after-free
+under a wrong release and simply works under the right one.
+
+Packaging was re-checked from the consumer's side rather than from the
+repository's. Installing into a fresh `--nimbleDir` yields one manifest and
+thirty `.nim` files with `srcDir` flattened into the package root, and no tests,
+examples, tools, docs, fixture or executables. A program in a separate directory
+that can see only that installation compiles and runs a real inference.
+
+Still open: the Linux ABI and smoke jobs, which only CI's first run can close;
+GPU and NPU, which are discovered on this host but on which no inference has
+been run; `--mm:refc`, which is not claimed.
+
 ## 中文
 
 ### 2026-09-24 Phase 0：审计原型并冻结范围
@@ -609,3 +694,68 @@ header 强加给设计的几处所有权不对称，各自记录在对应函数�
 Windows 宽路径读模型声明为 `ptr uint16` 而非 Nim 宽字符串类型，以便显式陈述
 元素宽度而不是假定，并且只在 `when defined(windows)` 下声明，因为 header 对它
 加了守卫。
+### 2026-09-25 Phase 4：managed API，以及真正跑起来的推理
+
+加入 managed 层：`shape`、`properties`、`tensor`、`node`、`model`、
+`compiled_model`、`infer_request`、`core`，以及测试 fixture、集成测试套件、
+五个示例，和 `testIntegration`、`examples`、`checkFixtures` 三个任务。50 个
+集成测试与 18 个新增单元测试通过，其中包含 debug 与 release 两种模式下在 CPU 上
+真实执行的 ReLU 推理。
+
+fixture 是手写 IR 而不是导出的模型，模型选的是 ReLU。两个选择都是在备选之间
+权衡的结果。手写意味着许可证归属无歧义、期望输出可以心算、复现不依赖任何工具
+链；导出的模型则需要追溯来源并固定框架版本。选 ReLU 而不是恒等模型，因为恒等
+模型无法区分"推理确实执行了"与"输出 tensor 恰好还是输入"；不选乘常数，因为
+`Const` 节点需要二进制权重文件，fixture 就会变成两个可能失去同步的文件。测试
+输入取 `[-1.5, 2.0, -0.25, 4.0]`：两种符号加一个小数，因此任何做了转置、缩放
+或重排的实现都会在它上面失败。
+
+本阶段推翻了我们自己的一个假设。原先有个测试断言：未设置 profiling 属性时
+`profilingInfo()` 返回空。CPU plugin 照样返回了三条。该测试改为记录 plugin 的
+实际行为，而不是断言我们的预期，结论写进了 `examples/profiling.nim`：条目存在
+并不证明 profiling 已开启，时间大于零才证明。跑一遍那个示例就能拿到数据：未设
+属性时三条、无一执行、总计 0 微秒；设置后同样三条、一条执行、2 微秒。
+
+第二个假设以同样方式被推翻。Windows 上的非 ASCII 模型路径现在走 OpenVINO 的
+宽字符入口，理由是窄 `const char*` 会按当前代码页解码而被破坏。直接测量——在
+代码页 936 的机器上，用同时含中文与西里尔字母的 UTF-8 路径调用
+`ov_core_read_model`——返回了 `OK`。也就是说 2026.4 把这些字节当作 UTF-8，宽
+路径并不是非 ASCII 路径能工作的原因。它仍然保留，因为"在我们测的版本上能用"
+不等于"规格保证能用"，而 UTF-16 彻底消除了这个问题；同时新增一个测试记录窄
+入口的答案，而不是断言某个答案。
+
+fixture 文档里那个 SHA-256 是写下来但从未计算过的，而且是错的。这比没有校验和
+更糟，因为读者会相信它。处理方式是算出真实摘要，并加入 `tools/sha256.nim` 与
+`tools/fixturecheck.nim`，接进 `nimble lint`。检查器在哈希任何文件之前先用
+公开的 FIPS 180-4 测试向量验证自己的实现，这样一个错误的实现会自己报错，而不是
+与一个同样错误的期望互相印证；它给出的 fixture 摘要也与另一个独立实现一致。
+它在"目录里有未记录的 fixture"和"文档记录了不存在的文件"两种情况下都失败，
+因此文档不会向任一方向漂移。SHA-256 完整写出，因为 Nim 标准库只有 SHA-1，而
+带 SHA-256 的 `checksums` 包并不随 Nim 安装分发。
+
+README 的示例属于同一类问题：用散文声称一个没有任何东西去编译的 API。它现在是
+`examples/minimal.nim`，由 `nimble examples` 实际运行，`tools/mdcheck.nim`
+把 README 代码块与该文件比对，比对时忽略注释与空行，让两边各自携带合适的文字。
+
+`examples/tensor_basics.nim` 曾因 `initShape([])` 编译失败：空数组字面量没有
+元素类型，`varargs[int]` 与 `openArray[int64]` 两个重载都能匹配。写成
+`initShape()` 即无歧义。值得记录，因为任何想要标量 shape 的调用者都会撞上
+这个别扭处。
+
+重复场景下的生命周期行为现在是实测而非推理：一千个 tensor、一千个各自完成一次
+真实推理的 infer request、一百次模型读取，全部在循环中创建并释放。request 循环
+采用累计不一致次数而不是在循环内断言，这样失败时报告的是有多少次迭代出错，而
+不是停在第一次。
+
+外部 buffer 的归属划分由测试而不是仅由文档守住。一个测试在事后修改源数据来断言
+`tensorFrom` 确实做了复制——如果那里读回了新值，说明每个"安全"构造器的调用者都
+在不知情中走上了 unsafe 路径。另一个测试在关闭 unsafe tensor 之后再通过调用者的
+指针写入：在错误的释放实现下这是 use-after-free，在正确的实现下它只是正常工作。
+
+打包这次是从使用者一侧复核的，而不是从仓库一侧。向全新的 `--nimbleDir` 安装后
+得到 1 个 manifest 与 30 个 `.nim`，`srcDir` 被摊平为包根，没有 tests、examples、
+tools、docs、fixture 或可执行文件。随后在一个只能看到该安装的独立目录里编译并
+运行程序，真实完成了一次推理。
+
+仍未关闭：Linux 的 ABI 与 smoke 作业，只能由 CI 的首次运行关闭；GPU 与 NPU，
+在本机能被发现但尚未在其上执行过推理；`--mm:refc`，不作声明。

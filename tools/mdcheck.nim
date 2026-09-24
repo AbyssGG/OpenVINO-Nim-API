@@ -34,6 +34,13 @@ const
     ## Bilingual development log, checked for entry parity between its two
     ## language halves.
 
+  readmePath = "README.md"
+  readmeExample = "examples/minimal.nim"
+    ## The README's Nim example must be the same code as this file, which
+    ## `nimble examples` compiles and runs. A README snippet that nothing
+    ## compiles is the first thing a reader tries and the last thing anyone
+    ## updates.
+
   devlogEnglishHeading = "## English"
   devlogChineseHeading = "## 中文"
   devlogEntryPrefix = "### "
@@ -142,6 +149,123 @@ proc checkDevlogParity(raw: string): seq[Problem] =
     result.add((0, "has " & $english & " English entries but " & $chinese &
       " Chinese entries; both halves must be updated together"))
 
+proc checkLocalLinks(path, raw: string): seq[Problem] =
+  ## Verifies that every relative Markdown link points at a file that exists.
+  ##
+  ## Relative links resolve against the directory of the document that contains
+  ## them, which is the mistake this catches: writing `docs/ownership.md` inside
+  ## a file that already lives in `docs/` looks right and resolves to
+  ## `docs/docs/ownership.md`.
+  ##
+  ## External links are not fetched. A link checker that reaches the network
+  ## fails for reasons that have nothing to do with the change under review.
+  result = @[]
+  let directory = parentDir(path)
+  var
+    inFence = false
+    lineNumber = 0
+  for line in raw.splitLines():
+    inc lineNumber
+    if line.startsWith(fence):
+      inFence = not inFence
+      continue
+    if inFence:
+      continue
+
+    # Inline code spans are removed first. A Nim signature such as
+    # `newTensor[T](shape)` contains the `](` that starts a link target, and
+    # reading it as a link would report a missing file named `shape`. That was
+    # not hypothetical: it is what the first version of this check did.
+    var scanned = ""
+    var inCode = false
+    for character in line:
+      if character == '`':
+        inCode = not inCode
+        continue
+      if not inCode:
+        scanned.add(character)
+
+    var searchFrom = 0
+    while true:
+      let open = scanned.find("](", searchFrom)
+      if open < 0:
+        break
+      let close = scanned.find(')', open + 2)
+      if close < 0:
+        break
+      searchFrom = close + 1
+      var target = scanned[open + 2 ..< close].strip()
+      if target.len == 0:
+        result.add((lineNumber, "link with an empty target"))
+        continue
+      # Anchors, protocols and mail links are out of scope.
+      if target.startsWith('#') or target.contains("://") or
+          target.startsWith("mailto:"):
+        continue
+      let hash = target.find('#')
+      if hash >= 0:
+        target = target[0 ..< hash]
+      if target.len == 0:
+        continue
+      let resolved = directory / target
+      if not fileExists(resolved) and not dirExists(resolved):
+        result.add((lineNumber, "link target does not exist: " & target &
+          " (resolved to " & resolved & ")"))
+
+proc codeLines(source: string): seq[string] =
+  ## Returns `source` reduced to its code: blank lines and whole-line comments
+  ## dropped, and the rest stripped of trailing space.
+  ##
+  ## Comments are ignored on purpose. The example file carries a licence header
+  ## and documentation comments that would be noise in a README, so requiring
+  ## byte equality would force one of the two to carry text that does not belong
+  ## there. The code itself must match exactly.
+  result = @[]
+  for line in source.splitLines():
+    let trimmed = line.strip(leading = false)
+    if trimmed.len == 0 or trimmed.strip().startsWith("#"):
+      continue
+    result.add(trimmed)
+
+proc extractNimBlocks(raw: string): seq[string] =
+  ## Returns the contents of every fenced block tagged `nim`.
+  result = @[]
+  var
+    inBlock = false
+    current = ""
+  for line in raw.splitLines():
+    if line.startsWith(fence):
+      if inBlock:
+        result.add(current)
+        current = ""
+        inBlock = false
+      elif line.strip() == fence & "nim":
+        inBlock = true
+      continue
+    if inBlock:
+      current.add(line)
+      current.add('\n')
+
+proc checkReadmeExample(): seq[Problem] =
+  ## Verifies that the README's Nim example is the code in
+  ## `examples/minimal.nim`.
+  result = @[]
+  if not fileExists(readmeExample):
+    result.add((0, readmeExample & " is missing, so the README example in it " &
+      "cannot be compiled by anything"))
+    return
+  let blocks = extractNimBlocks(readFile(readmePath))
+  if blocks.len == 0:
+    result.add((0, "has no fenced `nim` block; the minimal example is required"))
+    return
+
+  let expected = codeLines(readFile(readmeExample))
+  for candidate in blocks:
+    if codeLines(candidate) == expected:
+      return
+  result.add((0, "its Nim example does not match the code in " & readmeExample &
+    "; run `nimble examples` and copy the working file into the README"))
+
 proc main() =
   var paths: seq[string] = @[]
   collectMarkdown(".", paths)
@@ -152,9 +276,12 @@ proc main() =
     sawDevlog = false
   for path in paths:
     var problems = checkMarkdown(path)
+    problems.add(checkLocalLinks(path, readFile(path)))
     if lastPathPart(path) == devlogPath:
       sawDevlog = true
       problems.add(checkDevlogParity(readFile(path)))
+    if path == "." & DirSep & readmePath:
+      problems.add(checkReadmeExample())
     if problems.len == 0:
       continue
     failed = true

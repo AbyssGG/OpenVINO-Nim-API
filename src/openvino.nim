@@ -24,8 +24,10 @@
 ## This package is community maintained and is not an official Intel or
 ## OpenVINO project.
 
+import openvino/core
 import openvino/errors
 import openvino/version
 
+export core
 export errors
 export version
