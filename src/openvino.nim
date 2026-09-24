@@ -11,10 +11,12 @@
 ## `openvino/raw` explicitly; that layer is not covered by the 0.x source
 ## stability promise.
 ##
-## At this development phase the managed surface is package metadata and the
-## error types. `Core`, `Model`, `Port`, `CompiledModel`, `InferRequest` and
-## `Tensor` are introduced in the next phase, as tracked by
-## `OPENVINO_NIM_0.1_DEVELOPMENT_PLAN.md`.
+## The managed surface includes `Core`, `Model`, `CompiledModel`,
+## `InferRequest`, `Tensor`, static shapes and string-valued properties. The
+## explicit raw declarations remain available through `openvino/raw`; they
+## are not re-exported here. The supported synchronous surface and its
+## deliberate omissions are documented in `docs/api-overview.md` and
+## `docs/c-api-coverage.md`.
 ##
 ## Failures are reported as exceptions rather than status codes, and the four
 ## kinds are distinguished because they have four different fixes. See

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Troubleshooting guide
+    url: https://github.com/AbyssGG/OpenVINO-Nim-API/blob/main/docs/troubleshooting.md
+    about: Check the loader and runtime diagnostics before opening an issue.
+  - name: Security policy
+    url: https://github.com/AbyssGG/OpenVINO-Nim-API/blob/main/SECURITY.md
+    about: Report security-sensitive issues privately.

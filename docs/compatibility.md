@@ -51,7 +51,7 @@ others are known to be missing.
 | Combination | Status |
 |---|---|
 | macOS | Never run. No claim either way |
-| GitHub Actions | The workflows are written and every job's underlying task was run on both hosts, but the repository has no remote, so CI itself has never executed |
+| GitHub Actions | The `main` workflow has run successfully on the public repository; see the linked run in the development plan. A local task can still pass while a hosted runner exposes a packaging or environment difference, so both records are kept |
 | Concurrency | No test exists. See the Threads section of `docs/ownership.md` for what is claimed and on whose authority |
 | GPU | The plugin is discovered on this host and reports a full device name. No inference has been run on it |
 | NPU | Discovered on this host. No inference has been run on it |

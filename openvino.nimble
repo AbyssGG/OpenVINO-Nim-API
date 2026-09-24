@@ -429,10 +429,31 @@ task testSmoke, "Load a real OpenVINO runtime and exercise the raw layer":
   # full diagnostic, so there is nothing to detect here.
   exec "nim c --hints:off --path:src -r tests/abi/tsmoke_runtime.nim"
 
-task docs, "Generate API documentation for the public entry point":
+task docs, "Generate API documentation for every public module":
+  rmDir "build/docs"
   mkDir "build/docs"
-  exec "nim doc --hints:off --project --index:on --path:src " &
-    "--outdir:build/docs src/openvino.nim"
+  let publicModules = [
+    "src/openvino.nim",
+    "src/openvino/version.nim",
+    "src/openvino/errors.nim",
+    "src/openvino/shape.nim",
+    "src/openvino/tensor.nim",
+    "src/openvino/node.nim",
+    "src/openvino/properties.nim",
+    "src/openvino/model.nim",
+    "src/openvino/compiled_model.nim",
+    "src/openvino/infer_request.nim",
+    "src/openvino/core.nim",
+    "src/openvino/raw.nim"
+  ]
+  for modulePath in publicModules:
+    exec "nim doc --hints:off --index:on --path:src " &
+      "--outdir:build/docs " & modulePath
+  # Each module writes its own .idx file. Merge those indexes after all pages
+  # exist so the generated search page covers the managed and explicit raw
+  # surfaces together. `--out` is required by Nim's buildIndex command.
+  exec "nim buildIndex --out:build/docs/theindex build/docs"
+  cpFile "docs/api-index.html", "build/docs/index.html"
 
 task packagingCheck, "Install into a clean directory and consume it from there":
   # The package is exercised the way a user gets it. Two properties are checked

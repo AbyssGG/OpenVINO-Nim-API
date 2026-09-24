@@ -61,16 +61,46 @@
 
 Phase 0 已于 2026-09-24 执行完毕，逐项证据见 `docs/resonance-audit.md`。本节中所有 ABI 结论均已通过读取本机固定 2026.4.0 header 复核，复核发现的偏差记录在 §2.5。
 
+### 2.0 Current repository status (maintenance update, 2026-09-25)
+
+The original Phase 0 bullets below are a historical audit snapshot. They must
+not be read as the current state of the public repository. The repository is
+now `AbyssGG/OpenVINO-Nim-API`, the default branch is `main`, and the public
+remote is configured at `https://github.com/AbyssGG/OpenVINO-Nim-API.git`.
+
+The implementation, tests, CI workflows, README, changelog, release notes and
+API documentation are tracked in Git. The public repository name is exactly
+`OpenVINO-Nim-API`; the Nimble identifier remains `openvino`, and release
+archives use the lowercase `openvino-nim` prefix. Unwanted editor metadata was
+removed and must not be reintroduced.
+
+The current documentation surface is English-first with a Chinese entry point:
+`README.md` is the canonical English README and `README_zh-CN.md` is its
+Chinese companion. API and implementation names remain in English so that
+examples, diagnostics and generated symbol links are copyable.
+
+The current release state is pre-release. CI and the release archive dry run
+have passed, but no `v0.1.0` tag or GitHub Release has been created. H08--H10
+remain unchecked because creating an RC, tag or release requires explicit owner
+authorization. The local recovery tag `archive/resonance-before-openvino-nim`
+is not a public release asset.
+
+The open-source completeness work tracked after the Phase H evidence adds the
+documentation hub, getting-started guide, API overview, roadmap, examples and
+tests guides, community health files, issue forms, and a generated page for
+each public API module. Every new claim must still be backed by a test, command
+output or a fixed upstream reference.
+
 ### 2.1 当前状态
 
-- Git 分支为 `main`，尚无提交、无 remote；`src/`、`examples/` 和 `resonance.nimble` 均未跟踪（Phase 0 复核仍成立）。
-- 当前入口为 `src/resonance.nim`，子模块包括 `c_api`、`errors`、`core`、`model`、`compiled_model`、`infer_request`、`tensor`。
-- `examples/basic_infer.nim` 实际只演示设备枚举和编译/导入缓存，没有设置 Tensor、执行 infer 或验证输出。
-- 当前只有 `.nimble` 中的 Apache-2.0 元数据，没有实际 `LICENSE` 文件。
-- 当前没有 README、测试、CI、CHANGELOG、CONTRIBUTING、`.gitignore` 或 API 文档。
+- 以下条目保留为 2026-09-24 的历史快照，用于解释后续决策，不代表当前仓库状态。
+- 当时 Git 分支为 `main`，尚无提交、无 remote；当时的 `src/`、`examples/` 和 `resonance.nimble` 均未跟踪。
+- 当时入口为 `src/resonance.nim`，示例只有设备枚举和缓存编译/导入，尚未完成推理闭环。
+- 当时只有 `.nimble` 中的 Apache-2.0 元数据，没有实际 `LICENSE` 文件。
+- 当时没有 README、测试、CI、CHANGELOG、CONTRIBUTING、`.gitignore` 或 API 文档。
 - 本机实测 Nim 2.2.12（Windows amd64）和 OpenVINO 2026.4.0；OpenVINO 安装目录仅可作为本机审计依据，绝不能写死进库代码。
 - 本机 OpenVINO 通过符号链接 `openvino_2026` → `openvino_2026.4.0` 暴露；固定版本时必须解析到带完整三段版本号的实际目录，不能依赖会随升级漂移的 `openvino_2026`。
-- 本机未发现 runtime 二进制、构建产物、模型权重、cache blob 或 credentials；全部 14 个未跟踪文件均为手写源码与文档，可以进入基线提交。
+- 本机未发现 runtime 二进制、构建产物、模型权重、cache blob 或 credentials；当时的未跟踪文件均为手写源码与文档。
 
 ### 2.2 必须先修复的 ABI 问题
 
@@ -1592,7 +1622,7 @@ docs: prepare OpenVINO Nim API 0.1.0 release
 
 ### C. Raw binding 与 ABI
 
-- [x] C01 建立 `docs/c-api-coverage.md` 并列出 0.1.0 所需 headers/symbols。 证据：`docs/c-api-coverage.md` 列出全部 header 与符号，逐项标注 bound / planned / out of scope，并记录所有权与按值传参事实。
+- [x] C01 建立 `docs/c-api-coverage.md` 并列出 0.1.0 所需 headers/symbols。 证据：`docs/c-api-coverage.md` 以当前 raw module 覆盖表和 deferred 表记录 bound / deferred 状态，并记录 header checksum、所有权与按值传参事实。
 - [x] C02 绑定 status，并修正 `NOT_ALLOCATED` 与 `-14..-17`。证据：`src/openvino/raw/common.nim` 绑定全部 18 个值；`nimble testAbi` 由 C probe 驱动逐值比对通过，并单独钉住 `NOT_ALLOCATED == -10` 与 `-14..-17`。
 - [x] C03 绑定完整所需 element type，包含 2026.4 的 U2/U3/U6/低精度/string 值。证据：绑定全部 26 个值；probe 逐值比对通过。已反向测试：把 `U8` 改为原型的 `13` 后两个测试失败、`nimble testAbi` exit 1。
 - [x] C04 验证 raw C enum 表示大小为 C ABI 所需大小。证据：`sizeof(ov_status_e)` 与 `sizeof(ov_element_type_e)` 均与 probe 的 `sizeof` 相等；`ov_profiling_info_t.status` 字段宽度亦等于 C enum 宽度。
@@ -1681,7 +1711,7 @@ docs: prepare OpenVINO Nim API 0.1.0 release
 - [x] G10 完成 `profiling.nim` 或明确移到后续版本。证据：已完成。它把有属性与无属性两次运行并排打印，按耗时排序（插入顺序是 plugin 的，对调用者没有意义），并写明节点名是 plugin 经过融合等图变换后的名字、不应期望与 IR 中的名字对应。
 - [x] G11 完成 architecture、ownership、compatibility 文档。证据：`docs/architecture.md`（两层、依赖方向、边界转换、刻意缺失的东西、以及每条规则由哪个任务强制）、`docs/ownership.md`（逐函数归属与释放）、`docs/compatibility.md`（把实测组合与未实测组合分开列，Linux/macOS/GPU/NPU/refc 明确列为未验证）。
 - [x] G12 完成 Resonance migration 和 troubleshooting 文档。证据：`docs/resonance-migration.md`（逐名对照、三项刻意不迁移的行为及其理由、重写修掉的 ABI 缺陷清单、7 步迁移清单）与 `docs/troubleshooting.md`（按失败发生的早晚排序，第一条就是 oneTBB 搜索路径——那是让一个明明存在的 `openvino_c.dll` 看起来缺失的依赖）。
-- [x] G13 生成 API 文档并检查内部链接。证据：`nimble docs` exit 0，产出到 `build/docs`。内部链接检查已机械化：`tools/mdcheck.nim` 校验每个相对 Markdown 链接的目标真实存在，并按包含它的文档所在目录解析——这正是它要抓的错误（在 `docs/` 里写 `docs/x.md` 看起来对，实际解析为 `docs/docs/x.md`）。该检查的第一版把 `` `newTensor[T](shape)` `` 里的 `](` 当成链接，报了一个不存在的文件 `shape`；现已先剥离行内代码段。17 个 Markdown 文件通过。
+- [x] G13 生成 API 文档并检查内部链接。证据：`nimble docs` exit 0，产出到 `build/docs`，现已覆盖 managed public modules 与显式 `openvino/raw` 入口，并用 `nim buildIndex` 合并搜索索引。内部链接检查已机械化：`tools/mdcheck.nim` 校验每个相对 Markdown 链接的目标真实存在，并按包含它的文档所在目录解析——这正是它要抓的错误（在 `docs/` 里写 `docs/x.md` 看起来对，实际解析为 `docs/docs/x.md`）。该检查的第一版把 `` `newTensor[T](shape)` `` 里的 `](` 当成链接，报了一个不存在的文件 `shape`；现已先剥离行内代码段。当前新增文档与既有文档全部通过。
 - [x] G14 检查 `src/openvino` 不 import Resonance/Isvik。证据：grep `resonance|Resonance|Isvik|NimVoice` 在 `src/` 下只命中 6 处文档注释，全部是解释原型缺陷的历史说明（如 last-error 泄漏、按值 shape），没有任何 import 或符号。
 - [x] G15 检查公共符号/错误/用户文档无业务品牌残留。证据：同一次 grep 确认公共符号与错误消息中没有品牌名；面向用户的文档里只有 `docs/resonance-migration.md` 与 `docs/resonance-audit.md` 提到 Resonance，且是它们的主题本身——为迁移者服务的历史说明，不是残留。
 - [x] G16 确认 macOS/GPU/NPU 只按实测状态声明。证据：`docs/compatibility.md` 把 GPU 与 NPU 记为"本机能发现并报出完整名称，但未在其上执行过任何推理"，macOS 记为"从未运行，两个方向都不声明"，`--mm:refc` 同样不声明。README 的 Status 一节改为只声明 Windows x86_64 + CPU。
@@ -1708,6 +1738,40 @@ docs: prepare OpenVINO Nim API 0.1.0 release
 - [x] H14 在相同 commit 和发布元数据下重复生成归档，逐项 checksum 一致。证据：本机两次构建与 GitHub dry run 的重复构建均逐文件相等；本机规范归档摘要为 zip `171b2f6e…b3080da`、tar.gz `1d225555…1f0bb1`，两个 sidecar 本身也逐字节一致。
 - [x] H15 确认托管平台自动生成的源码包不被误写为规范命名资产；规范资产由受控发布流程上传。证据：`RELEASE_NOTES.md` 明确区分两者；tag-only `publish` 作业只接受 archive 作业验证过的四个文件，并创建或幂等更新 GitHub Release。
 - [x] H16 GitHub 仓库名精确为 `OpenVINO-Nim-API`，并与包/归档前缀 `openvino-nim` 分离。证据：仓库已重命名为 `AbyssGG/OpenVINO-Nim-API`；`RepositoryName`、单元测试与 `releaseCheck` 固定该映射。
+
+### I. Open-source completeness and bilingual entry points
+
+This follow-up phase improves the repository surface without expanding the
+0.1.0 runtime claims. The canonical project body is English; Chinese is a
+maintained entry point rather than a second API vocabulary.
+
+- [x] I01 Add an English-first README with CI, license, Nim, OpenVINO and
+  pre-release badges, a quick-start path, a feature matrix, project layout and
+  support/security links. Evidence: `README.md`.
+- [x] I02 Add the Chinese companion README and explicit language switching.
+  Evidence: `README_zh-CN.md` links back to the English canonical document and
+  keeps API names and commands unchanged.
+- [x] I03 Add an English documentation hub, getting-started guide, API
+  overview, roadmap, examples guide and tests guide. Evidence:
+  `docs/README.md`, `docs/getting-started.md`, `docs/api-overview.md`,
+  `docs/roadmap.md`, `examples/README.md` and `tests/README.md`.
+- [x] I04 Correct stale implementation documentation. Evidence:
+  `src/openvino.nim`, `src/openvino/version.nim`,
+  `docs/compatibility.md` and `CONTRIBUTING.md` now describe the implemented
+  managed surface, hosted CI and current task set.
+- [x] I05 Make C API coverage reflect the current raw layer rather than the
+  original plan. Evidence: `docs/c-api-coverage.md` uses bound/deferred
+  sections and records the ABI-sensitive facts and omissions.
+- [x] I06 Generate API pages for every public managed module and the explicit
+  raw entry point. Evidence: the `nimble docs` task enumerates public modules,
+  merges `.idx` files with `nim buildIndex`, and writes `build/docs/index.html`.
+- [x] I07 Add community health files and structured issue intake. Evidence:
+  `SECURITY.md`, `SUPPORT.md`, `CODE_OF_CONDUCT.md`, `.github/ISSUE_TEMPLATE/`
+  and `.github/pull_request_template.md`.
+- [x] I08 Keep the project free of unwanted editor metadata. Evidence: the
+  repository tree and tracked-text search contain no such entry.
+- [ ] I09 Publish API pages through GitHub Pages. Deferred until repository
+  Pages settings and a deploy permission are explicitly authorized.
 
 ---
 

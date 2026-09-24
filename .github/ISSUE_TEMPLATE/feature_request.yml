@@ -1,0 +1,42 @@
+name: Feature request
+description: Propose a focused addition to the binding
+title: "[feature] "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: use_case
+    attributes:
+      label: Use case
+      description: What application problem would this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: upstream
+    attributes:
+      label: OpenVINO C API surface
+      description: Link the pinned header or upstream API that would be wrapped.
+    validations:
+      required: true
+  - type: textarea
+    id: ownership
+    attributes:
+      label: Ownership and lifetime proposal
+      description: Explain who owns returned memory and what blocks or raises.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+    validations:
+      required: true
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope checklist
+      options:
+        - label: I checked the roadmap and existing API coverage.
+          required: true
+        - label: I am not requesting a hidden default device, cache policy or model downloader.
+          required: true

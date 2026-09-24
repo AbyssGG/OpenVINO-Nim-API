@@ -1,5 +1,13 @@
 # OpenVINO-Nim-API
 
+[![CI](https://github.com/AbyssGG/OpenVINO-Nim-API/actions/workflows/ci.yml/badge.svg)](https://github.com/AbyssGG/OpenVINO-Nim-API/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![Nim](https://img.shields.io/badge/Nim-%E2%89%A52.0.0-yellow.svg)](https://nim-lang.org/)
+[![OpenVINO](https://img.shields.io/badge/OpenVINO-2026.4.x-6b4fbb.svg)](https://docs.openvino.ai/)
+[![Status](https://img.shields.io/badge/status-pre--release-orange.svg)](CHANGELOG.md)
+
+**English** | [简体中文](README_zh-CN.md)
+
 Nim bindings for the [OpenVINO](https://docs.openvino.ai/) Runtime C API.
 
 OpenVINO-Nim-API provides two layers. The managed API is idiomatic Nim with
@@ -28,6 +36,45 @@ the ABI, smoke, lifetime, integration and example suites all pass. No claim is
 made for GPU, NPU or macOS. See [compatibility](docs/compatibility.md) for what
 was and was not run. Nothing in this README should be read as a claim that a
 feature already works unless it says so.
+
+## Feature overview
+
+| Capability | 0.1.0 status | Notes |
+|---|---|---|
+| Managed Nim API | Available | `Core`, `Model`, `CompiledModel`, `InferRequest`, `Tensor`, shapes and properties |
+| Raw C ABI layer | Available | Import it explicitly with `openvino/raw`; pinned to OpenVINO 2026.4 headers |
+| Synchronous CPU inference | Available | Windows and Linux x86_64 are verified in CI and on clean hosts |
+| Runtime discovery and diagnostics | Available | Version, device listing, symbol checks and actionable loader errors |
+| Profiling and explicit blob I/O | Available | No implicit cache directory or device policy is added |
+| Async inference and callbacks | Roadmap | Needs a Nim-safe callback and thread-lifetime design |
+| Dynamic shapes and preprocessing | Roadmap | The corresponding C headers are intentionally not in the 0.1.0 surface |
+| GPU/NPU inference | Not claimed | Device discovery is not evidence of a verified inference path |
+
+The roadmap is deliberately explicit about what is not implemented. See
+[the API overview](docs/api-overview.md) and [the roadmap](docs/roadmap.md)
+before designing an application around a future feature.
+
+## Quick start
+
+1. Install OpenVINO Runtime `2026.4.x` and run its official environment setup
+   script for the current shell.
+2. Clone this repository and install the local Nim package:
+
+   ```shell
+   git clone https://github.com/AbyssGG/OpenVINO-Nim-API.git
+   cd OpenVINO-Nim-API
+   nimble install
+   ```
+
+3. Run the verified examples against the included four-value ReLU fixture:
+
+   ```shell
+   nimble examples
+   ```
+
+The [getting started guide](docs/getting-started.md) has platform-specific
+loader checks and troubleshooting. The complete inference snippet is kept
+below and is compiled from the same source as `examples/minimal.nim`.
 
 ## Six naming roles
 
@@ -191,6 +238,9 @@ Two rules cover most of what you need to know:
 
 ## Documentation
 
+The [documentation hub](docs/README.md) groups the English guides and the
+generated API reference.
+
 Start with whichever question you have:
 
 | Question | Document |
@@ -200,6 +250,9 @@ Start with whichever question you have:
 | Something does not work | [Troubleshooting](docs/troubleshooting.md) |
 | Who releases what? | [Ownership rules](docs/ownership.md) |
 | Which C entry points are bound? | [C API coverage](docs/c-api-coverage.md) |
+| What is the public API shape? | [API overview](docs/api-overview.md) |
+| How do I install and verify it? | [Getting started](docs/getting-started.md) |
+| What is planned after 0.1.0? | [Roadmap](docs/roadmap.md) |
 | I have Resonance code | [Migration guide](docs/resonance-migration.md) |
 | Why was it done this way? | [Symbol loading](docs/decisions/0001-symbol-loading.md), [handle model](docs/decisions/0002-handle-model.md) |
 
@@ -209,6 +262,31 @@ Project documents: [notice and provenance](NOTICE),
 [style guide](STYLE_GUIDE.md), [contributing](CONTRIBUTING.md),
 [changelog](CHANGELOG.md),
 [prototype audit](docs/resonance-audit.md).
+
+## Project layout
+
+| Path | Purpose |
+|---|---|
+| `src/openvino.nim` | Stable managed import root |
+| `src/openvino/` | Managed handles, conversions and user-facing errors |
+| `src/openvino/raw/` | Explicit, header-faithful C ABI declarations |
+| `examples/` | Small runnable programs using only the public API |
+| `tests/` | Unit, ABI, lifecycle, integration and packaging checks |
+| `docs/` | Architecture, compatibility, API coverage and decisions |
+| `.github/workflows/` | Static, runtime, documentation and release checks |
+
+## Community and support
+
+Bug reports should include the OpenVINO runtime version, Nim version, target
+device and the smallest reproducible example. Start with
+[Troubleshooting](docs/troubleshooting.md), then open a GitHub issue if the
+problem is reproducible with the supported matrix. Security reports belong in
+[SECURITY.md](SECURITY.md), not in a public issue.
+
+Pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md), keep the
+managed/raw boundary intact, and update tests and documentation with any
+public API change. The project is community maintained and is not an Intel
+product.
 
 ## License
 

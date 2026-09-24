@@ -4,14 +4,14 @@
 ##
 ## This module is the single source of truth for the package version, the
 ## pinned OpenVINO baseline and the minimum supported Nim version. The
-## Nimble manifest derives its own fields from these constants, so the
-## manifest cannot drift from the library source.
+## Nimble manifest repeats the fields as parser-compatible literals, and
+## `nimble releaseCheck` verifies that it cannot drift from these constants.
 ##
 ## This module deliberately does *not* query the installed OpenVINO
 ## runtime. Discovering the runtime version requires loading the dynamic
-## library and is provided by the managed API in a later development phase.
-## Nothing declared here implies that a compatible runtime is present on
-## the host, and nothing here performs I/O or native calls.
+## library and is provided by `openvino/core.runtimeVersion`. Nothing declared
+## here implies that a compatible runtime is present on the host, and nothing
+## here performs I/O or native calls.
 
 const
   ProjectDisplayName* = "OpenVINO-Nim-API"

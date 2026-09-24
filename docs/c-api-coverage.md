@@ -1,36 +1,32 @@
 # OpenVINO C API coverage
 
-Which OpenVINO C entry points `openvino-nim` binds, and where each one comes
-from. This document is the contract between the pinned headers and
-`src/openvino/raw/`. A raw declaration that cannot be located in the table
-below does not belong in the package.
+This document is the coverage contract between the pinned OpenVINO `2026.4.0`
+headers and `src/openvino/raw/`. It describes the current repository, not an
+old implementation plan. Every item marked **bound** is present in the raw
+layer and is exercised by the ABI or smoke checks; every item marked
+**deferred** is intentionally not part of `0.1.0`.
 
 ## Pinned source of truth
 
 | Item | Value |
 |---|---|
 | Upstream release | `2026.4.0` |
-| Upstream Git tag | `2026.4.0` |
-| Upstream release commit | `99c8149` |
-| Header set | `src/bindings/c/include/openvino/c/*.h` in the tag, shipped as `runtime/include/openvino/c/*.h` in the release package |
-| C API library | `openvino_c.dll` on Windows, `libopenvino_c.so` on Linux |
+| Upstream tag and commit | `2026.4.0`, `99c8149` |
+| Header location | `runtime/include/openvino/c/*.h` in the release package |
+| Windows library | `openvino_c.dll` |
+| Linux libraries | `libopenvino_c.so` and `libopenvino_c.so.2640` |
 
-Reference URLs, all pinned to the tag rather than a branch:
+The fixed upstream references are [the release](https://github.com/openvinotoolkit/openvino/releases/tag/2026.4.0),
+[`ov_common.h`](https://raw.githubusercontent.com/openvinotoolkit/openvino/2026.4.0/src/bindings/c/include/openvino/c/ov_common.h),
+[`ov_core.h`](https://raw.githubusercontent.com/openvinotoolkit/openvino/2026.4.0/src/bindings/c/include/openvino/c/ov_core.h),
+[`ov_tensor.h`](https://raw.githubusercontent.com/openvinotoolkit/openvino/2026.4.0/src/bindings/c/include/openvino/c/ov_tensor.h),
+and [`ov_infer_request.h`](https://raw.githubusercontent.com/openvinotoolkit/openvino/2026.4.0/src/bindings/c/include/openvino/c/ov_infer_request.h).
 
-- [Release `2026.4.0`](https://github.com/openvinotoolkit/openvino/releases/tag/2026.4.0)
-- [`openvino/c/openvino.h`](https://raw.githubusercontent.com/openvinotoolkit/openvino/2026.4.0/src/bindings/c/include/openvino/c/openvino.h)
-- [`ov_common.h`](https://raw.githubusercontent.com/openvinotoolkit/openvino/2026.4.0/src/bindings/c/include/openvino/c/ov_common.h)
-- [`ov_property.h`](https://raw.githubusercontent.com/openvinotoolkit/openvino/2026.4.0/src/bindings/c/include/openvino/c/ov_property.h)
-- [`ov_core.h`](https://raw.githubusercontent.com/openvinotoolkit/openvino/2026.4.0/src/bindings/c/include/openvino/c/ov_core.h)
-- [`ov_tensor.h`](https://raw.githubusercontent.com/openvinotoolkit/openvino/2026.4.0/src/bindings/c/include/openvino/c/ov_tensor.h)
-- [`ov_infer_request.h`](https://raw.githubusercontent.com/openvinotoolkit/openvino/2026.4.0/src/bindings/c/include/openvino/c/ov_infer_request.h)
-- [OpenVINO 2026 C API reference](https://docs.openvino.ai/2026/api/c_cpp_api/group__ov__c__api.html)
+The 18 installed header SHA-256 values are recorded in the repository history
+and are checked against the pinned runtime by CI. The ABI probe also checks the
+values and layout that cannot be established by a Nim declaration alone.
 
-### Header checksums
-
-SHA-256 of the headers as installed from the `2026.4.0` release package, used
-as the working reference for this document. Recorded 2026-09-24 from
-`C:\Program Files (x86)\Intel\openvino_2026.4.0\runtime\include\openvino\c`.
+The recorded header digests are:
 
 ```text
 4f0848514cbd06361e8b3b933ceb810f82dade251cf546dd9f23e46a0bd3111b  deprecated.h
@@ -53,204 +49,53 @@ a12a4c241bccbc9cd3cf68f39b13c91701a78cd062a97004ae8f1612b10d4650  ov_shape.h
 1602a78a8a3e29c4810629d5a362177f988fe2889a2fb0da07ff7493bb068846  ov_util.h
 ```
 
-The release archive URL and its own checksum are recorded when a CI job
-downloads it, so that CI is not verified against a local installation.
+## Bound raw modules
 
-## Conventions used below
+| Header | Raw module | Coverage |
+|---|---|---|
+| `ov_common.h` | `raw/common`, `raw/error` | Status codes, element types, static error text, last-error copy and `ov_free` |
+| `ov_core.h` | `raw/core` | Runtime version, Core creation, device listing, model read, non-variadic compile/property APIs and blob import |
+| `ov_property.h` | `raw/property` | Exported profiling, device, cache, stream, thread, hint and log-level key symbols currently exposed by OpenVINO |
+| `ov_model.h` | `raw/model` | Model lifetime, input/output counts, const ports by index/name, dynamic flag and friendly name |
+| `ov_node.h` | `raw/node` | Const-port names, element types, static shapes and const-port release |
+| `ov_shape.h` | `raw/shape` | Shape allocation/release; `ov_shape_t` is passed by value where the header requires it |
+| `ov_tensor.h` | `raw/tensor` | Safe OpenVINO allocation, borrowed host pointer construction, shape/type/size/data access and release |
+| `ov_compiled_model.h` | `raw/compiled_model` | Request creation, I/O counts and ports, non-variadic properties, export and release |
+| `ov_infer_request.h` | `raw/infer_request` | Tensor binding by index/name/const port, synchronous infer, profiling list and release |
 
-| Column | Meaning |
+## ABI-sensitive facts
+
+- `ov_status_e` has `OK = 0` and `-1` through `-17`; `ov_element_type_e`
+  contains all 26 values through `F8E8M0 = 25`. Nim keeps both as `cint`
+  aliases so an unknown future value remains representable.
+- `ov_shape_t` is passed by value to tensor constructors and
+  `ov_tensor_set_shape`. Treating it as a pointer is an ABI error.
+- `ov_property_t.value` is a borrowed `const void*`; property keys and values
+  must remain alive for the duration of the C call.
+- Strings returned through `char**` and `ov_get_last_err_msg` are copied and
+  released with `ov_free`. `ov_get_error_info` returns process-lifetime static
+  text and must never be passed to `ov_free`.
+- Successful profiling and device-list calls are released even when their size
+  is zero.
+- The Windows Unicode path entry points are declared only on Windows and use
+  explicit UTF-16 element widths. The managed path layer validates conversion.
+- No C varargs call is bound. The managed layer uses the `_props` and
+  `_properties` forms so that Nim never has to guess a platform varargs ABI.
+
+## Deliberately deferred
+
+| Header or API family | Reason |
 |---|---|
-| Header | Header that declares the item |
-| Status | `bound` present in `src/openvino/raw/`; `planned` in scope for `0.1.0`, not yet written; `out of scope` not in `0.1.0` |
-| Notes | Ownership, by-value structs and other ABI facts a caller must know |
+| `ov_partial_shape.h`, `ov_dimension.h`, `ov_rank.h` | Dynamic shapes and reshape need a separate validation and ownership design |
+| `ov_layout.h` | Layout conversion is not in the 0.1.0 managed contract |
+| `ov_prepostprocess.h` | Larger preprocessing surface and variadic entry points |
+| `ov_remote_context.h` | Device-specific memory ownership |
+| Async wait/cancel and callbacks | Thread lifetime and exception-boundary design is not complete |
+| Mutable ports and reshape functions | Static const-port metadata is sufficient for the current path |
+| String tensors and cache-encryption callbacks | Need dedicated managed representations and lifetime rules |
+| `ov_shutdown` and device-version lists | Process-wide or multi-result teardown is not needed by the supported path |
 
-Ownership of returned memory is recorded per function here and summarised in
-`docs/ownership.md`.
-
-## Types
-
-| C type | Header | Kind | Status | Notes |
-|---|---|---|---|---|
-| `ov_status_e` | `ov_common.h` | enum | planned | 18 values, `OK = 0` and `-1` to `-17`. Bound as a `cint` alias plus constants, not a Nim enum, so an unknown value from the runtime stays representable |
-| `ov_element_type_e` | `ov_common.h` | enum | planned | 26 values, `DYNAMIC = 0U` rising implicitly to `F8E8M0 = 25`. Same `cint` treatment |
-| `ov_shape_t` | `ov_shape.h` | struct | planned | `{ int64_t rank; int64_t* dims; }`. Passed **by value** to the tensor constructors and to `ov_tensor_set_shape` |
-| `ov_property_t` | `ov_property.h` | struct | planned | `{ const char* key; const void* value; }`. `value` is `const void*`, so a string value is a `const char*` reinterpreted |
-| `ov_version_t` | `ov_core.h` | struct | planned | `{ const char* buildNumber; const char* description; }`. Released by `ov_version_free` |
-| `ov_core_version_t` | `ov_core.h` | struct | out of scope | `{ const char* device_name; ov_version_t version; }`, used only by per-device version queries |
-| `ov_core_version_list_t` | `ov_core.h` | struct | out of scope | Released by `ov_core_versions_free` |
-| `ov_available_devices_t` | `ov_core.h` | struct | planned | `{ char** devices; size_t size; }`. Released by `ov_available_devices_free` |
-| `ov_profiling_info_t` | `ov_infer_request.h` | struct | planned | First field is an **anonymous nested `enum Status`** with `NOT_RUN`, `OPTIMIZED_OUT`, `EXECUTED`. Its size is C `int` in practice and must be probed, not assumed |
-| `ov_profiling_info_list_t` | `ov_infer_request.h` | struct | planned | Released by `ov_profiling_info_list_free` |
-| `ov_callback_t` | `ov_infer_request.h` | struct | out of scope | `{ void (CALLBACK* callback_func)(void*); void* args; }`. Layout and calling convention are still probed, per plan section 8.3 |
-| `ov_encryption_callbacks` | `ov_common.h` | struct | out of scope | Function pointers for cache encryption |
-| `ov_core_t` | `ov_core.h` | opaque | planned | Released by `ov_core_free` |
-| `ov_model_t` | `ov_model.h` | opaque | planned | Released by `ov_model_free` |
-| `ov_compiled_model_t` | `ov_compiled_model.h` | opaque | planned | Released by `ov_compiled_model_free` |
-| `ov_infer_request_t` | `ov_infer_request.h` | opaque | planned | Released by `ov_infer_request_free` |
-| `ov_tensor_t` | `ov_tensor.h` | opaque | planned | Released by `ov_tensor_free` |
-| `ov_output_port_t` | `ov_node.h` | opaque | planned | Released by `ov_output_port_free` |
-| `ov_output_const_port_t` | `ov_node.h` | opaque | planned | Released by `ov_output_const_port_free`. Distinct release function from the mutable port |
-| `ov_partial_shape_t` | `ov_partial_shape.h` | struct | out of scope | Needed only once dynamic shapes are supported |
-| `ov_remote_context_t` | `ov_remote_context.h` | opaque | out of scope | Device-specific, excluded by plan section 3.3 |
-
-## Base and error handling
-
-| C function | Header | Status | Notes |
-|---|---|---|---|
-| `ov_get_error_info` | `ov_common.h` | planned | Returns a pointer valid for the process lifetime. **Must never be passed to `ov_free`**, stated in the header |
-| `ov_get_last_err_msg` | `ov_common.h` | planned | Returns an allocated string the caller must release with `ov_free`. Copy it immediately after a failure, before any other C call |
-| `ov_free` | `ov_common.h` | planned | Releases strings returned through `char**` out-parameters and by `ov_get_last_err_msg` |
-| `ov_get_openvino_version` | `ov_core.h` | planned | Fills `ov_version_t`; release with `ov_version_free` after copying |
-| `ov_version_free` | `ov_core.h` | planned | Releases the two strings inside `ov_version_t` |
-| `ov_shutdown` | `ov_core.h` | out of scope | Process-wide teardown; interacts with Nim's exit handling and needs its own decision record |
-
-## Core
-
-| C function | Header | Status | Notes |
-|---|---|---|---|
-| `ov_core_create` | `ov_core.h` | planned | |
-| `ov_core_free` | `ov_core.h` | planned | |
-| `ov_core_create_with_config` | `ov_core.h` | out of scope | Takes a `plugins.xml` path; explicit plugin configuration is not in `0.1.0` |
-| `ov_core_create_with_config_unicode` | `ov_core.h` | out of scope | Windows-only variant of the above |
-| `ov_core_get_available_devices` | `ov_core.h` | planned | Copy every string, then release the list unconditionally on success |
-| `ov_available_devices_free` | `ov_core.h` | planned | |
-| `ov_core_read_model` | `ov_core.h` | planned | Narrow path |
-| `ov_core_read_model_unicode` | `ov_core.h` | planned | Windows only, guarded by `OPENVINO_ENABLE_UNICODE_PATH_SUPPORT`. Required by checklist item E15 for non-ASCII paths. `wchar_t` width must be verified per platform |
-| `ov_core_read_model_from_memory_buffer` | `ov_core.h` | out of scope | |
-| `ov_core_compile_model_props` | `ov_core.h` | planned | Non-variadic form. One of the reasons this package requires `2026.4` |
-| `ov_core_compile_model_from_file_props` | `ov_core.h` | planned | Non-variadic form |
-| `ov_core_compile_model_from_file_unicode_props` | `ov_core.h` | planned | Windows only, non-ASCII model paths |
-| `ov_core_set_properties` | `ov_core.h` | planned | Non-variadic form |
-| `ov_core_get_property` | `ov_core.h` | planned | Returns `char**`; release with `ov_free` |
-| `ov_core_import_model` | `ov_core.h` | planned | Takes the blob as `const char*` plus a size |
-| `ov_core_compile_model` | `ov_core.h` | out of scope | Variadic. The managed layer must never call it; see plan section 8.6 |
-| `ov_core_compile_model_from_file` | `ov_core.h` | out of scope | Variadic |
-| `ov_core_compile_model_from_file_unicode` | `ov_core.h` | out of scope | Variadic |
-| `ov_core_set_property` | `ov_core.h` | out of scope | Variadic |
-| `ov_core_add_extension` | `ov_core.h` | out of scope | |
-| `ov_core_get_versions_by_device_name` | `ov_core.h` | out of scope | |
-| `ov_core_versions_free` | `ov_core.h` | out of scope | |
-| `ov_core_create_context` and `_props` | `ov_core.h` | out of scope | Remote context |
-| `ov_core_compile_model_with_context` and `_props` | `ov_core.h` | out of scope | Remote context |
-| `ov_core_get_default_context` | `ov_core.h` | out of scope | Remote context |
-
-## Property keys
-
-Property keys are exported `const char*` **data** symbols, not macros and not
-functions. The loader must resolve a data symbol and read the pointer, which
-is a different operation from resolving a function.
-
-| Symbol | Header | Status | Notes |
-|---|---|---|---|
-| `ov_property_key_enable_profiling` | `ov_property.h` | planned | The only supported way to turn profiling on. Replaces the prototype's hand-written `"PERF_COUNT"` string |
-| `ov_property_key_available_devices` | `ov_property.h` | planned | |
-| `ov_property_key_device_full_name` | `ov_property.h` | planned | |
-| `ov_property_key_supported_properties` | `ov_property.h` | planned | |
-| `ov_property_key_cache_dir` | `ov_property.h` | planned | Bound as a generic property. Deciding *when* to enable caching stays downstream, per plan section 7.2 |
-| `ov_property_key_num_streams`, `ov_property_key_inference_num_threads`, `ov_property_key_hint_*`, `ov_property_key_log_level`, `ov_property_key_device_priorities`, `ov_property_key_enable_mmap`, `ov_property_key_force_tbb_terminate`, `ov_property_key_auto_batch_timeout`, `ov_property_key_model_name`, `ov_property_key_optimal_*`, `ov_property_key_max_batch_size`, `ov_property_key_range_for_*`, `ov_property_key_device_capabilities`, `ov_property_key_cache_mode` | `ov_property.h` | planned | Bound for completeness as string-valued keys |
-| `ov_property_key_cache_encryption_callbacks` | `ov_property.h` | out of scope | Value is a function-pointer struct, not a string. Needs its own lifetime design |
-| `ov_property_key_intel_gpu_config_file` | `ov_property.h` | out of scope | Device specific |
-
-## Model and ports
-
-| C function | Header | Status | Notes |
-|---|---|---|---|
-| `ov_model_free` | `ov_model.h` | planned | |
-| `ov_model_inputs_size` | `ov_model.h` | planned | |
-| `ov_model_outputs_size` | `ov_model.h` | planned | |
-| `ov_model_const_input_by_index` | `ov_model.h` | planned | Yields a const port, which is what the metadata getters need |
-| `ov_model_const_output_by_index` | `ov_model.h` | planned | |
-| `ov_model_const_input_by_name` | `ov_model.h` | planned | |
-| `ov_model_const_output_by_name` | `ov_model.h` | planned | |
-| `ov_model_is_dynamic` | `ov_model.h` | planned | Returns C99 `bool`; its size must be probed |
-| `ov_model_get_friendly_name` | `ov_model.h` | planned | Returns `char**`; release with `ov_free` |
-| `ov_model_input*`, `ov_model_output*` mutable variants | `ov_model.h` | out of scope | The mutable port is only needed for reshaping |
-| `ov_model_reshape*` | `ov_model.h` | out of scope | Dynamic shapes. Note `ov_model_reshape_input_by_name` and `ov_model_reshape_single_input` take `ov_partial_shape_t` **by value** |
-| `ov_port_get_any_name` | `ov_node.h` | planned | Takes a **const** port. Returns `char**`; release with `ov_free` |
-| `ov_port_get_element_type` | `ov_node.h` | planned | Takes a **const** port |
-| `ov_const_port_get_shape` | `ov_node.h` | planned | Takes a const port, fills `ov_shape_t`; release with `ov_shape_free` |
-| `ov_port_get_shape` | `ov_node.h` | out of scope | Mutable-port variant |
-| `ov_port_get_partial_shape` | `ov_node.h` | out of scope | Dynamic shapes |
-| `ov_output_const_port_free` | `ov_node.h` | planned | |
-| `ov_output_port_free` | `ov_node.h` | out of scope | Only needed with mutable ports |
-
-The const and mutable ports are separate types with separate release
-functions, and the metadata getters accept only the const one. Treating them
-as interchangeable is the kind of guess plan section 8.2 forbids.
-
-## Shape and tensor
-
-| C function | Header | Status | Notes |
-|---|---|---|---|
-| `ov_shape_create` | `ov_shape.h` | planned | Allocates `dims`; release with `ov_shape_free` |
-| `ov_shape_free` | `ov_shape.h` | planned | Returns a status. Release only shapes OpenVINO allocated |
-| `ov_tensor_create` | `ov_tensor.h` | planned | OpenVINO allocates the storage. The safe default for the managed `newTensor`, and absent from the prototype entirely |
-| `ov_tensor_create_from_host_ptr` | `ov_tensor.h` | planned | Borrows caller memory. Reaches the managed layer only through an `unsafe` name |
-| `ov_tensor_set_shape` | `ov_tensor.h` | planned | Takes `ov_shape_t` **by value**. The prototype passed a pointer. Covered by a dedicated regression test, checklist item C17 |
-| `ov_tensor_get_shape` | `ov_tensor.h` | planned | Fills `ov_shape_t`; release with `ov_shape_free` |
-| `ov_tensor_get_element_type` | `ov_tensor.h` | planned | |
-| `ov_tensor_get_size` | `ov_tensor.h` | planned | Element count |
-| `ov_tensor_get_byte_size` | `ov_tensor.h` | planned | |
-| `ov_tensor_data` | `ov_tensor.h` | planned | Borrowed pointer into the tensor; invalid after free or reshape |
-| `ov_tensor_free` | `ov_tensor.h` | planned | |
-| `ov_tensor_create_from_string_array` | `ov_tensor.h` | out of scope | String tensors |
-| `ov_tensor_set_string_data` | `ov_tensor.h` | out of scope | String tensors |
-
-## Compiled model
-
-| C function | Header | Status | Notes |
-|---|---|---|---|
-| `ov_compiled_model_create_infer_request` | `ov_compiled_model.h` | planned | |
-| `ov_compiled_model_inputs_size` | `ov_compiled_model.h` | planned | |
-| `ov_compiled_model_outputs_size` | `ov_compiled_model.h` | planned | |
-| `ov_compiled_model_input_by_index` | `ov_compiled_model.h` | planned | Yields a const port |
-| `ov_compiled_model_output_by_index` | `ov_compiled_model.h` | planned | Yields a const port |
-| `ov_compiled_model_set_properties` | `ov_compiled_model.h` | planned | Non-variadic form |
-| `ov_compiled_model_get_property` | `ov_compiled_model.h` | planned | Returns `char**`; release with `ov_free` |
-| `ov_compiled_model_export_model` | `ov_compiled_model.h` | planned | Explicit export only. No implicit cache directory |
-| `ov_compiled_model_free` | `ov_compiled_model.h` | planned | |
-| `ov_compiled_model_set_property` | `ov_compiled_model.h` | out of scope | Variadic |
-| `ov_compiled_model_get_runtime_model` | `ov_compiled_model.h` | out of scope | |
-| `ov_compiled_model_get_context` | `ov_compiled_model.h` | out of scope | Remote context |
-| `ov_compiled_model_input`, `_output`, `_by_name` | `ov_compiled_model.h` | out of scope | Index-based access covers `0.1.0` |
-
-## Infer request
-
-| C function | Header | Status | Notes |
-|---|---|---|---|
-| `ov_infer_request_set_input_tensor_by_index` | `ov_infer_request.h` | planned | |
-| `ov_infer_request_get_output_tensor_by_index` | `ov_infer_request.h` | planned | |
-| `ov_infer_request_get_input_tensor_by_index` | `ov_infer_request.h` | planned | |
-| `ov_infer_request_set_tensor` | `ov_infer_request.h` | planned | By tensor name |
-| `ov_infer_request_get_tensor` | `ov_infer_request.h` | planned | By tensor name |
-| `ov_infer_request_infer` | `ov_infer_request.h` | planned | Blocking |
-| `ov_infer_request_get_profiling_info` | `ov_infer_request.h` | planned | Release the list on success regardless of its size |
-| `ov_profiling_info_list_free` | `ov_infer_request.h` | planned | |
-| `ov_infer_request_free` | `ov_infer_request.h` | planned | |
-| `ov_infer_request_start_async`, `_wait`, `_wait_for`, `_cancel` | `ov_infer_request.h` | out of scope | Optional for `0.1.0`, gated on lifetime and thread tests |
-| `ov_infer_request_set_callback` | `ov_infer_request.h` | out of scope | No callback API in `0.1.0`; a Nim exception must never cross a C callback boundary |
-| `ov_infer_request_set_tensor_by_port`, `_by_const_port`, `get_tensor_by_*` | `ov_infer_request.h` | out of scope | Index and name access cover `0.1.0` |
-| `ov_infer_request_set_input_tensor`, `set_output_tensor`, `get_input_tensor`, `get_output_tensor` | `ov_infer_request.h` | out of scope | Single-port shorthands that hide which port is meant |
-
-## Headers deliberately not bound
-
-| Header | Reason |
-|---|---|
-| `ov_partial_shape.h`, `ov_dimension.h`, `ov_rank.h` | Dynamic shapes are not in `0.1.0` |
-| `ov_layout.h` | Layout handling is not in `0.1.0` |
-| `ov_prepostprocess.h` | Pre and post processing is out of scope, and it still contains variadic entry points |
-| `ov_remote_context.h` | Device-specific memory sharing |
-| `ov_util.h` | Utility surface not required by the synchronous path |
-| `deprecated.h` | Deprecated by upstream |
-
-## Variadic entry points
-
-`2026.4` still declares variadic functions: `ov_core_compile_model`,
-`ov_core_compile_model_from_file`, `ov_core_compile_model_from_file_unicode`,
-`ov_core_set_property`, `ov_compiled_model_set_property`,
-`ov_core_create_context` and `ov_core_compile_model_with_context`.
-
-None of them is bound. Each has a non-variadic `_props` or `_properties`
-counterpart that this package uses instead. No general variadic bridge is
-kept, and `perf_count_wrapper.c` from the prototype is deleted rather than
-ported.
+The managed API may expose fewer functions than the raw layer. That is
+intentional: an unsafe declaration is not promoted to the default import root
+until ownership, blocking behaviour, errors and tests are documented. See
+[the API overview](api-overview.md) and [ownership](ownership.md).

@@ -35,17 +35,21 @@ nimble releaseCheck  # verify version metadata consistency
 overridden by a task of the same name. Strict compiler checking
 (`nim check --styleCheck:error`) therefore runs inside `nimble lint`.
 
-### Tasks introduced by later phases
+### Runtime and release tasks
 
-These entry points are part of the final task set but are added by the phase
-that owns their subject matter, so they do not exist yet:
+These entry points are available in the current task set. Tasks that need an
+OpenVINO installation fail with an explicit prerequisite message instead of
+silently reporting a skip as a pass:
 
 | Task | Introduced with |
 |---|---|
-| `nimble testAbi` | the C ABI probe |
-| `nimble testIntegration` | the CPU inference closed loop |
-| `nimble examples` | the first runnable examples |
-| `nimble releaseArchive` | release packaging |
+| `nimble testAbi` | C ABI probe |
+| `nimble testSmoke` | runtime symbol smoke test |
+| `nimble testLifecycle` | CPU lifecycle and error paths |
+| `nimble testIntegration` | CPU inference closed loop |
+| `nimble examples` | runnable public examples |
+| `nimble packagingCheck` | clean-directory package consumer |
+| `nimble releaseArchive` | release packaging dry run |
 
 ## Before you open a change
 
