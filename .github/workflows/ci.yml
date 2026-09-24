@@ -91,6 +91,9 @@ jobs:
       - name: Verify version metadata consistency
         run: nimble releaseCheck
 
+      - name: Verify release archive naming and date rules
+        run: python3 ci/release-archive.py --self-test
+
       - name: Verify the workflow pins match the library metadata
         run: |
           set -euo pipefail

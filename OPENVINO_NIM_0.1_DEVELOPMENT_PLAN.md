@@ -1732,7 +1732,7 @@ docs: prepare OpenVINO Nim API 0.1.0 release
 - [ ] H08 经授权创建并验证 `v0.1.0-rc.1`。
 - [ ] H09 RC 后只接受阻断性修复并重跑 release Gate。
 - [ ] H10 经用户明确授权后再创建正式 tag、push、release 或发布包。
-- [x] H11 对 `0.1.0`、`2026-9-24`、OpenVINO `2026.4.0` 生成精确基名 `openvino-nim-0-1-0-2026-9-24-ov2026-4-0`；元数据变化时按模板重算，且发布日期必须是真实日历日期。证据：`ci/release-archive.py --self-test`、`--print-name` 本机通过；`2026-99-99` 与非闰年的 `2026-2-29` 被拒绝；workflow 在归档前重复运行同一断言。
+- [x] H11 对 `0.1.0`、`2026-9-24`、OpenVINO `2026.4.0` 生成精确基名 `openvino-nim-0-1-0-2026-9-24-ov2026-4-0`；元数据变化时按模板重算，且发布日期必须是真实日历日期。证据：`ci/release-archive.py --self-test`、`--print-name` 本机通过，普通 CI static job 也会运行 self-test；`2026-99-99` 与非闰年的 `2026-2-29` 被拒绝；workflow 在归档前重复运行同一断言。
 - [x] H12 生成同基名的 `.zip`、`.tar.gz`、`.zip.sha256` 和 `.tar.gz.sha256`。证据：commit `cb826e9` 的本机干净 worktree 和 commit `de49201` 的 [release dry run #36056222987](https://github.com/AbyssGG/OpenVINO-Nim-API/actions/runs/36056222987) 都生成并验证恰好四个规范文件。
 - [x] H13 两种归档都只有一个与基名相同的顶层目录，且不包含 OpenVINO runtime/SDK。证据：发布脚本读回 zip/tar 的每个 entry，检查唯一顶层目录并拒绝 17 类二进制、runtime 与模型扩展名；本机与 GitHub dry run 均通过。
 - [x] H14 在相同 commit 和发布元数据下重复生成归档，逐项 checksum 一致。证据：本机两次构建与 GitHub dry run 的重复构建均逐文件相等；本机规范归档摘要为 zip `171b2f6e…b3080da`、tar.gz `1d225555…1f0bb1`，两个 sidecar 本身也逐字节一致。
