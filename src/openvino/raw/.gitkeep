@@ -1,0 +1,2 @@
+# Placeholder so the raw C ABI layer directory exists before Phase 2 lands
+# the OpenVINO 2026.4.0 bindings. Delete this file once raw modules exist.

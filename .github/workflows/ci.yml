@@ -1,0 +1,125 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# Blocking CI for openvino-nim.
+#
+# Scope at this development phase: package validation, formatting, style,
+# layering and the unit tests that need no OpenVINO runtime. The abi,
+# integration-cpu, lifecycle, examples-package and memory jobs are added by
+# the phases that own them, together with a pinned OpenVINO download and its
+# checksum verification.
+#
+# Version pinning: the Nim versions and runner images below are exact. The
+# third-party setup action is pinned to a major tag rather than a commit SHA;
+# tightening that to a SHA is tracked by checklist item G02 in
+# OPENVINO_NIM_0.1_DEVELOPMENT_PLAN.md and must be done before release.
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Pinned primary toolchain. Keep in sync with STYLE_GUIDE.md.
+  PINNED_NIM_VERSION: 2.2.12
+  # Lowest version the package claims to support. Keep in sync with
+  # MinimumNimVersion in src/openvino/version.nim.
+  MINIMUM_NIM_VERSION: 2.0.0
+
+jobs:
+  static:
+    name: static (format, style, layering, metadata)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: jiro4989/setup-nim-action@v2
+        with:
+          nim-version: 2.2.12
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Validate the Nimble package
+        run: nimble check
+
+      - name: Verify formatting is a zero diff
+        run: nimble formatCheck
+
+      - name: Run style, whitespace and layering checks
+        run: nimble lint
+
+      - name: Verify version metadata consistency
+        run: nimble releaseCheck
+
+      - name: Verify the workflow Nim pins match the library metadata
+        run: |
+          set -euo pipefail
+          grep -q "MinimumNimVersion\* = \"${MINIMUM_NIM_VERSION}\"" \
+            src/openvino/version.nim
+          grep -q "requires \"nim >= ${MINIMUM_NIM_VERSION}\"" openvino.nimble
+
+  unit:
+    name: unit (${{ matrix.os }}, nim ${{ matrix.nim }}, ${{ matrix.mm }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-2022]
+        nim: ['2.0.0', '2.2.12']
+        mm: [orc]
+        include:
+          # One representative ARC job per Tier 1 platform. The handle
+          # ownership model must hold under both ORC and ARC.
+          - os: ubuntu-22.04
+            nim: '2.2.12'
+            mm: arc
+          - os: windows-2022
+            nim: '2.2.12'
+            mm: arc
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: jiro4989/setup-nim-action@v2
+        with:
+          nim-version: ${{ matrix.nim }}
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compile the public entry point (debug)
+        run: nim check --hints:off --styleCheck:error --path:src
+          --mm:${{ matrix.mm }} src/openvino.nim
+
+      - name: Compile the public entry point (release)
+        run: nim check --hints:off --styleCheck:error --path:src -d:release
+          --mm:${{ matrix.mm }} src/openvino.nim
+
+      - name: Run unit tests
+        run: nimble test
+
+  docs:
+    name: docs
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: jiro4989/setup-nim-action@v2
+        with:
+          nim-version: 2.2.12
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate API documentation
+        run: nimble docs
+
+      - name: Upload generated documentation
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-docs
+          path: build/docs
+          retention-days: 7

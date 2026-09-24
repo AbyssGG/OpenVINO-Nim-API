@@ -1,0 +1,27 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# Baseline whitespace rules for every file in this repository. CI enforces
+# the same rules through `nimble lint`, so an editor that ignores this file
+# does not silently introduce violations.
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+max_line_length = 80
+
+[*.md]
+# Markdown keeps trailing-whitespace trimming: this project does not use
+# two-space line breaks. Tables, URLs and code blocks may exceed 80 columns.
+max_line_length = off
+
+[LICENSE]
+# Verbatim Apache-2.0 text. Never reformat.
+indent_size = unset
+max_line_length = off
+trim_trailing_whitespace = false

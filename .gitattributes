@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# Line-ending policy for this repository.
+#
+# `nimble lint` and `.editorconfig` require LF in the working tree. A
+# contributor with `core.autocrlf=true` would otherwise get CRLF on checkout
+# and fail lint through no fault of their own. `eol=lf` overrides
+# `core.autocrlf`, so the policy travels with the repository instead of
+# depending on each developer's Git configuration.
+
+* text=auto eol=lf
+
+# Model fixtures and any other binary payload must never be converted.
+*.bin binary
+*.blob binary
+*.onnx binary
+*.tflite binary
+*.gguf binary
+*.safetensors binary
+*.png binary
+*.zip binary
+*.gz binary

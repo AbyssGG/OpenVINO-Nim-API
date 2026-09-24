@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# Style for handwritten C in this repository: ABI probes and, if ever
+# unavoidable, shims. Based on the Google C++ Style Guide, narrowed to the
+# two settings this project fixes explicitly.
+#
+# This file must never be used to rename OpenVINO C symbols or to reorder
+# struct fields. Formatting is subordinate to ABI correctness.
+#
+# Pin the clang-format version in CI. Do not upgrade the formatter in the
+# same commit as a functional change.
+
+---
+Language: Cpp
+BasedOnStyle: Google
+IndentWidth: 2
+ColumnLimit: 80
+UseTab: Never
+InsertNewlineAtEOF: true
+
+# Include order is fixed by STYLE_GUIDE.md as: the matching project header,
+# then C standard library headers, then OpenVINO and third-party headers.
+# Automatic sorting would reorder those groups alphabetically and break the
+# guarantee that a probe's own header compiles standalone.
+SortIncludes: false

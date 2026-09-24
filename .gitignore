@@ -1,0 +1,53 @@
+# SPDX-License-Identifier: Apache-2.0
+
+# Nim build artefacts
+nimcache/
+nimblecache/
+htmldocs/
+build/
+*.exe
+*.pdb
+*.ilk
+*.obj
+*.o
+*.a
+*.lib
+*.so
+*.so.*
+*.dylib
+*.dll
+
+# Compiled test and example binaries live next to their sources
+tests/**/t[a-z]*
+!tests/**/t[a-z]*.nim
+examples/*
+!examples/*.nim
+
+# nimpretty scratch files produced by `nimble formatCheck`
+*.nimpretty-check
+
+# OpenVINO artefacts that must never enter the repository or a release
+# archive: runtime libraries, SDKs, plugin manifests, compiled blobs and
+# model weights. Test fixtures are committed deliberately and are listed as
+# exceptions by tests/fixtures/README.md.
+plugins.xml
+*.blob
+*.bin
+!tests/fixtures/*.bin
+*.onnx
+*.pdmodel
+*.tflite
+*.gguf
+*.safetensors
+
+# Editor and tooling state
+.kiro/
+.vscode/
+.idea/
+*.swp
+*~
+
+# OS metadata
+Thumbs.db
+desktop.ini
+.DS_Store
