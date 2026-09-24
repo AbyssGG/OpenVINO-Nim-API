@@ -29,11 +29,15 @@ const
     ## can assert the README still uses it, and so that a rename has one place
     ## to happen.
 
+  RepositoryName* = "OpenVINO-Nim-API"
+    ## Exact public GitHub repository name. GitHub repository names may use
+    ## mixed case and hyphens, so this intentionally matches the project
+    ## display name rather than the lowercase release archive prefix.
+
   PackageName* = "openvino-nim"
-    ## Public distribution name: repository name, release archive prefix and
-    ## the name used in documentation. The Nimble package identifier and the
-    ## Nim import root are both `openvino` instead, because Nimble package
-    ## identifiers may not contain a hyphen.
+    ## Public distribution and release archive prefix. The repository name is
+    ## `RepositoryName`; the Nimble package identifier and Nim import root are
+    ## both `openvino`, because Nimble identifiers may not contain a hyphen.
 
   PackageVersion* = "0.1.0"
     ## SemVer version of this Nim package. Versioned independently of the

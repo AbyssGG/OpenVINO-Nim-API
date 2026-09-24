@@ -84,6 +84,11 @@ def base_name(version: str, date: str, openvino: str) -> str:
     )
 
 
+def release_title(package: str, version: str, date: str, openvino: str) -> str:
+    """Return the GitHub Release title for this metadata."""
+    return f"{package} {version} — {date} — OpenVINO {openvino}"
+
+
 def digest(path: pathlib.Path) -> str:
     sha = hashlib.sha256()
     with path.open("rb") as handle:
@@ -183,12 +188,26 @@ def verify_sidecar(archive: pathlib.Path) -> list[str]:
 
 def self_test() -> int:
     """Check the naming rule against the example the plan states."""
-    expected = "openvino-nim-0-1-0-2026-9-24-ov2026-4-0"
-    produced = base_name("0.1.0", "2026-9-24", "2026.4.0")
-    if produced != expected:
-        print(f"naming rule broken: {produced} != {expected}", file=sys.stderr)
+    expected_name = "openvino-nim-0-1-0-2026-9-24-ov2026-4-0"
+    produced_name = base_name("0.1.0", "2026-9-24", "2026.4.0")
+    if produced_name != expected_name:
+        print(
+            f"naming rule broken: {produced_name} != {expected_name}",
+            file=sys.stderr,
+        )
         return 1
-    print(f"naming rule matches the documented example: {produced}")
+    expected_title = "openvino-nim 0.1.0 — 2026-9-24 — OpenVINO 2026.4.0"
+    produced_title = release_title(
+        "openvino-nim", "0.1.0", "2026-9-24", "2026.4.0"
+    )
+    if produced_title != expected_title:
+        print(
+            f"release title rule broken: {produced_title} != {expected_title}",
+            file=sys.stderr,
+        )
+        return 1
+    print(f"naming rule matches the documented example: {produced_name}")
+    print(f"release title matches the documented example: {produced_title}")
     return 0
 
 
@@ -215,6 +234,11 @@ def main() -> int:
         help="print the base name and exit",
     )
     parser.add_argument(
+        "--print-title",
+        action="store_true",
+        help="print the GitHub Release title and exit",
+    )
+    parser.add_argument(
         "--self-test",
         action="store_true",
         help="check the naming rule against the documented example and exit",
@@ -229,6 +253,7 @@ def main() -> int:
     if not DATE_PATTERN.match(arguments.date):
         parser.error(f"--date must look like YYYY-M-D, got {arguments.date!r}")
 
+    package = read_constant("PackageName")
     version = read_constant("PackageVersion")
     openvino = read_constant("TargetOpenVinoVersion")
     base = base_name(version, arguments.date, openvino)
@@ -236,8 +261,11 @@ def main() -> int:
     if arguments.print_name:
         print(base)
         return 0
+    if arguments.print_title:
+        print(release_title(package, version, arguments.date, openvino))
+        return 0
 
-    print(f"package  : {read_constant('PackageName')} {version}")
+    print(f"package  : {package} {version}")
     print(f"openvino : {openvino}")
     print(f"date     : {arguments.date} (supplied, not read from the clock)")
     print(f"base name: {base}")
@@ -252,7 +280,9 @@ def main() -> int:
                 f"tag {arguments.expect_tag} does not match the package "
                 f"version; expected {expected_tag}"
             )
-        expected_title = f"openvino-nim {version} — {arguments.date} — OpenVINO {openvino}"
+        expected_title = release_title(
+            package, version, arguments.date, openvino
+        )
         print(f"release title should be: {expected_title}")
 
     if git("status", "--porcelain"):

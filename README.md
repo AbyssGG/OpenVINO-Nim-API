@@ -29,7 +29,7 @@ made for GPU, NPU or macOS. See [compatibility](docs/compatibility.md) for what
 was and was not run. Nothing in this README should be read as a claim that a
 feature already works unless it says so.
 
-## Five names, five purposes
+## Six naming roles
 
 These names are deliberately different. Mixing them up is the most common
 source of confusion when installing the package.
@@ -37,20 +37,20 @@ source of confusion when installing the package.
 | Name | Where it is used | Why |
 |---|---|---|
 | `OpenVINO-Nim-API` | Project title, prose, repository description | The display name. Mixed case, for reading |
-| `openvino-nim` | Repository name, release archive prefix, documentation | The public distribution name. Lowercase, because file systems, URLs and package indexes disagree about case |
+| `OpenVINO-Nim-API` | GitHub repository name | The exact public repository name requested by the project owner |
+| `openvino-nim` | Release archive prefix and distribution references | Lowercase because file systems and package indexes disagree about case |
 | `openvino` | Nimble package identifier | Nimble package identifiers may not contain a hyphen |
 | `openvino.nimble` | Manifest file name | Nimble requires the manifest name to match the package identifier |
 | `import openvino` | Nim source code | The stable import root, kept identical to the package identifier |
 
-The first two differ only in case, which is the trap worth naming: case is
-exactly what a file system, a URL or a package index will treat inconsistently
-across platforms. So the display name is for reading, and anywhere a tool reads
-a name — the Nimble package, an import path, a release archive, a Git tag — the
-answer is the lowercase distribution name.
+The project title and GitHub repository deliberately match exactly. Package
+and archive tooling still use their lowercase identifiers: `openvino-nim` for
+release assets and `openvino` for Nimble and imports. A Git tag remains a
+SemVer tag such as `v0.1.0`; it is not derived from any of these names.
 
-`nimble releaseCheck` asserts that this README mentions both, that the
-distribution name is lowercase, and that the display name is not being used as
-a package or archive name, so neither can quietly drift from
+`nimble releaseCheck` asserts that this README mentions the repository,
+display and distribution names, that the first two match, and that the
+distribution name stays lowercase, so none can quietly drift from
 `src/openvino/version.nim`.
 
 Release archives use the base name

@@ -46,6 +46,7 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       base-name: ${{ steps.name.outputs.base }}
+      release-title: ${{ steps.name.outputs.title }}
     steps:
       # actions/checkout v4.4.0. fetch-depth 0 so that git archive and the tag
       # check see the full history rather than a shallow clone.
@@ -100,8 +101,12 @@ jobs:
           set -euo pipefail
           base="$(python ci/release-archive.py \
             --date '${{ steps.date.outputs.value }}' --print-name)"
+          title="$(python ci/release-archive.py \
+            --date '${{ steps.date.outputs.value }}' --print-title)"
           echo "base=$base" >> "$GITHUB_OUTPUT"
+          echo "title=$title" >> "$GITHUB_OUTPUT"
           echo "base name: $base"
+          echo "release title: $title"
 
       - name: Build and verify the archives
         shell: bash
@@ -176,18 +181,58 @@ jobs:
     permissions:
       # Raised here and nowhere else, so nothing before this point could
       # publish even if it tried.
+      actions: read
       contents: write
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
-      - name: Explain what is deliberately not automated
+      - name: Download the archives verified by the archive job
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
         run: |
-          echo "This job uploads the archives that the archive job verified."
-          echo "It does not create tags, and it does not publish to Nimble."
-          echo "GitHub also attaches its own auto-generated source archives to"
-          echo "a release. Those are not the canonical assets: the canonical"
-          echo "ones are the four files named"
-          echo "  ${{ needs.archive.outputs.base-name }}.zip"
-          echo "  ${{ needs.archive.outputs.base-name }}.tar.gz"
-          echo "  ${{ needs.archive.outputs.base-name }}.zip.sha256"
-          echo "  ${{ needs.archive.outputs.base-name }}.tar.gz.sha256"
+          set -euo pipefail
+          gh run download "$GITHUB_RUN_ID" \
+            --repo "$GITHUB_REPOSITORY" \
+            --name '${{ needs.archive.outputs.base-name }}' \
+            --dir build/release
+
+          base='${{ needs.archive.outputs.base-name }}'
+          for suffix in .zip .tar.gz .zip.sha256 .tar.gz.sha256; do
+            test -f "build/release/${base}${suffix}"
+          done
+          test "$(find build/release -maxdepth 1 -type f | wc -l)" -eq 4
+
+      - name: Create or update the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          base='${{ needs.archive.outputs.base-name }}'
+          title='${{ needs.archive.outputs.release-title }}'
+          assets=(
+            "build/release/${base}.zip"
+            "build/release/${base}.tar.gz"
+            "build/release/${base}.zip.sha256"
+            "build/release/${base}.tar.gz.sha256"
+          )
+
+          if gh release view "$GITHUB_REF_NAME" \
+              --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" "${assets[@]}" \
+              --repo "$GITHUB_REPOSITORY" --clobber
+            gh release edit "$GITHUB_REF_NAME" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "$title" \
+              --notes-file RELEASE_NOTES.md
+          else
+            gh release create "$GITHUB_REF_NAME" "${assets[@]}" \
+              --repo "$GITHUB_REPOSITORY" \
+              --verify-tag \
+              --title "$title" \
+              --notes-file RELEASE_NOTES.md
+          fi
+
+          echo "Published the four canonical, checksummed assets."
+          echo "The workflow does not create tags or publish to Nimble."

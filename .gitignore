@@ -5,6 +5,7 @@ nimcache/
 nimblecache/
 htmldocs/
 build/
+.nim_runtime/
 *.exe
 *.pdb
 *.ilk
@@ -47,7 +48,6 @@ plugins.xml
 *.safetensors
 
 # Editor and tooling state
-.kiro/
 .vscode/
 .idea/
 *.swp

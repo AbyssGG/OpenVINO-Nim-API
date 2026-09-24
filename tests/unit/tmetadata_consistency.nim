@@ -37,12 +37,12 @@ suite "package metadata":
   test "public entry point exports the distribution name":
     check PackageName == "openvino-nim"
 
-  test "the display name is for reading and the distribution name for tools":
-    # The two differ only in case, and case is what a file system, a URL or a
-    # package index will treat inconsistently. Pinned here so that a refactor
-    # cannot make them the same and then use the mixed-case one where a
-    # lowercase identifier is required.
+  test "the repository name matches the project name exactly":
     check ProjectDisplayName == "OpenVINO-Nim-API"
+    check RepositoryName == "OpenVINO-Nim-API"
+    check RepositoryName == ProjectDisplayName
+
+  test "the distribution name remains safe for package and archive tools":
     check ProjectDisplayName != PackageName
     check PackageName == PackageName.toLowerAscii()
     check ProjectDisplayName != ProjectDisplayName.toLowerAscii()
@@ -65,6 +65,7 @@ suite "package metadata":
     # A space would break a slug, a path and an archive name. The display name
     # is mixed case rather than spaced precisely so that it stays usable.
     check ' ' notin ProjectDisplayName
+    check ' ' notin RepositoryName
     check ' ' notin PackageName
 
   test "package version is a three-part numeric semantic version":

@@ -22,8 +22,9 @@
 
 | 项目 | 约定 |
 |---|---|
-| 项目名 | OpenVINO Nim API |
-| 对外包名/仓库名/发行名 | `openvino-nim` |
+| 项目名 | `OpenVINO-Nim-API` |
+| GitHub 仓库名 | `OpenVINO-Nim-API` |
+| 对外发行名/归档前缀 | `openvino-nim` |
 | Nimble 包标识 | `openvino`（Nimble 标识不允许连字符，并与导入根模块一致） |
 | Nimble 清单文件 | `openvino.nimble` |
 | Nim 导入入口 | `import openvino` |
@@ -973,7 +974,8 @@ managed 层至少区分：
 
 | 用途 | 0.1.0 约定 | 说明 |
 |---|---|---|
-| 对外包名、仓库名、发行名前缀 | `openvino-nim` | 用户指定的公开名称 |
+| GitHub 仓库名 | `OpenVINO-Nim-API` | 与项目展示名精确一致 |
+| 对外发行名、归档前缀 | `openvino-nim` | 面向文件系统和包工具，保持小写 |
 | Nimble 包标识与清单文件 | `openvino`、`openvino.nimble` | Nimble 包名语法不接受 `-`；标识与根模块一致，也不改变对外发行名 |
 | Nim 源码导入入口 | `import openvino` | 用户代码中的稳定模块名 |
 | Git 标签 | `v0.1.0-rc.1`、`v0.1.0` | 保持标准 SemVer，不能使用长归档名替代标签 |
@@ -1214,7 +1216,7 @@ nimble releaseArchive
 
 **任务**
 
-- 建立 `openvino.nimble`、`src/openvino.nim` 和分层目录；对外名称固定为 `openvino-nim`，Nimble/导入标识固定为 `openvino`。
+- 建立 `openvino.nimble`、`src/openvino.nim` 和分层目录；GitHub 仓库名固定为 `OpenVINO-Nim-API`，发行归档前缀固定为 `openvino-nim`，Nimble/导入标识固定为 `openvino`。
 - 添加 Apache-2.0 `LICENSE`、README、CHANGELOG、CONTRIBUTING、`.gitignore`。
 - 添加 `STYLE_GUIDE.md`、`.editorconfig` 和基于 Google 风格的 `.clang-format`。
 - 加入社区维护/非官方声明。
@@ -1227,7 +1229,7 @@ nimble releaseArchive
 - `import openvino` 在 Windows/Linux 都可编译，即使功能仍为空壳。
 - 包归档不包含旧构建产物、runtime 二进制或开发路径。
 - README、nimble 元数据和 CHANGELOG 的项目名、版本、许可证一致。
-- README 明确说明 `openvino-nim`、`openvino`、`import openvino` 和 Release 归档名前缀分别用于什么场景。
+- README 明确说明 `OpenVINO-Nim-API`、`openvino-nim`、`openvino`、`import openvino` 和 Release 归档名前缀分别用于什么场景。
 - managed 示例代码通过 `nimpretty` 和 `--styleCheck:error`；C probe 通过 pinned Google-based `clang-format` 检查。
 - raw C 名称例外已有独立检查策略，不存在仓库级 style/lint 关闭。
 
@@ -1241,7 +1243,7 @@ nimble releaseArchive
 | `import openvino` 可编译 | Windows 通过，Linux 未验证 | `nim check --styleCheck:error --path:src src/openvino.nim` 零输出退出；Linux 仅有 CI 定义，无运行记录 |
 | 包归档不含构建产物/runtime/开发路径 | 通过 | `nimble install` exit 0，安装结果仅四个文件；见 B09 与 §2.9 |
 | 项目名、版本、许可证三处一致 | 通过 | `nimble releaseCheck` 输出 `openvino-nim 0.1.0 against OpenVINO 2026.4.0`，并已反向测试 |
-| README 说明四种名称的用途 | 通过 | `README.md` 的 "Four names, four purposes" 表 |
+| README 说明各命名角色的用途 | 通过 | `README.md` 的 "Six naming roles" 表 |
 | managed 代码通过 `nimpretty` 与 `--styleCheck:error` | 通过 | `nimble formatCheck` 零差异；`nimble lint` 逐文件 `nim check --styleCheck:error` 通过 |
 | C probe 通过 pinned `clang-format` | 不适用 | 尚无手写 C 文件；`.clang-format` 已就位，检查随 Phase 2 的 probe 接入 |
 | 不存在仓库级 style/lint 关闭 | 通过 | `styleChecks: off` 零出现，且 `nimble lint` 强制其目录 allowlist |
@@ -1520,7 +1522,7 @@ docs: prepare OpenVINO Nim API 0.1.0 release
 | GPU/NPU runner 不稳定 | 中 | hosted runner 无设备/驱动 | CPU 为发布基线，硬件 job 完全分离 |
 | Fixture 许可证不清 | 中 | 无法公开分发包 | 自生成或宽松许可；记录来源、方法和 checksum |
 | 官方品牌误导 | 中 | 用户误认为 Intel 官方 binding | README、包描述和 release notes 明确社区/非官方 |
-| 对外名与 Nimble 标识混淆 | 中 | 创建 `openvino-nim.nimble`、`nimble check` 失败或安装/导入说明互相矛盾 | 对外始终称 `openvino-nim`；Nimble 清单/标识/根模块统一为 `openvino`；CI 检查映射 |
+| 仓库名、发行名与 Nimble 标识混淆 | 中 | 改错 GitHub 仓库名、创建 `openvino-nim.nimble`，或令安装/导入说明互相矛盾 | GitHub 仓库名固定为 `OpenVINO-Nim-API`；发行前缀为 `openvino-nim`；Nimble 清单/标识/根模块统一为 `openvino`；CI 检查映射 |
 | Nimble 名称被占用 | 中 | 提交官方包索引时 `openvino` 已指向其他项目 | Phase 1 和正式发布前各查询一次官方包索引；冲突时先由项目所有者决定新合法标识，不静默改名 |
 | Release 名称元数据漂移 | 中 | tag、标题、归档名或顶层目录版本不一致 | 从受控元数据生成名称并做一致性测试；禁止手工复制长名称 |
 | 发布日期受 runner 时区影响 | 低/中 | 同一发布在不同作业生成不同日期文件名 | 日期作为明确输入；采用项目约定 `YYYY-M-D`，不读取 runner 本地日期 |
@@ -1565,7 +1567,7 @@ docs: prepare OpenVINO Nim API 0.1.0 release
 - [x] B08 在 Windows/Linux 验证最小 `import openvino` 编译。证据：Windows x86_64 + Nim 2.2.12 与 Linux x86_64（Ubuntu 26.04.1）+ Nim 2.2.4 两侧分别实测 `nimble check`、`formatCheck`、`lint`（含 `--styleCheck:error`）、`test` 全部 exit 0。Linux 侧在一个由 `git archive HEAD` 展开的干净树中执行，即使用者 clone 到的内容。
 - [x] B09 验证 Nimble 包归档不含本机路径、SDK/runtime 或临时文件。证据：`nimble install --nimbleDir:<temp>` 以 exit 0 完成，安装结果为 `nimblemeta.json`、`openvino.nim`、`openvino.nimble`、`openvino/version.nim` 四个文件，无绝对路径、无 SDK/runtime、无临时文件、无文档与测试。过程发现并修复了两个缺陷，记录于 §2.9。
 - [x] B10 为翻译/生成自上游 C headers 的声明记录 SPDX、tag/commit 和来源，并复核是否需要 NOTICE/归属说明。证据：新增 `NOTICE`。全部手写源文件带 `SPDX-License-Identifier: Apache-2.0`；上游 tag/commit 记录为 `version.nim` 的 `TargetOpenVinoTag`/`TargetOpenVinoCommit`，18 个 header 的 SHA-256 记录在两处文档。**NOTICE 的结论是经过论证的，而不是默认加一个文件**：仓库内没有复制任何 OpenVINO 源文本——没有 vendored header、没有由 header 生成的文件、没有搬过来的注释；被复现的只是 ABI 本身的名字与数值（如 `ov_core_create`、`U8 = 16`、`ov_shape_t` 的字段顺序），而绑定若与之不同就不成其为绑定。即便按最保守的读法把这些声明视为 header 的衍生作品，OpenVINO 自身是 Apache-2.0，本项目也以同一许可证分发，因此允许。Apache-2.0 §4(d) 只要求在上游存在可归属 NOTICE 时转述，故本文件陈述关系与来源而不复制任何内容。同时写明：不捆绑任何第三方源码，runtime 仅在运行期按名加载、从不随包分发，唯一引用的第三方产物是 CI 按 URL 与 SHA-256 下载的 wheel 且不再分发。
-- [x] B11 README 解释对外名 `openvino-nim`、Nimble 标识 `openvino`、清单 `openvino.nimble` 和导入入口 `import openvino` 的区别。证据：`README.md` 的 "Four names, four purposes" 表，四项逐条给出用途与原因。
+- [x] B11 README 解释仓库名 `OpenVINO-Nim-API`、发行前缀 `openvino-nim`、Nimble 标识 `openvino`、清单 `openvino.nimble` 和导入入口 `import openvino` 的区别。证据：`README.md` 的 "Six naming roles" 表逐条给出用途与原因。
 - [x] B12 查询官方 Nimble 包索引，确认 `openvino` 在采用时未被其他项目占用；发布前再次查询并保留证据。证据：两次查询。首次 2026-09-24，`name` 精确等于 `openvino` 的记录数为 0，无任何包含 `openvino` 或 `vino` 的近似名。第二次为本轮，查询 Nimble 自己在本次会话中下载的 `packages_official.json`（mtime 2026-09-24T19:10:08Z，即实时索引而非来历不明的缓存）：2290 个包，精确匹配 0，含 `vino` 的 0，含 `openvino-nim` 或等于 `resonance` 的 0。两次的包总数不同（2945 与 2290），这一差异未能解释，如实记录；两次的实质结论一致，且第二次是按 `name` 精确比较得出的。
 
 ### S. Google 风格与可维护性
@@ -1683,28 +1685,29 @@ docs: prepare OpenVINO Nim API 0.1.0 release
 - [x] G14 检查 `src/openvino` 不 import Resonance/Isvik。证据：grep `resonance|Resonance|Isvik|NimVoice` 在 `src/` 下只命中 6 处文档注释，全部是解释原型缺陷的历史说明（如 last-error 泄漏、按值 shape），没有任何 import 或符号。
 - [x] G15 检查公共符号/错误/用户文档无业务品牌残留。证据：同一次 grep 确认公共符号与错误消息中没有品牌名；面向用户的文档里只有 `docs/resonance-migration.md` 与 `docs/resonance-audit.md` 提到 Resonance，且是它们的主题本身——为迁移者服务的历史说明，不是残留。
 - [x] G16 确认 macOS/GPU/NPU 只按实测状态声明。证据：`docs/compatibility.md` 把 GPU 与 NPU 记为"本机能发现并报出完整名称，但未在其上执行过任何推理"，macOS 记为"从未运行，两个方向都不声明"，`--mm:refc` 同样不声明。README 的 Status 一节改为只声明 Windows x86_64 + CPU。
-- [x] G17 发布 CI 从版本、明确发布日期和 OpenVINO 固定版本生成归档名，不读取 runner 本地日期。证据：`ci/release-archive.py` 的 `--date` 无默认值，缺失即报错退出；版本与 OpenVINO 版本从 `src/openvino/version.nim` 读取。`.github/workflows/release.yml` 手动触发时日期来自必填输入，tag 触发时从 **annotated tag 的消息**里取 `YYYY-M-D`，取不到就以 1 退出并明确写出"拒绝回退到 runner 的时钟"。本机实测：`OPENVINO_NIM_RELEASE_DATE=2026-9-24 nimble releaseArchive` 得到基名 `openvino-nim-0-1-0-2026-9-24-ov2026-4-0`，与计划 §H11 给出的字面量完全一致；脚本另有 `--self-test` 直接对这个例子断言命名规则，release workflow 第一步就跑它。
-- [x] G18 发布 CI 校验 tag、Release 标题、归档名、归档顶层目录和 checksum 一致。证据：归档由 `git archive --prefix=<基名>/` 生成，随后被**读回**校验——`zipfile`/`tarfile` 列出全部条目，断言顶层目录集合恰好等于 `{基名}`，并逐条拒绝 `.dll/.so/.whl/.bin/.exe` 等 17 类扩展名（源码归档不该含 runtime 或模型）；四个 sidecar 写完后重新计算摘要比对。tag 一致性由 `--expect-tag` 断言 `v{version}`，并另有一步从 tag 名反推期望前缀再与实际基名比对；Release 标题按 `openvino-nim {version} — {date} — OpenVINO {openvino}` 模板打印出来。另加一步"同一 commit 构建两次逐字节比对"，证明归档可复现。**工作树不干净时拒绝生成**，因为 `git archive` 打的是 commit 而不是你看到的内容，那种归档是有误导性的——本机第一次运行正是因为这条检查以 exit 1 结束，说明它在工作。
-- [x] G19 发布 CI 支持只生成不上传的 dry run；PR/fork 无上传权限。证据：`workflow_dispatch` 只跑 `archive` 作业并传 `--dry-run`，脚本最后明确打印 "DRY RUN: nothing was uploaded and no release was created"；`publish` 作业的条件是 `github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')`，手动触发到不了。权限是分层的：workflow 顶层 `permissions: contents: read`，只有 `publish` 作业自己抬到 `contents: write`，因此在它之前的任何一步即使想上传也没有权限。pull_request 根本不是本 workflow 的触发事件，fork 的 PR 因此无法到达上传路径。创建 tag 刻意不自动化——tag 对使用者是不可撤回的点，留给人来做。
-- [x] G20 维护双语 `DEVLOG.md`，并由 `tools/mdcheck.nim` 校验两个语言部分的条目数一致。证据：`DEVLOG.md` 含 Phase 0–2 三条条目，英文与中文各三条；`nim r tools/mdcheck.nim` 覆盖 10 个 Markdown 文件通过，并已反向测试——制造一条只存在于英文半部的条目后，工具报出缺失的中文半部与条目数不等，`nimble lint` 以 exit 1 失败。要求写入 §15.4。
+- [x] G17 发布 CI 从版本、明确发布日期和 OpenVINO 固定版本生成归档名和 Release 标题，不读取 runner 本地日期。证据：`ci/release-archive.py` 的 `--date` 无默认值，缺失即报错退出；版本、发行前缀与 OpenVINO 版本从 `src/openvino/version.nim` 读取。`.github/workflows/release.yml` 手动触发时日期来自必填输入，tag 触发时从 **annotated tag 的消息**里取 `YYYY-M-D`，取不到就以 1 退出并明确拒绝回退到 runner 时钟。`--self-test` 同时断言规范基名和标题；本机实测 `--print-name` 得到 `openvino-nim-0-1-0-2026-9-24-ov2026-4-0`，`--print-title` 得到 `openvino-nim 0.1.0 — 2026-9-24 — OpenVINO 2026.4.0`。
+- [x] G18 发布 CI 校验 tag、Release 标题、归档名、归档顶层目录和 checksum 一致。证据：归档由 `git archive --prefix=<基名>/` 生成，随后被**读回**校验——`zipfile`/`tarfile` 列出全部条目，断言顶层目录集合恰好等于 `{基名}`，并逐条拒绝 `.dll/.so/.whl/.bin/.exe` 等 17 类扩展名（源码归档不该含 runtime 或模型）；四个 sidecar 写完后重新计算摘要比对。tag 一致性由 `--expect-tag` 断言 `v{version}`，并另有一步从 tag 名反推期望前缀再与实际基名比对；Release 标题与归档基名都由同一脚本输出。另加一步"同一 commit 构建两次逐字节比对"，证明归档可复现。发布作业只下载该验证作业产生的 artifact，并要求目录内恰好存在四个规范文件后才创建或更新 GitHub Release。
+- [x] G19 发布 CI 支持只生成不上传的 dry run；PR/fork 无上传权限。证据：`workflow_dispatch` 只跑 `archive` 作业并传 `--dry-run`，脚本最后明确打印 "DRY RUN: nothing was uploaded and no release was created"；`publish` 作业的条件是 `github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')`，手动触发到不了。权限分层为 workflow 顶层 `contents: read`，发布作业才具有 `actions: read`（下载本次已验证 artifact）和 `contents: write`（创建或更新 Release）。发布步骤可重跑：已有 Release 时以 `--clobber` 更新四个资产和 `RELEASE_NOTES.md`，否则用 `--verify-tag` 创建；它从不创建 tag，也不发布 Nimble 包。
+- [x] G20 维护双语 `DEVLOG.md`，并由 `tools/mdcheck.nim` 校验两个语言部分的条目数一致。证据：`DEVLOG.md` 的英文与中文部分条目数相同；`nim r tools/mdcheck.nim` 当前覆盖 18 个仓库 Markdown 文件通过，并已反向测试——制造一条只存在于英文半部的条目后，工具报出缺失的中文半部与条目数不等，`nimble lint` 以 exit 1 失败。检查器显式排除 CI 安装的 `.nim_runtime`，不会把 Nim 工具链自带文档误判为本项目文档。
 
 ### H. RC 与发布
 
 - [ ] H01 所有 Phase Gate 都有可复核证据。
-- [ ] H02 兼容矩阵只列真实测试组合。
-- [ ] H03 所有版本号统一为 `0.1.0`。
-- [ ] H04 CHANGELOG 和 release notes 完成。
-- [ ] H05 包内容复核无 SDK、cache、临时文件、大模型、绝对路径或 secrets。
-- [ ] H06 无未解释 warning、skip、suppression 或高风险项。
-- [ ] H07 全新 Windows/Linux 环境完成安装、runtime 加载和 CPU 推理。
+- [x] H02 兼容矩阵只列真实测试组合。证据：`docs/compatibility.md` 将 Windows/Linux CPU 实测与 GPU、NPU、macOS、refc 等未验证项分栏记录，不从设备可发现推导推理支持。
+- [x] H03 所有版本号统一为 `0.1.0`。证据：`nimble releaseCheck`、`tests/unit/tmetadata_consistency.nim` 与 CI 静态作业共同断言 manifest、公开常量、CHANGELOG 和 README 一致。
+- [x] H04 CHANGELOG 和 release notes 完成。证据：`CHANGELOG.md` 包含完整 `0.1.0` 分类变更；`RELEASE_NOTES.md` 包含亮点、兼容范围、安装方法、规范资产说明和非官方声明，`releaseCheck` 要求两者存在。
+- [x] H05 包内容复核无 SDK、cache、临时文件、大模型、绝对路径或 secrets。证据：`nimble packagingCheck` 在干净目录安装并只接受 Nim 源码与 manifest 元数据；发布脚本拒绝 17 类 runtime、二进制和模型扩展名；本机复测安装包为 29 个合规文件。
+- [x] H06 无未解释 warning、skip、suppression 或高风险项。证据：修复 `expect` 包裹 `noReturn` 过程触发的 `UnreachableCode` 后，`nimble formatCheck`、`lint`、`releaseCheck`、单元测试与 runtime 测试均无 warning；CI 中 diagnostics 的条件 skip 只在前置步骤成功时发生，不是必测项静默跳过。
+- [x] H07 全新 Windows/Linux 环境完成安装、runtime 加载和 CPU 推理。证据：`examples-package`、`smoke` 与 `integration-cpu` 已在 Windows/Linux 运行；本轮 Windows 再次运行 `packagingCheck`、ABI、smoke、debug/release integration、ORC/ARC lifecycle 全部通过。
 - [ ] H08 经授权创建并验证 `v0.1.0-rc.1`。
 - [ ] H09 RC 后只接受阻断性修复并重跑 release Gate。
 - [ ] H10 经用户明确授权后再创建正式 tag、push、release 或发布包。
-- [ ] H11 对 `0.1.0`、`2026-9-24`、OpenVINO `2026.4.0` 生成精确基名 `openvino-nim-0-1-0-2026-9-24-ov2026-4-0`；元数据变化时按模板重算。
+- [x] H11 对 `0.1.0`、`2026-9-24`、OpenVINO `2026.4.0` 生成精确基名 `openvino-nim-0-1-0-2026-9-24-ov2026-4-0`；元数据变化时按模板重算。证据：`ci/release-archive.py --self-test` 和 `--print-name` 本机通过，workflow 在归档前重复运行同一断言。
 - [ ] H12 生成同基名的 `.zip`、`.tar.gz`、`.zip.sha256` 和 `.tar.gz.sha256`。
 - [ ] H13 两种归档都只有一个与基名相同的顶层目录，且不包含 OpenVINO runtime/SDK。
 - [ ] H14 在相同 commit 和发布元数据下重复生成归档，逐项 checksum 一致。
-- [ ] H15 确认托管平台自动生成的源码包不被误写为规范命名资产；规范资产由受控发布流程上传。
+- [x] H15 确认托管平台自动生成的源码包不被误写为规范命名资产；规范资产由受控发布流程上传。证据：`RELEASE_NOTES.md` 明确区分两者；tag-only `publish` 作业只接受 archive 作业验证过的四个文件，并创建或幂等更新 GitHub Release。
+- [x] H16 GitHub 仓库名精确为 `OpenVINO-Nim-API`，并与包/归档前缀 `openvino-nim` 分离。证据：仓库已重命名为 `AbyssGG/OpenVINO-Nim-API`；`RepositoryName`、单元测试与 `releaseCheck` 固定该映射。
 
 ---
 
@@ -1724,7 +1727,7 @@ docs: prepare OpenVINO Nim API 0.1.0 release
 - managed/Nim、raw/C 和 Markdown 是否分别通过规定的 Google-style/Nim-style 自动检查，且 formatter 零 diff？
 - raw C 标识符的风格例外是否局部、可审计，未关闭 managed 层检查？
 - 包是否可在干净环境安装，且不携带 OpenVINO runtime 或受限模型？
-- 对外名称是否始终为 `openvino-nim`，同时 `openvino.nimble`、Nimble 标识和 `import openvino` 是否保持一致？
+- GitHub 仓库名是否精确为 `OpenVINO-Nim-API`，发行归档前缀是否保持 `openvino-nim`，同时 `openvino.nimble`、Nimble 标识和 `import openvino` 是否保持一致？
 - Git tag、Release 标题、规范归档名、归档顶层目录和 SHA-256 是否由同一组版本元数据生成并完全一致？
 - `0.1.0` 在 `2026-9-24` 面向 OpenVINO `2026.4.0` 时，规范归档基名是否精确为 `openvino-nim-0-1-0-2026-9-24-ov2026-4-0`？
 - 相同 commit 和发布元数据能否生成 checksum 相同的 `.zip` 与 `.tar.gz`？

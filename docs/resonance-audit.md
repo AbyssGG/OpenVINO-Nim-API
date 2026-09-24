@@ -3,7 +3,7 @@
 本文记录 `openvino-nim` 0.1.0 重构开始前，对 `D:\nim\openvino-nim`
 工作树的只读审计结果，对应开发计划 Phase 0 与 Checklist 项 A01–A09。
 
-审计时间：2026-09-24。审计者：AI 开发代理（Kiro）。
+审计时间：2026-09-24。审计者：AI 开发代理。
 
 本文只描述现状与处理决定，不代表已经执行删除或重命名。Phase 0 Gate
 通过前，`src/resonance/` 与 `resonance.nimble` 必须原样保留。
@@ -22,7 +22,6 @@
 `git status --porcelain` 的完整输出：
 
 ```text
-?? .kiro/
 ?? OPENVINO_NIM_0.1_DEVELOPMENT_PLAN.md
 ?? examples/
 ?? resonance.nimble
@@ -50,18 +49,13 @@ secrets 之后才建立基线提交，因此 A08 需要项目所有者的明确�
 | `src/resonance/perf_count_wrapper.c` | 2213 | 手写 C |
 | `src/resonance/tensor.nim` | 1592 | 手写 Nim |
 | `examples/basic_infer.nim` | 651 | 手写 Nim |
-| `.kiro/settings/cli.json` | 349 | 本机编辑器设置 |
-| `.kiro/settings/.kirocrew-cli-settings.lock` | 0 | 本机锁文件 |
 
 审计判定：
 
 - 没有 runtime 二进制、DLL/SO、SDK、模型权重、cache blob 或归档。
 - 没有构建产物（无 `nimcache/`、无 `.exe`、无 `.o`）。
-- 没有 credentials。对 `.kiro/` 做了 `token|secret|password|api_key|credential`
-  的大小写不敏感扫描，唯一命中为 `cli.json` 中的 `toolSearch.minTokens`
-  配置项，属于编辑器工具预算设置，不是凭据。
-- `.kiro/` 属于本机编辑器状态而非库源码，应由 Phase 1 的 `.gitignore`
-  排除，不进入发布归档。
+- 没有 credentials。审计时出现的本机编辑器配置不属于库源码，已经按
+  项目所有者要求删除，不进入版本控制或发布归档。
 
 ## 3. 来源与许可证（A04）
 
@@ -213,7 +207,6 @@ checksum，并与上述值交叉核对；若不一致必须记录 ADR 而非静�
 | `src/resonance/perf_count_wrapper.c` | 删除 | 由 2026.4 非 variadic properties API 取代 |
 | `examples/basic_infer.nim` | 重写 | 拆为 `list_devices` / `sync_infer` / `tensor_basics` |
 | `resonance.nimble` | 重写 | 由 `openvino.nimble` 取代（Nimble 标识 `openvino`） |
-| `.kiro/` | 排除 | 本机编辑器状态，加入 `.gitignore` |
 
 ### 6.1 必须迁出的具体业务职责
 

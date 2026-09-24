@@ -93,5 +93,9 @@ suite "index conversion":
 suite "argument errors are catchable as ValueError":
   test "an OpenVinoArgumentError is a ValueError":
     # Chosen so that existing handlers for bad arguments keep working.
-    expect ValueError:
+    var caughtAsValueError = false
+    try:
       raiseArgumentError("example")
+    except ValueError:
+      caughtAsValueError = true
+    check caughtAsValueError

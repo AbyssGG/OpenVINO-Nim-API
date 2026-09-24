@@ -547,6 +547,7 @@ task releaseCheck, "Verify version metadata is consistent across the repo":
   var failures: seq[string] = @[]
   let
     packageName = stringMetadata("PackageName")
+    repositoryName = stringMetadata("RepositoryName")
     packageVersion = stringMetadata("PackageVersion")
     minimumNim = stringMetadata("MinimumNimVersion")
     openVinoVersion = stringMetadata("TargetOpenVinoVersion")
@@ -614,7 +615,7 @@ task releaseCheck, "Verify version metadata is consistent across the repo":
   # Both legal files must exist. LICENSE carries the terms; NOTICE records how
   # this package relates to the upstream C headers and what it does not bundle.
   # A release without either is not one anyone should consume.
-  for required in ["LICENSE", "NOTICE"]:
+  for required in ["LICENSE", "NOTICE", "RELEASE_NOTES.md"]:
     if not fileExists(required):
       failures.add(required & " is missing")
 
@@ -625,14 +626,17 @@ task releaseCheck, "Verify version metadata is consistent across the repo":
   let
     readme = readFile("README.md")
     displayName = stringMetadata("ProjectDisplayName")
-  for needle in [displayName, packageName, packageVersion, openVinoVersion]:
+  for needle in [displayName, repositoryName, packageName, packageVersion,
+                 openVinoVersion]:
     if not readme.contains(needle):
       failures.add("README.md does not mention '" & needle & "'")
 
-  # The display name is for reading. It differs from the distribution name only
-  # in case, so the guard is that nothing a tool reads may be built from it: a
-  # mixed-case package or archive name is the kind of defect that works on one
-  # developer's file system and fails on the next.
+  # The repository's public identity matches the display name exactly. Release
+  # archives remain lowercase because they are consumed by package and file
+  # system tooling with different case rules.
+  if repositoryName != displayName:
+    failures.add("RepositoryName '" & repositoryName &
+      "' must exactly match ProjectDisplayName '" & displayName & "'")
   if displayName == packageName:
     failures.add("ProjectDisplayName and PackageName must differ; the first " &
       "is for reading and the second is what tools consume")

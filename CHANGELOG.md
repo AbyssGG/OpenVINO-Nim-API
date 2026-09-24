@@ -127,6 +127,11 @@ Not released. Under development.
   show they are reproducible from a commit. A manual run is a dry run;
   `contents: write` is granted only to the publishing job, which only a pushed
   tag can reach.
+- Completed the tag-triggered publish job. It downloads only the four archives
+  and checksum sidecars produced by the verified archive job, validates their
+  exact names and count, then creates or idempotently updates the GitHub
+  Release from `RELEASE_NOTES.md`. It still never creates a tag or publishes a
+  Nimble package.
 - Added `nimble packagingCheck`, `nimble memcheck` and `nimble releaseArchive`.
 - `nimble lint` now requires every `cast` in `src` and `examples` to have an
   invariant written within ten lines above it. The first version of the rule

@@ -26,9 +26,11 @@ const
     ## Link texts that describe the act of clicking instead of the
     ## destination.
 
-  skippedDirs = [".git", ".kiro", "build", "nimcache", "htmldocs"]
+  skippedDirs = [".git", ".nim_runtime", "build", "nimcache", "htmldocs"]
     ## Directories that never contain repository documentation. Pruning them
     ## keeps the walk fast and avoids reporting vendored or generated text.
+    ## setup-nim-action installs its toolchain under `.nim_runtime` in CI; its
+    ## bundled Markdown belongs to Nim, not to this repository.
 
   devlogPath = "DEVLOG.md"
     ## Bilingual development log, checked for entry parity between its two
