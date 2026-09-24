@@ -26,6 +26,12 @@ examples/*
 # nimpretty scratch files produced by `nimble formatCheck`
 *.nimpretty-check
 
+# Scratch logs from running tasks locally. The repository has no legitimate
+# plain-text file at its root: documentation is Markdown and LICENSE has no
+# extension. Ignoring them here stops `git add -A` from capturing one.
+/*.txt
+/*.log
+
 # OpenVINO artefacts that must never enter the repository or a release
 # archive: runtime libraries, SDKs, plugin manifests, compiled blobs and
 # model weights. Test fixtures are committed deliberately and are listed as

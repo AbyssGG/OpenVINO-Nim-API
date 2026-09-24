@@ -1,7 +1,0 @@
-﻿check exit=0
-formatCheck exit=0
-lint exit=0
-test exit=0
-releaseCheck exit=0
-testAbi exit=0
-testSmoke exit=0
