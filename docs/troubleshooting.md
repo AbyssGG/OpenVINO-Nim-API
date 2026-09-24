@@ -32,6 +32,20 @@ On Linux the equivalent is `LD_LIBRARY_PATH` covering `runtime/lib/intel64` and
 the oneTBB directory, or an `ldconfig` entry. `ldd libopenvino_c.so` names what
 is missing.
 
+**A pip installation has no file called `libopenvino_c.so`.** The wheel ships
+`libopenvino_c.so.2640`, with that as its SONAME, and no unversioned symlink,
+because a wheel has no reason to carry a link that only a linker would use. This
+package tries both names, so a pip install works, but the directory still has to
+be on the loader path:
+
+```shell
+export LD_LIBRARY_PATH="$(python -c 'import openvino,os;print(os.path.join(os.path.dirname(openvino.__file__),"libs"))')${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+```
+
+oneTBB ships in that same directory in the wheel layout, so one path covers
+both. If the failure message lists two names tried and neither was found, the
+directory is what is missing, not the library.
+
 Architecture mismatch is the other case: a 32-bit Nim build cannot load a 64-bit
 runtime. Nothing in the message will say "architecture", so check it if the path
 is definitely right.

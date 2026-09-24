@@ -40,6 +40,14 @@ const
     ## Minor component of `TargetOpenVinoVersion`, kept separately so that
     ## consistency can be checked mechanically.
 
+  TargetOpenVinoPatch* = 0
+    ## Patch component of `TargetOpenVinoVersion`.
+    ##
+    ## Needed for more than bookkeeping: upstream builds the shared-library
+    ## version suffix from all three components, so `private/library.nim`
+    ## derives the versioned library name from these constants rather than
+    ## carrying a second copy of the number.
+
   TargetOpenVinoTag* = "2026.4.0"
     ## Upstream Git tag the pinned C headers are taken from.
 

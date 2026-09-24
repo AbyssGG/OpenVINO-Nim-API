@@ -15,7 +15,14 @@ import errors
 import model
 import private/conversions
 import private/handles
-import private/paths
+
+# Imported only where it is used. Everything this module needs from `paths`
+# lives inside a `when defined(windows)` branch, so importing it
+# unconditionally makes every Linux and macOS build report an unused import.
+# That warning is noise on the platform where the code is correct, and noise
+# is what stops anyone reading warnings.
+when defined(windows):
+  import private/paths
 import properties
 import raw/compiled_model as rawCompiled
 import raw/core as rawCore

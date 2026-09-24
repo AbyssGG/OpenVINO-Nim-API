@@ -20,11 +20,14 @@ work is tracked phase by phase in
 Synchronous inference works. `Core`, `Model`, `CompiledModel`,
 `InferRequest`, `Tensor`, properties, profiling and explicit blob
 export/import are implemented and covered by tests that run real inference on
-CPU, including a thousand-iteration lifetime loop. What is verified so far is
-Windows x86_64 with OpenVINO `2026.4.0` on CPU; Linux is built by CI but is
-not yet claimed as verified, and no claim is made for GPU, NPU or macOS.
-Nothing in this README should be read as a claim that a feature already works
-unless it says so.
+CPU, including a thousand-iteration lifetime loop.
+
+Verified on two hosts: Windows 11 x86_64 with Nim 2.2.12, and Ubuntu 26.04
+x86_64 with Nim 2.2.4, both against OpenVINO `2026.4.0` on CPU. On each host
+the ABI, smoke, lifetime, integration and example suites all pass. No claim is
+made for GPU, NPU or macOS. See [compatibility](docs/compatibility.md) for what
+was and was not run. Nothing in this README should be read as a claim that a
+feature already works unless it says so.
 
 ## Four names, four purposes
 
@@ -73,7 +76,7 @@ visible to the dynamic loader:
 | Platform | Library | Loader notes |
 |---|---|---|
 | Windows | `openvino_c.dll` | Must be on the DLL search path |
-| Linux | `libopenvino_c.so` | Must be on the loader search path |
+| Linux | `libopenvino_c.so`, or `libopenvino_c.so.2640` | Must be on the loader search path. A pip installation ships only the versioned name; both are tried |
 
 Loading `openvino_c` alone is not enough to run inference. `Core` also needs
 `plugins.xml`, the device plugins and the model frontends from the same

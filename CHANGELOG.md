@@ -63,6 +63,20 @@ Not released. Under development.
 - Added `Property` with `enableProfiling`, `cacheDirectory`,
   `inferenceThreadCount`, `streamCount` and `logLevel`. Keys are resolved from
   the runtime's own exported symbols rather than written as string literals.
+- **Fixed** the Linux library search, which could not find a pip-installed
+  OpenVINO. The only Linux candidate name was `libopenvino_c.so`; a pip wheel
+  ships `libopenvino_c.so.2640` as its SONAME with no unversioned symlink, so
+  the package raised `OpenVinoLibraryError` against a complete, working
+  installation. Two candidates are now tried, unversioned first, and the
+  versioned suffix is derived from `TargetOpenVinoMajor`, `TargetOpenVinoMinor`
+  and the new `TargetOpenVinoPatch` so it cannot go stale. `nimble releaseCheck`
+  asserts all three components against `TargetOpenVinoVersion`.
+- The Linux loader hint now says that a pip installation keeps its libraries in
+  `<site-packages>/openvino/libs` and ships no unversioned name, which is the
+  case most likely to look like a missing installation.
+- `openvino/core` imports `private/paths` only under `when defined(windows)`.
+  Everything it needs from that module is Windows-only, so the unconditional
+  import made every Linux and macOS build report an unused import.
 - Non-ASCII model paths on Windows go through OpenVINO's wide-character entry
   points, so the result cannot depend on the process's active code page.
   Measured: `2026.4` also accepts UTF-8 through the narrow entry point on a
@@ -109,6 +123,10 @@ Not released. Under development.
   in `tests/fixtures/README.md` and fails on an undocumented fixture or a
   documented file that is absent. It exists because the first digest written
   into that file had never been computed and was wrong.
+- Added `tests/unit/tlibrary.nim`, covering the shared-library version suffix,
+  the per-platform candidate list and its order, and the text of both
+  diagnostics. It needs no runtime, so a wrong library name fails on every
+  platform's CI rather than only where OpenVINO is installed.
 - Added `tests/fixtures/relu_1x4_f32.xml`, a hand-written IR model computing
   `max(0, x)` over shape `[1, 4]`. Hand-written so the licence is unambiguous,
   the expected output is obvious by inspection, and reproducing it needs no

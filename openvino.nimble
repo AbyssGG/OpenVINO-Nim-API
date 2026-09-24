@@ -435,6 +435,24 @@ task releaseCheck, "Verify version metadata is consistent across the repo":
       "' does not match the declared major/minor prefix '" &
       expectedPrefix & "'")
 
+  # The three numeric components must decompose the version string. They are
+  # not only bookkeeping: private/library.nim builds the versioned shared
+  # library name from them, so a wrong patch number means the package cannot
+  # find a pip-installed runtime on Linux.
+  let
+    versionSource = readFile(versionModule)
+    components = openVinoVersion.split('.')
+  if components.len != 3:
+    failures.add("TargetOpenVinoVersion '" & openVinoVersion &
+      "' is not three dot-separated components")
+  else:
+    for index, name in ["TargetOpenVinoMajor", "TargetOpenVinoMinor",
+                        "TargetOpenVinoPatch"]:
+      let expected = name & "* = " & components[index]
+      if not versionSource.contains(expected):
+        failures.add(versionModule & " does not contain '" & expected &
+          "' required by TargetOpenVinoVersion '" & openVinoVersion & "'")
+
   if openVinoTag != openVinoVersion:
     failures.add("TargetOpenVinoTag '" & openVinoTag &
       "' does not match TargetOpenVinoVersion '" & openVinoVersion & "'")

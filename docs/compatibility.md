@@ -5,18 +5,41 @@ verified table only if a test was executed on it and passed.
 
 ## Verified
 
-| Component | Version | How it was verified |
-|---|---|---|
-| Nim | 2.2.12 | Every task in the list below, on this machine |
-| OpenVINO Runtime | 2026.4.0 | `nimble testSmoke` resolves 55 required symbols; `nimble testIntegration` runs real inference |
-| Operating system | Windows 11 x86_64 | Same |
-| C compiler | The one Nim 2.2.12 uses by default on this host | `nimble testAbi` compiles a C probe against the OpenVINO headers |
-| Device | CPU | `nimble testIntegration`: ReLU output matches a hand-computed value |
-| Memory managers | ORC, ARC | `nimble testLifecycle` runs the lifetime suites under both |
-| Build modes | debug, release | `nimble testIntegration` runs both |
+Two hosts, both running every task in the list at the end of this document.
 
-The OpenVINO installation used was `C:\Program Files (x86)\Intel\openvino_2026`,
-which is a symlink to `openvino_2026.4.0`, with active code page 936 on the host.
+| Component | Windows host | Linux host |
+|---|---|---|
+| Operating system | Windows 11 x86_64 | Ubuntu 26.04.1 LTS x86_64, kernel 7.0.0-34 |
+| Nim | 2.2.12 | 2.2.4 |
+| OpenVINO Runtime | 2026.4.0, archive install | 2026.4.0, pip install |
+| OpenVINO build string | `2026.4.0-22959-99c81491cc3-releases/2026/4` | identical |
+| C compiler | the one Nim 2.2.12 selects by default | gcc 15 |
+| Device | CPU | CPU |
+| Memory managers | ORC, ARC | ORC, ARC |
+| Build modes | debug, release | debug, release |
+
+What each check produced, the same on both hosts unless stated:
+
+| Check | Result |
+|---|---|
+| `nimble testAbi` | 21 tests, driven from a C probe compiled against the installed headers |
+| `nimble testSmoke` | 9 tests; 55 required symbols resolve against the real runtime |
+| `nimble testLifecycle` | the lifetime and error-path suites under ORC and then ARC |
+| `nimble testIntegration` | 50 tests in debug and 50 in release; ReLU on CPU gives `@[0.0, 2.0, 0.0, 4.0]`, matching a hand-computed value |
+| `nimble examples` | all five examples compile and run |
+
+Both hosts have the same upstream OpenVINO build, so the ABI comparison is one
+ABI checked against two compilers and two C libraries rather than two versions
+that happen to agree. The two Nim versions differ, which is deliberate: 2.2.4
+and 2.2.12 are both exercised.
+
+Host details worth recording because they affected a result. The Windows
+installation is `C:\Program Files (x86)\Intel\openvino_2026`, a symlink to
+`openvino_2026.4.0`, on a host whose active code page is 936. The Linux
+installation is a pip wheel under
+`<venv>/lib/python3.14/site-packages/openvino`, which ships only
+`libopenvino_c.so.2640` and no unversioned symlink; that is what the second
+Linux candidate library name exists for.
 
 ## Not verified
 
@@ -25,12 +48,12 @@ others are known to be missing.
 
 | Combination | Status |
 |---|---|
-| Linux x86_64 | Builds in CI. Not yet counted as verified, because the first CI run that exercises the ABI and smoke jobs has not been reviewed |
 | macOS | Never run. No claim either way |
+| Linux memory checking | Partly done, and the gap is a tooling limit rather than a finding. AddressSanitizer with leak detection reports nothing on `tests/unit/thandle_lifetime.nim`, which touches only this package's own code. It cannot run over the OpenVINO call path at all: ASan aborts inside its own `__cxa_throw` interceptor, because the C++ ABI arrives with the `dlopen`ed runtime after ASan has set up its interceptors, and OpenVINO throws internally while probing plugins. `LD_PRELOAD`ing libasan gets six tests further and then hits the same assertion. valgrind, which the plan names, is not installed on the Linux host |
 | GPU | The plugin is discovered on this host and reports a full device name. No inference has been run on it |
 | NPU | Discovered on this host. No inference has been run on it |
 | `--mm:refc` | Never run. The handle model is written for ORC and ARC; refc is not claimed |
-| Nim 2.0.x | The manifest requires `>= 2.0.0` and nothing older than 2.2.12 has been tested. The minimum is a floor, not a verified version |
+| Nim 2.0.x and 2.1.x | The manifest requires `>= 2.0.0`; the oldest version actually run is 2.2.4. The minimum is a floor, not a verified version |
 | OpenVINO 2026.5 and later | Not released at the time of writing |
 | OpenVINO 2026.3 and earlier | Refused by design, see below |
 | 32-bit targets | Never run |

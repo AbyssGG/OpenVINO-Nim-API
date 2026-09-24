@@ -6,9 +6,13 @@
 ## library name. No other module may hard-code one, so retargeting a platform
 ## means editing this file and nothing else.
 ##
-## The module is a leaf: it has no imports beyond `std/os` for path joining
-## and depends on no other part of the package. Both the raw layer and the
-## managed layer may use it.
+## The module is nearly a leaf: it imports `std/os` for path joining and
+## `openvino/version` for the pinned baseline, and nothing else from this
+## package. `version` is itself import-free, so there is no cycle. It is
+## imported rather than duplicated because upstream derives the versioned
+## library name from the release number, and a second hand-written copy of
+## that number is exactly the kind of thing that stops matching. Both the raw
+## layer and the managed layer may use this module.
 ##
 ## This module deliberately does *not* load anything, does not touch process
 ## environment variables and does not search the filesystem for an OpenVINO
@@ -16,6 +20,8 @@
 ## the diagnostics for a failed load, belong to `openvino/raw/loader`.
 
 import std/os
+
+import ../version
 
 const
   openvinoLib* {.strdefine.} = ""
@@ -27,12 +33,42 @@ const
     ## the package is only verified against the pinned baseline recorded in
     ## `openvino/version`.
 
+const soVersionSuffix* =
+  $(TargetOpenVinoMajor mod 100) & $TargetOpenVinoMinor & $TargetOpenVinoPatch
+  ## Upstream's shared-library version suffix for the pinned release: the last
+  ## two digits of the year, then the minor, then the patch. `2026.4.0` gives
+  ## `2640`, which is the suffix observed on a real installation.
+  ##
+  ## Derived rather than written out, so bumping the baseline in
+  ## `openvino/version` cannot leave a stale library name behind. The scheme
+  ## is upstream's and is ambiguous for a two-digit minor; that is not
+  ## something this package can fix, and no such release exists.
+
 when defined(windows):
   const platformLibraries = ["openvino_c.dll"]
+    ## Windows DLLs carry no version in the file name, in either the archive
+    ## or the pip layout, so there is only one name to try.
 elif defined(macosx):
   const platformLibraries = ["libopenvino_c.dylib"]
+    ## Only the unversioned name. Upstream also ships
+    ## `libopenvino_c.<suffix>.dylib`, but nothing on macOS has been measured
+    ## by this project, and adding a name on the strength of a guess would
+    ## make the candidate list look better tested than it is. See
+    ## docs/compatibility.md.
 else:
-  const platformLibraries = ["libopenvino_c.so"]
+  const platformLibraries = [
+    "libopenvino_c.so",
+    "libopenvino_c.so." & soVersionSuffix]
+    ## Two names, in this order, because two common Linux installations
+    ## disagree about which exists.
+    ##
+    ## The archive and apt packages ship the versioned file plus an
+    ## unversioned development symlink, so the first name resolves. The pip
+    ## wheel ships only `libopenvino_c.so.<suffix>`, with that as its SONAME
+    ## and no symlink, because a wheel has no reason to carry a link that only
+    ## a linker would use. Measured on OpenVINO 2026.4.0 installed with pip:
+    ## with only the first name, loading failed on an installation that was
+    ## complete and working.
 
 const platformName* =
   when defined(windows): "Windows"
@@ -77,9 +113,13 @@ proc loaderHint*(): string =
       "via DYLD_LIBRARY_PATH or the official setupvars.sh, or set " &
       "-d:openvinoLib=<full path to libopenvino_c.dylib>."
   else:
-    "Ensure libopenvino_c.so is on the loader path, for example via " &
-      "LD_LIBRARY_PATH, an ldconfig entry or the official setupvars.sh, or " &
-      "set -d:openvinoLib=<full path to libopenvino_c.so>."
+    "Ensure the OpenVINO runtime library directory is on the loader path, " &
+      "for example via LD_LIBRARY_PATH, an ldconfig entry or the official " &
+      "setupvars.sh. A pip installation keeps its libraries in " &
+      "<site-packages>/openvino/libs and ships only the versioned name, so " &
+      "that directory has to be on the path even though nothing there is " &
+      "called libopenvino_c.so. As a last resort set " &
+      "-d:openvinoLib=<full path to the library>."
 
 proc deploymentHint*(): string =
   ## Returns the warning that resolving the C API library is not the same as

@@ -192,7 +192,7 @@ than transcribed a second time. Each enumerator appears once, next to its own
 name, through a macro that stringifies it; an enumerator renamed upstream
 fails to compile in the probe, which is the intended alarm.
 
-22 ABI tests pass. The comparisons are driven from the C side, so a status
+21 ABI tests pass. The comparisons are driven from the C side, so a status
 code or element type that exists in the header but not in the binding fails
 the count check rather than going unnoticed.
 
@@ -434,6 +434,72 @@ Still open: the Linux ABI and smoke jobs, which only CI's first run can close;
 GPU and NPU, which are discovered on this host but on which no inference has
 been run; `--mm:refc`, which is not claimed.
 
+### 2026-09-25 Linux verification, and the defect it found on the first run
+
+Ran the whole suite on a second host: Ubuntu 26.04.1 LTS, kernel 7.0.0-34,
+x86_64, Nim 2.2.4, OpenVINO 2026.4.0 installed with pip. Twelve tasks, all
+exit 0: check, formatCheck, lint, test, releaseCheck, checkFixtures, testAbi,
+testSmoke, testLifecycle, testIntegration, examples, docs. That closes the
+Linux side of the compile check, the ABI comparison and the CPU inference
+requirement.
+
+The package went over as `git archive HEAD`, so what was tested is what a
+consumer clones, not a working tree with build artefacts in it.
+
+Both hosts turned out to have the same upstream build,
+`2026.4.0-22959-99c81491cc3-releases/2026/4`. That makes the ABI result
+stronger than a version match: it is one ABI checked against two compilers and
+two C libraries. The Nim versions differ, 2.2.4 against 2.2.12, which is also
+worth having.
+
+**The first Linux run found a real defect, and it was in the part of the
+package whose entire job is to be portable.** The Linux candidate library name
+was `libopenvino_c.so` and nothing else. A pip installation of OpenVINO ships
+`libopenvino_c.so.2640`, with that as its SONAME and no unversioned symlink,
+because a wheel has no reason to carry a link that only a linker would use. So
+the package raised `OpenVinoLibraryError` against an installation that was
+complete and working. Measured before changing anything: with the default
+candidate the load failed and the diagnostic named the platform, the expected
+OpenVINO version, the one name tried and the search-path hint; with
+`-d:openvinoLib` pointed at the versioned file, all nine smoke tests passed.
+That isolates the cause to the name and nothing else.
+
+The fix is two candidates, unversioned first because that is the name upstream
+documents and the archive and apt layouts provide, then the versioned one. The
+suffix is derived from the three version components in `openvino/version.nim`
+rather than written out, so bumping the baseline cannot leave a stale name
+behind; `TargetOpenVinoPatch` was added for that, and `releaseCheck` now
+asserts all three components against the version string. `tests/unit/tlibrary.nim`
+pins both the derivation and the literal `2640` that a real installation uses,
+because asserting only the derivation would keep passing if the scheme itself
+were wrong. After the fix, Linux `testSmoke` passes with no override.
+
+Linux also reported a warning Windows cannot: `imported and not used: 'paths'`
+in `core.nim`, because everything that module needs from `paths` sits inside a
+`when defined(windows)` branch. The import is now inside the same branch. A
+warning that only appears on the platform where the code is correct is noise,
+and noise is what stops anyone reading warnings.
+
+Two things this run did not close. The memory check could not be completed:
+valgrind is not installed on that host, and AddressSanitizer cannot run over
+the OpenVINO call path at all. ASan aborts inside its own `__cxa_throw`
+interceptor with `real___cxa_throw == 0`, because the C++ ABI arrives with the
+`dlopen`ed runtime after ASan has already set up its interceptors, and OpenVINO
+throws internally while probing plugins. `LD_PRELOAD`ing libasan gets six tests
+further and hits the same assertion. Every frame in that report is inside ASan
+or inside OpenVINO; none is in this package. ASan with leak detection over
+`thandle_lifetime.nim`, which touches only our own code, reports nothing.
+
+A counting error of our own also surfaced: the ABI suite was recorded as 22
+tests in the plan and the log. It is 21, on both hosts and by counting the
+file. Corrected rather than quietly left.
+
+Finally, a methodology mistake worth recording because it nearly produced a
+false pass. The first Linux runner piped every task into `tail` and then printed
+`$?`, which is `tail`'s status, not the task's. Every exit code it reported was
+meaningless. The runner now keeps full output in a file and reports the real
+status, and the numbers above come from that second run.
+
 ## 中文
 
 ### 2026-09-24 Phase 0：审计原型并冻结范围
@@ -567,7 +633,7 @@ probe 针对固定 header 编译并链接进 Nim 测试，因此每次比对的 
 产生，而不是再手抄一遍。每个枚举值只出现一次，紧挨着自己的名字，由一个宏做
 字符串化；上游改名会让 probe 编译失败，这正是预期的报警方式。
 
-22 个 ABI 测试通过。比对由 C 一侧驱动，因此 header 里存在而绑定里缺失的状态码
+21 个 ABI 测试通过。比对由 C 一侧驱动，因此 header 里存在而绑定里缺失的状态码
 或元素类型会让计数检查失败，不会被悄悄漏过。
 
 通过把 `U8` 改成原型绑定的 `13` 验证了该测试并非空转：两个测试失败，
@@ -759,3 +825,53 @@ tools、docs、fixture 或可执行文件。随后在一个只能看到该安装
 
 仍未关闭：Linux 的 ABI 与 smoke 作业，只能由 CI 的首次运行关闭；GPU 与 NPU，
 在本机能被发现但尚未在其上执行过推理；`--mm:refc`，不作声明。
+### 2026-09-25 Linux 验证，以及首次运行就暴露的缺陷
+
+在第二台机器上跑了全套：Ubuntu 26.04.1 LTS、内核 7.0.0-34、x86_64、Nim 2.2.4、
+用 pip 安装的 OpenVINO 2026.4.0。十二个任务全部 exit 0：check、formatCheck、
+lint、test、releaseCheck、checkFixtures、testAbi、testSmoke、testLifecycle、
+testIntegration、examples、docs。这关闭了编译检查、ABI 对照与 CPU 推理三项的
+Linux 一侧。
+
+包是以 `git archive HEAD` 传过去的，因此被测的正是使用者 clone 到的内容，而不是
+一个带着构建产物的工作树。
+
+两台机器装的结果是同一个上游构建 `2026.4.0-22959-99c81491cc3-releases/2026/4`。
+这让 ABI 结果比“版本号一致”更有分量：它是同一套 ABI 在两个编译器、两套 C 库上的
+对照。而 Nim 版本是不同的，2.2.4 对 2.2.12，这一点也值得有。
+
+**首次 Linux 运行发现了一个真实缺陷，而且正好落在这个包里唯一以“可移植”为职责的
+部分。** Linux 的候选库名只有 `libopenvino_c.so` 一个。pip 安装的 OpenVINO 提供的
+是 `libopenvino_c.so.2640`，SONAME 也是它，并且没有无版本号的符号链接——wheel 没有
+理由携带一个只有链接器才会用的符号链接。于是本包在一个完整可用的安装上抛出了
+`OpenVinoLibraryError`。改动之前先测：默认候选下加载失败，诊断报出了目标平台、
+期望的 OpenVINO 版本、试过的那一个名字和搜索路径提示；把 `-d:openvinoLib` 指向带
+版本号的文件后，9 个 smoke 测试全过。这就把原因锁定在名字上，别无其他。
+
+修复是两个候选，无版本号的在前——那是上游文档里的名字，也是 archive 与 apt 布局
+提供的，然后才是带版本号的。后缀由 `openvino/version.nim` 的三个版本数字推导而不是
+写死，这样改基线不会留下过期的库名；为此新增了 `TargetOpenVinoPatch`，并让
+`releaseCheck` 反向断言三个数字与版本字符串一致。`tests/unit/tlibrary.nim` 同时钉住
+推导规则和真实安装上观测到的字面量 `2640`——只断言推导的话，即使方案本身错了它也
+照样通过。修复后 Linux 侧 `testSmoke` 无需任何覆盖即通过。
+
+Linux 还报出一个 Windows 上不可能出现的警告：`core.nim` 里
+`imported and not used: 'paths'`，因为该模块用到 `paths` 的全部代码都在
+`when defined(windows)` 分支内。现在 import 也放进了同一个分支。一个只在“代码本来
+就正确”的平台上出现的警告是噪音，而噪音正是让人不再读警告的原因。
+
+这次有两件事没有关闭。内存检查没能完成：那台机器没装 valgrind，而
+AddressSanitizer 根本无法覆盖 OpenVINO 的调用路径。ASan 在它自己的 `__cxa_throw`
+拦截器里以 `real___cxa_throw == 0` 断言失败——C++ ABI 是随 `dlopen` 进来的 runtime
+一起到场的，那时 ASan 早已建立好拦截器，而 OpenVINO 在探测插件时正常地抛异常。用
+`LD_PRELOAD` 预载 libasan 能多跑 6 个测试，随后触发同一处断言。那份报告里的每一帧
+都在 ASan 内部或 OpenVINO 内部，没有一帧在本包代码里。对只涉及本包自身代码的
+`thandle_lifetime.nim` 做带泄漏检测的 ASan 运行，则没有任何发现。
+
+还暴露了一个我们自己的计数错误：ABI 套件在计划和日志里被记成 22 个测试，实际是
+21 个——两台机器实测如此，逐一清点文件也如此。已改正，而不是悄悄留着。
+
+最后记一个方法学错误，因为它差点产出一次假通过。第一版 Linux 运行脚本把每个任务
+都管道进 `tail`，然后打印 `$?`——那是 `tail` 的退出码，不是任务的。它报告的每一个
+退出码都毫无意义。现在脚本把完整输出留在文件里并报告真实状态，上面那些数字来自
+重跑的第二次。
