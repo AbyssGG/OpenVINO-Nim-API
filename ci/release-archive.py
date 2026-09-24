@@ -33,6 +33,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import datetime
 import hashlib
 import pathlib
 import re
@@ -57,7 +58,21 @@ FORBIDDEN_SUFFIXES = (
 # exception is a visible decision rather than a loosened pattern.
 ALLOWED_EXCEPTIONS: tuple[str, ...] = ()
 
-DATE_PATTERN = re.compile(r"^\d{4}-\d{1,2}-\d{1,2}$")
+DATE_PATTERN = re.compile(r"^(\d{4})-(\d{1,2})-(\d{1,2})$")
+
+
+def valid_release_date(value: str) -> bool:
+    """Return whether *value* is a real calendar date in the public format."""
+    match = DATE_PATTERN.fullmatch(value)
+    if match is None:
+        return False
+    try:
+        datetime.date(
+            int(match.group(1)), int(match.group(2)), int(match.group(3))
+        )
+    except ValueError:
+        return False
+    return True
 
 
 def read_constant(name: str) -> str:
@@ -188,6 +203,14 @@ def verify_sidecar(archive: pathlib.Path) -> list[str]:
 
 def self_test() -> int:
     """Check the naming rule against the example the plan states."""
+    for value in ("2026-9-24", "2026-09-24", "2000-2-29"):
+        if not valid_release_date(value):
+            print(f"valid date rejected: {value}", file=sys.stderr)
+            return 1
+    for value in ("2026-99-99", "2026-2-29", "0000-1-1", "2026/9/24"):
+        if valid_release_date(value):
+            print(f"invalid date accepted: {value}", file=sys.stderr)
+            return 1
     expected_name = "openvino-nim-0-1-0-2026-9-24-ov2026-4-0"
     produced_name = base_name("0.1.0", "2026-9-24", "2026.4.0")
     if produced_name != expected_name:
@@ -250,8 +273,11 @@ def main() -> int:
 
     if not arguments.date:
         parser.error("--date is required; this script never reads the clock")
-    if not DATE_PATTERN.match(arguments.date):
-        parser.error(f"--date must look like YYYY-M-D, got {arguments.date!r}")
+    if not valid_release_date(arguments.date):
+        parser.error(
+            "--date must be a real calendar date formatted as YYYY-M-D, "
+            f"got {arguments.date!r}"
+        )
 
     package = read_constant("PackageName")
     version = read_constant("PackageVersion")

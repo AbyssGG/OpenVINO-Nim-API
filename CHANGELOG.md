@@ -23,6 +23,8 @@ and the OpenVINO runtime baseline evolve independently:
   pull-request template.
 - Corrected stale implementation, CI and C API coverage documentation so it
   describes the current repository rather than the original audit snapshot.
+- Hardened the release archive date input: impossible and non-leap-year dates
+  are rejected before an archive name can be generated.
 
 ## 0.1.0
 
