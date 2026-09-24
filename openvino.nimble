@@ -235,6 +235,51 @@ task lint, "Run style, whitespace and layering checks":
   if entry.contains("export raw") or entry.contains("export openvino/raw"):
     failures.add("src/openvino.nim: must not re-export the raw layer")
 
+  # Every `cast` must state the invariant that makes it sound, within the three
+  # lines above it. The rule is mechanical so that "it was obvious at the time"
+  # cannot be the justification: a cast is where the compiler stops helping, so
+  # the reasoning has to be written down next to it.
+  #
+  # Scope: the shipped code, meaning `src` and `examples`. `src` because it is
+  # what a user runs, and `examples` because it is what a user copies, which
+  # makes a cast there teaching material. Tests are excluded: a cast inside a
+  # test is scaffolding that never reaches a consumer, and several of them exist
+  # precisely to inspect raw memory that the library keeps private. Excluding
+  # them is a scope decision, not an exemption from review.
+  #
+  # This manifest is excluded because it stores the search needle itself, which
+  # is the self-reference trap that has already produced three false positives
+  # in this file's history.
+  # The window is ten lines rather than one or two. The first version looked
+  # three lines back and reported every site that was in fact documented: a
+  # real invariant takes several sentences, so the marker word ends up at the
+  # top of a comment block and the cast sits at the bottom. Ten lines is enough
+  # for a four-line comment plus the statement it introduces, and still close
+  # enough that the reader finds the reasoning without scrolling.
+  const
+    invariantMarker = "invariant:"
+    invariantWindow = 10
+  for path in handwrittenSources():
+    if path.endsWith(".nimble"):
+      continue
+    if not (path.startsWith("src/") or path.startsWith("examples/")):
+      continue
+    let lines = readFile(path).splitLines()
+    for index, line in lines:
+      if not line.contains("cast["):
+        continue
+      var explained = false
+      for back in 1 .. invariantWindow:
+        if index - back < 0:
+          break
+        if lines[index - back].contains(invariantMarker):
+          explained = true
+          break
+      if not explained:
+        failures.add(path & ":" & $(index + 1) & ": a cast needs a comment " &
+          "containing '" & invariantMarker & "' within the " &
+          $invariantWindow & " lines above it")
+
   reportFailures("Lint failures:", failures)
 
   # Markdown rules are checked by a Nim tool so that lint needs no toolchain
@@ -389,6 +434,115 @@ task docs, "Generate API documentation for the public entry point":
   exec "nim doc --hints:off --project --index:on --path:src " &
     "--outdir:build/docs src/openvino.nim"
 
+task packagingCheck, "Install into a clean directory and consume it from there":
+  # The package is exercised the way a user gets it. Two properties are checked
+  # that a test inside the checkout cannot check at all: that the manifest
+  # installs the right files, and that `import openvino` resolves for someone
+  # who has only the installed package.
+  let
+    scratch = "build/packaging"
+    nimbleDir = scratch & "/nimble"
+    consumerDir = scratch & "/consumer"
+    fixture = thisDir() & "/tests/fixtures/relu_1x4_f32.xml"
+  rmDir scratch
+  mkDir nimbleDir
+  mkDir consumerDir
+
+  exec "nimble install -y --nimbleDir:" & nimbleDir
+
+  # Copied out of the repository on purpose. Compiling it in place would let
+  # the checkout's own paths satisfy the import.
+  cpFile "tests/packaging/consumer.nim", consumerDir & "/consumer.nim"
+
+  # No --path:src. The only way `import openvino` can resolve is the install.
+  # NimScript has no `ExeExt`, so the suffix is spelled out per platform.
+  let exeSuffix = (when defined(windows): ".exe" else: "")
+  let binary = consumerDir & "/consumer" & exeSuffix
+  exec "nim c --hints:off --nimblePath:" & nimbleDir & "/pkgs2" &
+    " --out:" & binary & " " & consumerDir & "/consumer.nim"
+  exec binary & " " & fixture
+
+  # What landed in the package. Anything here that is not a Nim source or the
+  # manifest metadata means the manifest is shipping something it should not.
+  var
+    installed: seq[string] = @[]
+    unexpected: seq[string] = @[]
+  proc collect(dir: string) =
+    for path in listFiles(dir):
+      installed.add(toRepoPath(path))
+    for sub in listDirs(dir):
+      collect(sub)
+  collect(nimbleDir & "/pkgs2")
+  for path in installed:
+    if path.endsWith(".nim") or path.endsWith(".nimble") or
+        path.endsWith("nimblemeta.json"):
+      continue
+    unexpected.add(path)
+  reportFailures("Unexpected files in the installed package:", unexpected)
+  echo "Installed package holds ", installed.len, " files, all sources or " &
+    "manifest metadata."
+
+task releaseArchive, "Build and verify the release archives (dry run)":
+  # Wraps ci/release-archive.py so the archive naming rule has one
+  # implementation shared by this task and the release workflow. The date is
+  # read from the environment rather than from a `-d:` flag, because Nimble does
+  # not forward those into a task body, and never from the clock, because a name
+  # derived from today would differ on every rebuild of the same commit.
+  let releaseDate = getEnv("OPENVINO_NIM_RELEASE_DATE")
+  if releaseDate.len == 0:
+    echo "nimble releaseArchive needs an explicit release date. Set it:"
+    echo "  OPENVINO_NIM_RELEASE_DATE=2026-9-24 nimble releaseArchive"
+    echo "or on Windows PowerShell:"
+    echo "  $env:OPENVINO_NIM_RELEASE_DATE='2026-9-24'; nimble releaseArchive"
+    echo "The date is never taken from the clock, so that rebuilding a release"
+    echo "from the same commit produces the same file names."
+    quit(1)
+  exec "python ci/release-archive.py --self-test"
+  exec "python ci/release-archive.py --date " & releaseDate &
+    " --out-dir build/release --dry-run"
+
+task memcheck, "Run the Linux memory and invalid-access check under valgrind":
+  # valgrind is the tool the development plan names. AddressSanitizer was tried
+  # first and cannot be used over the OpenVINO call path: it aborts inside its
+  # own __cxa_throw interceptor, because the C++ ABI arrives with the dlopened
+  # runtime after ASan has installed its interceptors, and OpenVINO throws
+  # internally while probing plugins.
+  when not defined(linux):
+    echo "nimble memcheck runs on Linux only. This is not a skip: the task " &
+      "fails so that a run on another platform cannot be mistaken for a pass."
+    quit(1)
+
+  let outDir = "build/memcheck"
+  rmDir outDir
+  mkDir outDir
+
+  # -d:useMalloc matters. Without it Nim serves allocations from its own arena
+  # and valgrind sees one large block, so a wrapper that forgets to release
+  # would be invisible.
+  let common = "--hints:off --path:src --mm:orc -d:useMalloc"
+  let valgrind = "valgrind --tool=memcheck --leak-check=full " &
+    "--show-leak-kinds=definite --errors-for-leak-kinds=definite " &
+    "--error-exitcode=42 --num-callers=25"
+
+  # Two targets, because a leak means something different in each. The first
+  # touches only this package's own code, so leak checking is meaningful. The
+  # second is one real inference: it covers Core, Model, CompiledModel,
+  # InferRequest and Tensor once each without paying for valgrind over a
+  # thousand iterations.
+  # Names are written out rather than derived from the paths, because
+  # NimScript's os subset does not provide splitFile.
+  for entry in [("tests/unit/thandle_lifetime.nim", "handles"),
+                ("examples/minimal.nim", "inference")]:
+    let
+      target = entry[0]
+      name = entry[1]
+      binary = outDir & "/" & name
+    exec "nim c " & common & " --out:" & binary & " " & target
+    exec valgrind & " --log-file=" & outDir & "/" & name & ".valgrind.txt " &
+      binary
+  echo "valgrind reported no definite leak and no invalid access. Logs are " &
+    "in ", outDir, "."
+
 task releaseCheck, "Verify version metadata is consistent across the repo":
   var failures: seq[string] = @[]
   let
@@ -456,6 +610,13 @@ task releaseCheck, "Verify version metadata is consistent across the repo":
   if openVinoTag != openVinoVersion:
     failures.add("TargetOpenVinoTag '" & openVinoTag &
       "' does not match TargetOpenVinoVersion '" & openVinoVersion & "'")
+
+  # Both legal files must exist. LICENSE carries the terms; NOTICE records how
+  # this package relates to the upstream C headers and what it does not bundle.
+  # A release without either is not one anyone should consume.
+  for required in ["LICENSE", "NOTICE"]:
+    if not fileExists(required):
+      failures.add(required & " is missing")
 
   let changelog = readFile("CHANGELOG.md")
   if not changelog.contains("## " & packageVersion):

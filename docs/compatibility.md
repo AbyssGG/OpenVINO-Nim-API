@@ -27,6 +27,8 @@ What each check produced, the same on both hosts unless stated:
 | `nimble testLifecycle` | the lifetime and error-path suites under ORC and then ARC |
 | `nimble testIntegration` | 50 tests in debug and 50 in release; ReLU on CPU gives `@[0.0, 2.0, 0.0, 4.0]`, matching a hand-computed value |
 | `nimble examples` | all five examples compile and run |
+| `nimble packagingCheck` | installs into a clean directory; a consumer compiled outside the checkout, without `--path:src`, runs a real inference |
+| `nimble memcheck` | Linux only. valgrind 3.26.0: no definite leak and no invalid access, on our own code and on one real inference |
 
 Both hosts have the same upstream OpenVINO build, so the ABI comparison is one
 ABI checked against two compilers and two C libraries rather than two versions
@@ -49,7 +51,8 @@ others are known to be missing.
 | Combination | Status |
 |---|---|
 | macOS | Never run. No claim either way |
-| Linux memory checking | Partly done, and the gap is a tooling limit rather than a finding. AddressSanitizer with leak detection reports nothing on `tests/unit/thandle_lifetime.nim`, which touches only this package's own code. It cannot run over the OpenVINO call path at all: ASan aborts inside its own `__cxa_throw` interceptor, because the C++ ABI arrives with the `dlopen`ed runtime after ASan has set up its interceptors, and OpenVINO throws internally while probing plugins. `LD_PRELOAD`ing libasan gets six tests further and then hits the same assertion. valgrind, which the plan names, is not installed on the Linux host |
+| GitHub Actions | The workflows are written and every job's underlying task was run on both hosts, but the repository has no remote, so CI itself has never executed |
+| Concurrency | No test exists. See the Threads section of `docs/ownership.md` for what is claimed and on whose authority |
 | GPU | The plugin is discovered on this host and reports a full device name. No inference has been run on it |
 | NPU | Discovered on this host. No inference has been run on it |
 | `--mm:refc` | Never run. The handle model is written for ORC and ARC; refc is not claimed |
@@ -90,6 +93,23 @@ managed layer, so an unknown value from a newer runtime is rejected at the
 boundary rather than stored as an illegal enumerator that would later break `$`
 and `case`.
 
+## How OpenVINO is pinned
+
+CI does not install "OpenVINO 2026.4"; it installs one file whose sha256 is
+written down. `ci/install-openvino.py` holds, per Tier 1 platform, the immutable
+wheel URL and its published digest, downloads it, verifies the digest, deletes
+the file if it does not match, and unpacks it with `zipfile`. Nothing is
+installed into a Python environment and pip's dependency resolution is never
+involved, because nothing in this package imports OpenVINO from Python.
+
+The script also refuses to run if its pinned version disagrees with
+`TargetOpenVinoVersion`, so CI cannot quietly test a version the library does
+not claim.
+
+The same wheel was cross-checked against the archive install: all 18 C headers
+in the wheel are byte-identical to the ones recorded from the Windows archive,
+so the pinned ABI does not depend on how OpenVINO was installed.
+
 ## How to re-derive this table
 
 ```shell
@@ -98,11 +118,20 @@ nimble formatCheck
 nimble lint
 nimble test
 nimble releaseCheck
+nimble checkFixtures
 nimble testAbi
 nimble testSmoke
 nimble testLifecycle
 nimble testIntegration
 nimble examples
+nimble packagingCheck
+nimble docs
+```
+
+On Linux, additionally:
+
+```shell
+nimble memcheck
 ```
 
 `testAbi` needs `OPENVINO_INCLUDE_DIR` or `INTEL_OPENVINO_DIR`. The tasks that

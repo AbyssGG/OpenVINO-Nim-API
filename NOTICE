@@ -1,0 +1,62 @@
+openvino-nim
+Copyright 2026 the openvino-nim contributors
+
+Licensed under the Apache License, Version 2.0. See the LICENSE file.
+
+This product is a community-maintained project. It is not an official Intel or
+OpenVINO project, it is not endorsed by or affiliated with Intel Corporation,
+and it ships no Intel software. OpenVINO is a trademark of Intel Corporation.
+
+
+Relationship to the OpenVINO C headers
+--------------------------------------
+
+The modules under src/openvino/raw declare the same functions, types, constants
+and struct layouts that the OpenVINO C headers declare, because a binding that
+declared anything else would not work. The declarations were written by hand in
+Nim from the headers of OpenVINO 2026.4.0, upstream tag 2026.4.0, release commit
+99c8149. The SHA-256 of all 18 headers is recorded in docs/c-api-coverage.md and
+docs/resonance-audit.md, and tests/abi compares the declarations against headers
+compiled by a C compiler rather than against a transcription.
+
+Whether that requires attribution here was considered rather than assumed. The
+conclusion, recorded so that a reader need not repeat the reasoning:
+
+  * No OpenVINO source text is copied into this repository. There is no vendored
+    header, no generated file derived from one, and no extracted comment. What is
+    reproduced is the set of names and numbers an ABI consists of: function
+    names such as `ov_core_create`, enumerator values such as `U8 = 16`, and
+    field orders such as `ov_shape_t` being a rank then a pointer. Those are the
+    interface, and a binding cannot differ from them and still be a binding.
+
+  * OpenVINO is itself Apache-2.0. Even on the most cautious reading, where the
+    declarations are treated as a derivative of the headers, Apache-2.0 permits
+    this use, and this project is distributed under the same licence.
+
+  * Apache-2.0 section 4(d) requires carrying forward a NOTICE file only if the
+    upstream work has one whose contents are attributable. This file therefore
+    states the relationship and the provenance rather than copying anything.
+
+No third-party source code is bundled. The package depends on the OpenVINO
+runtime at run time only, loads it by name through the dynamic loader, and never
+ships or installs it. The only third-party artefact this repository references is
+the pinned OpenVINO wheel that CI downloads by URL and sha256, which is recorded
+in ci/install-openvino.py and is not redistributed.
+
+
+Test fixtures
+-------------
+
+tests/fixtures/relu_1x4_f32.xml is original work written for this project, not
+an exported or trained model. Its provenance, licence and checksum are recorded
+in tests/fixtures/README.md and verified by nimble checkFixtures.
+
+
+Prototype history
+-----------------
+
+This package replaces a prototype called Resonance, published by the same author
+under Apache-2.0 and preserved at the Git tag
+archive/resonance-before-openvino-nim. The binding layer was rewritten rather
+than ported; docs/resonance-audit.md records the audit and docs/resonance-migration.md
+maps the old API onto the current one.

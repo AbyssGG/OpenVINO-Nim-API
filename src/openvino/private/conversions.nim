@@ -75,6 +75,10 @@ proc takeShape*(shape: var ov_shape_t): seq[int64] =
   result = newSeq[int64](int(shape.rank))
   try:
     if shape.dims != nil:
+      # invariant: `ov_shape_t` is a rank followed by a pointer to `rank`
+      # `int64` values, which the ABI test verifies by size and offset. The
+      # loop below is bounded by that same rank, and the view is not retained
+      # past the `finally` that releases the shape.
       let dims = cast[ptr UncheckedArray[int64]](shape.dims)
       for index in 0 ..< int(shape.rank):
         result[index] = dims[index]

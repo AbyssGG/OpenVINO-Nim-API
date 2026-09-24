@@ -2,16 +2,30 @@
 #
 # Blocking CI for openvino-nim.
 #
-# Scope at this development phase: package validation, formatting, style,
-# layering and the unit tests that need no OpenVINO runtime. The abi,
-# integration-cpu, lifecycle, examples-package and memory jobs are added by
-# the phases that own them, together with a pinned OpenVINO download and its
-# checksum verification.
+# Every job here is required. Nothing is allowed to skip and report success: a
+# job that cannot find what it needs fails, because a green tick that means
+# "did not run" is worse than a red one.
 #
-# Version pinning: the Nim versions and runner images below are exact. The
-# third-party setup action is pinned to a major tag rather than a commit SHA;
-# tightening that to a SHA is tracked by checklist item G02 in
-# OPENVINO_NIM_0.1_DEVELOPMENT_PLAN.md and must be done before release.
+# Pinning. The Nim versions and runner images are exact. Every third-party
+# action is pinned to a commit SHA rather than a tag, because a tag can be
+# moved; the tag each SHA corresponded to is recorded in the comment beside it
+# so that a human can audit the pin. OpenVINO is pinned by wheel URL and
+# sha256 in ci/install-openvino.py, which also refuses to run if its pin
+# disagrees with TargetOpenVinoVersion in src/openvino/version.nim.
+#
+# Job map, and what each one would catch:
+#
+#   static           formatting, style, layering, docs, fixtures, metadata
+#   unit             the package compiles and its runtime-free tests pass
+#   abi              a declaration that drifted from the C headers
+#   smoke            a symbol missing from a real runtime
+#   lifecycle        a destructor that fires at a different time under ARC
+#   integration-cpu  inference that returns the wrong numbers
+#   examples-package an example that builds but fails to run; a package that
+#                    installs but cannot be consumed
+#   docs             documentation that no longer generates
+#   memory           a leak or invalid access, on a schedule rather than per
+#                    push, because valgrind is far too slow for every commit
 
 name: ci
 
@@ -20,6 +34,11 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  schedule:
+    # Weekly, for the memory job. A fixed day and hour so that a failure can be
+    # correlated with an upstream change rather than with the clock.
+    - cron: '17 3 * * 1'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -34,15 +53,19 @@ env:
   # Lowest version the package claims to support. Keep in sync with
   # MinimumNimVersion in src/openvino/version.nim.
   MINIMUM_NIM_VERSION: 2.0.0
+  # The OpenVINO wheels are cp312, so this is not a free choice.
+  PINNED_PYTHON_VERSION: '3.12'
 
 jobs:
   static:
-    name: static (format, style, layering, metadata)
-    runs-on: ubuntu-22.04
+    name: static (format, style, layering, docs, fixtures, metadata)
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      # actions/checkout v4.4.0
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
-      - uses: jiro4989/setup-nim-action@v2
+      # jiro4989/setup-nim-action v2.3.1
+      - uses: jiro4989/setup-nim-action@189b145833368cc92f1e7b3e166a25a3e057a693
         with:
           nim-version: 2.2.12
           repo-token: ${{ secrets.GITHUB_TOKEN }}
@@ -53,18 +76,32 @@ jobs:
       - name: Verify formatting is a zero diff
         run: nimble formatCheck
 
-      - name: Run style, whitespace and layering checks
+      - name: Verify the formatter leaves the working tree unchanged
+        # formatCheck compares nimpretty's output to each file without writing.
+        # This step is the stronger statement the checklist asks for: run the
+        # formatter for real, then require Git to see nothing.
+        run: |
+          set -euo pipefail
+          nimble format
+          git diff --exit-code
+
+      - name: Run style, whitespace, layering, Markdown and fixture checks
         run: nimble lint
 
       - name: Verify version metadata consistency
         run: nimble releaseCheck
 
-      - name: Verify the workflow Nim pins match the library metadata
+      - name: Verify the workflow pins match the library metadata
         run: |
           set -euo pipefail
           grep -q "MinimumNimVersion\* = \"${MINIMUM_NIM_VERSION}\"" \
             src/openvino/version.nim
           grep -q "requires \"nim >= ${MINIMUM_NIM_VERSION}\"" openvino.nimble
+
+      - name: Verify the OpenVINO pin agrees with the library
+        # --print-pins performs the cross-check and downloads nothing, so the
+        # static job fails on a drifted pin without paying for a 60 MB wheel.
+        run: python3 ci/install-openvino.py --print-pins
 
   unit:
     name: unit (${{ matrix.os }}, nim ${{ matrix.nim }}, ${{ matrix.mm }})
@@ -72,22 +109,22 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, windows-2022]
+        os: [ubuntu-24.04, windows-2022]
         nim: ['2.0.0', '2.2.12']
         mm: [orc]
         include:
           # One representative ARC job per Tier 1 platform. The handle
           # ownership model must hold under both ORC and ARC.
-          - os: ubuntu-22.04
+          - os: ubuntu-24.04
             nim: '2.2.12'
             mm: arc
           - os: windows-2022
             nim: '2.2.12'
             mm: arc
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
-      - uses: jiro4989/setup-nim-action@v2
+      - uses: jiro4989/setup-nim-action@189b145833368cc92f1e7b3e166a25a3e057a693
         with:
           nim-version: ${{ matrix.nim }}
           repo-token: ${{ secrets.GITHUB_TOKEN }}
@@ -103,23 +140,339 @@ jobs:
       - name: Run unit tests
         run: nimble test
 
+  abi:
+    name: abi (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2022]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      # actions/setup-python v5.6.0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+
+      - uses: jiro4989/setup-nim-action@189b145833368cc92f1e7b3e166a25a3e057a693
+        with:
+          nim-version: 2.2.12
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install the pinned OpenVINO by checksum
+        shell: bash
+        run: |
+          set -euo pipefail
+          python ci/install-openvino.py --dest "$RUNNER_TEMP/openvino" \
+            | tee openvino-install.txt
+          grep '^OPENVINO_' openvino-install.txt >> "$GITHUB_ENV"
+
+      - name: Compare the bindings against the installed headers
+        run: nimble testAbi
+
+      - name: Collect diagnostics
+        if: failure()
+        shell: bash
+        run: python ci/collect-diagnostics.py > diagnostics-abi.txt 2>&1 || true
+
+      # actions/upload-artifact v4.6.2
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: failure()
+        with:
+          name: diagnostics-abi-${{ matrix.os }}
+          path: diagnostics-abi.txt
+          retention-days: 7
+
+  smoke:
+    name: smoke (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2022]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+
+      - uses: jiro4989/setup-nim-action@189b145833368cc92f1e7b3e166a25a3e057a693
+        with:
+          nim-version: 2.2.12
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install the pinned OpenVINO by checksum
+        shell: bash
+        run: |
+          set -euo pipefail
+          python ci/install-openvino.py --dest "$RUNNER_TEMP/openvino" \
+            | tee openvino-install.txt
+          grep '^OPENVINO_' openvino-install.txt >> "$GITHUB_ENV"
+
+      - name: Put the runtime on the loader path
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Windows resolves a bare DLL name through PATH; Linux through
+          # LD_LIBRARY_PATH. oneTBB lives in the same wheel directory, so one
+          # path covers both the C API library and its dependency.
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            echo "$OPENVINO_LIB_DIR" >> "$GITHUB_PATH"
+          else
+            echo "LD_LIBRARY_PATH=$OPENVINO_LIB_DIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
+              >> "$GITHUB_ENV"
+          fi
+
+      - name: Load a real runtime and resolve every required symbol
+        run: nimble testSmoke
+
+      - name: Collect diagnostics
+        if: failure()
+        shell: bash
+        run: python ci/collect-diagnostics.py > diagnostics-smoke.txt 2>&1 || true
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: failure()
+        with:
+          name: diagnostics-smoke-${{ matrix.os }}
+          path: diagnostics-smoke.txt
+          retention-days: 7
+
+  lifecycle:
+    name: lifecycle (${{ matrix.os }}, orc and arc)
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2022]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+
+      - uses: jiro4989/setup-nim-action@189b145833368cc92f1e7b3e166a25a3e057a693
+        with:
+          nim-version: 2.2.12
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install the pinned OpenVINO by checksum
+        shell: bash
+        run: |
+          set -euo pipefail
+          python ci/install-openvino.py --dest "$RUNNER_TEMP/openvino" \
+            | tee openvino-install.txt
+          grep '^OPENVINO_' openvino-install.txt >> "$GITHUB_ENV"
+
+      - name: Put the runtime on the loader path
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            echo "$OPENVINO_LIB_DIR" >> "$GITHUB_PATH"
+          else
+            echo "LD_LIBRARY_PATH=$OPENVINO_LIB_DIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
+              >> "$GITHUB_ENV"
+          fi
+
+      - name: Run lifetime and error-path tests under ORC and ARC
+        run: nimble testLifecycle
+
+      - name: Collect diagnostics
+        if: failure()
+        shell: bash
+        run: python ci/collect-diagnostics.py > diagnostics-lifecycle.txt 2>&1 || true
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: failure()
+        with:
+          name: diagnostics-lifecycle-${{ matrix.os }}
+          path: diagnostics-lifecycle.txt
+          retention-days: 7
+
+  integration-cpu:
+    name: integration-cpu (${{ matrix.os }}, debug and release)
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2022]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+
+      - uses: jiro4989/setup-nim-action@189b145833368cc92f1e7b3e166a25a3e057a693
+        with:
+          nim-version: 2.2.12
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install the pinned OpenVINO by checksum
+        shell: bash
+        run: |
+          set -euo pipefail
+          python ci/install-openvino.py --dest "$RUNNER_TEMP/openvino" \
+            | tee openvino-install.txt
+          grep '^OPENVINO_' openvino-install.txt >> "$GITHUB_ENV"
+
+      - name: Put the runtime on the loader path
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            echo "$OPENVINO_LIB_DIR" >> "$GITHUB_PATH"
+          else
+            echo "LD_LIBRARY_PATH=$OPENVINO_LIB_DIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
+              >> "$GITHUB_ENV"
+          fi
+
+      - name: Run the CPU inference suite in debug and release
+        run: nimble testIntegration
+
+      - name: Collect diagnostics
+        if: failure()
+        shell: bash
+        run: python ci/collect-diagnostics.py > diagnostics-integration.txt 2>&1 || true
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: failure()
+        with:
+          name: diagnostics-integration-${{ matrix.os }}
+          path: diagnostics-integration.txt
+          retention-days: 7
+
+  examples-package:
+    name: examples-package (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2022]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+
+      - uses: jiro4989/setup-nim-action@189b145833368cc92f1e7b3e166a25a3e057a693
+        with:
+          nim-version: 2.2.12
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install the pinned OpenVINO by checksum
+        shell: bash
+        run: |
+          set -euo pipefail
+          python ci/install-openvino.py --dest "$RUNNER_TEMP/openvino" \
+            | tee openvino-install.txt
+          grep '^OPENVINO_' openvino-install.txt >> "$GITHUB_ENV"
+
+      - name: Put the runtime on the loader path
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            echo "$OPENVINO_LIB_DIR" >> "$GITHUB_PATH"
+          else
+            echo "LD_LIBRARY_PATH=$OPENVINO_LIB_DIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
+              >> "$GITHUB_ENV"
+          fi
+
+      - name: Compile and run every example
+        run: nimble examples
+
+      - name: Install into a clean directory and consume it from outside
+        # The package is exercised the way a user gets it: installed, then
+        # imported from a directory that can see nothing else. This is what
+        # catches a manifest that installs the wrong files, or a module that
+        # only resolves inside the checkout.
+        run: nimble packagingCheck
+
+      - name: Collect diagnostics
+        if: failure()
+        shell: bash
+        run: python ci/collect-diagnostics.py > diagnostics-examples.txt 2>&1 || true
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: failure()
+        with:
+          name: diagnostics-examples-${{ matrix.os }}
+          path: diagnostics-examples.txt
+          retention-days: 7
+
   docs:
     name: docs
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
-      - uses: jiro4989/setup-nim-action@v2
+      - uses: jiro4989/setup-nim-action@189b145833368cc92f1e7b3e166a25a3e057a693
         with:
           nim-version: 2.2.12
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Generate API documentation
+        # Needs no OpenVINO: the package resolves symbols on first call, not at
+        # module initialisation, so documenting it never loads the library.
         run: nimble docs
 
-      - name: Upload generated documentation
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: api-docs
           path: build/docs
           retention-days: 7
+
+  memory:
+    name: memory (valgrind, scheduled and on demand)
+    # Not on pull requests. valgrind over a real inference is tens of times
+    # slower than the program, so paying for it on every commit would make the
+    # required checks unusable. It runs weekly and before a release.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+
+      - uses: jiro4989/setup-nim-action@189b145833368cc92f1e7b3e166a25a3e057a693
+        with:
+          nim-version: 2.2.12
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install valgrind
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends valgrind
+
+      - name: Install the pinned OpenVINO by checksum
+        shell: bash
+        run: |
+          set -euo pipefail
+          python ci/install-openvino.py --dest "$RUNNER_TEMP/openvino" \
+            | tee openvino-install.txt
+          grep '^OPENVINO_' openvino-install.txt >> "$GITHUB_ENV"
+
+      - name: Put the runtime on the loader path
+        run: |
+          set -euo pipefail
+          echo "LD_LIBRARY_PATH=$OPENVINO_LIB_DIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
+            >> "$GITHUB_ENV"
+
+      - name: Run the memory and invalid-access check
+        run: nimble memcheck
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: memcheck-logs
+          path: build/memcheck
+          retention-days: 14

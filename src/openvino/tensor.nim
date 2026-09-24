@@ -28,6 +28,12 @@ type Tensor* = object
   ## Owns one `ov_tensor_t`. Copying a `Tensor` shares the same native object
   ## and the same closed state, so closing through one copy closes all of them;
   ## see `docs/decisions/0002-handle-model.md`.
+  ##
+  ## Threads: a tensor is mutable storage with no lock, so sharing one across
+  ## threads is the caller's problem entirely. Two threads writing through
+  ## `copyFrom`, or one writing while another calls `setShape`, is a data race
+  ## on the storage and, after a reshape, possibly on a freed buffer. Give each
+  ## thread its own tensor.
   handle: Handle[ov_tensor_t]
   ownsStorage: bool
 

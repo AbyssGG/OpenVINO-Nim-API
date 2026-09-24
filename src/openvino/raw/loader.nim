@@ -147,6 +147,10 @@ proc stringDataSymbol*(name: string): cstring =
   ##
   ## The returned pointer is borrowed from the library's own data and stays
   ## valid as long as the library is loaded. It must never be released.
+  # invariant: every name passed here is an exported `const char*` variable, so
+  # the symbol's address is the address of a pointer, not of the characters.
+  # `dataSymbol` has already refused a nil address, and the dereference below
+  # reads the library's own data, which lives as long as the library.
   let slot = cast[ptr cstring](dataSymbol(name))
   result = slot[]
 
@@ -213,6 +217,10 @@ macro openvinoImport*(procedure: untyped): untyped =
   let forward = if returnsValue: nnkAsgn.newTree(ident("result"), call)
                 else: call
 
+  # invariant: `signature` is the procedure type built from the very declaration
+  # being expanded, so the cast names exactly the calling convention and
+  # parameter list the C function is declared with. `functionSymbol` raises
+  # rather than returning nil, so the cached pointer is never null when called.
   procedure.body = quote do:
     if `cache` == nil:
       `cache` = cast[`signature`](functionSymbol(`symbolName`))

@@ -54,6 +54,14 @@ type
     ## Owns one `ov_core_t`. Copying shares the native object and the closed
     ## state. There is deliberately no global default `Core`: a hidden one would
     ## make lifetime and configuration invisible.
+    ##
+    ## Threads: OpenVINO documents `ov::Core` as safe to share, and reading a
+    ## model or compiling from several threads through one `Core` is the
+    ## intended use. This package adds no lock of its own, and `close()` is the
+    ## exception: closing while another thread is still calling is a use-after-
+    ## close that the closed check cannot make safe. Nothing here has been
+    ## tested under concurrency, so treat the sharing as OpenVINO's claim rather
+    ## than as this package's measurement.
     handle: Handle[ov_core_t]
 
 proc releaseCore(native: ptr ov_core_t) {.nimcall.} =
@@ -219,6 +227,10 @@ proc readModel*(core: Core; modelPath: string; weightsPath = ""): Model =
     if not isAscii(modelPath) or not isAscii(weightsPath):
       withWidePath(modelPath, widePath):
         var weightUnits = toUtf16(weightsPath)
+        # invariant: `toUtf16` always returns at least the terminator, so index
+        # 0 exists. `weightUnits` is a local that outlives the call below, and
+        # the cast only names the element width the header declares for
+        # `wchar_t` on Windows, which the ABI test verifies is 16 bits.
         let wideWeights =
           if weightsPath.len > 0:
             cast[ptr uint16](addr weightUnits[0])
@@ -304,6 +316,10 @@ proc importModel*(core: Core; blob: string; device: string): CompiledModel =
   if blob.len == 0:
     raiseArgumentError("cannot import a compiled model from an empty blob")
   var native: ptr ov_compiled_model_t = nil
+  # invariant: `blob` is non-empty, checked above, so index 0 exists. The C
+  # parameter is `const char*` with an explicit length, so the bytes need no
+  # terminator and may contain zeros; the cast asserts nothing about content.
+  # `blob` is the caller's string and outlives this call, which borrows it.
   checkStatus(ov_core_import_model(core.handle.native(),
                                  cast[cstring](unsafeAddr blob[0]),
                                  csize_t(blob.len), device.cstring,

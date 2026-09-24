@@ -494,6 +494,90 @@ A counting error of our own also surfaced: the ABI suite was recorded as 22
 tests in the plan and the log. It is 21, on both hosts and by counting the
 file. Corrected rather than quietly left.
 
+### 2026-09-25 Phase 5: CI, provenance, and the last of the open checklist
+
+Everything in sections A through G is now ticked. The remaining work was less
+about code than about making claims checkable, so most of what follows is a
+mechanism rather than a feature.
+
+**CI, written to fail rather than to skip.** Nine jobs: static, unit, abi,
+smoke, lifecycle, integration-cpu, examples-package, docs, memory. Six run on
+both Windows and Linux. Every job's underlying command was run on both real
+hosts before the workflow was written, so the workflow describes something that
+has been observed to work rather than something that ought to.
+
+The pins were fetched, not guessed. Each third-party action is a commit SHA with
+the tag it corresponded to in the comment beside it, obtained by querying each
+repository's tags. OpenVINO is pinned to one wheel per platform by immutable URL
+and the sha256 PyPI publishes, and `ci/install-openvino.py` verifies the digest,
+deletes the file if it does not match, and unpacks with `zipfile`. pip never
+resolves a dependency, because nothing here imports OpenVINO from Python. The
+script also refuses to run when its pin disagrees with `TargetOpenVinoVersion`,
+so CI cannot quietly test a version the library does not claim.
+
+That pin turned out to be cross-checkable in a stronger way than the plan asked
+for. All 18 C headers in the pip wheel are byte-identical to the ones recorded
+from the Windows archive install months of work ago. The ABI this package is
+written against therefore does not depend on how OpenVINO was installed, and the
+build number in the wheel file name, 22959, is the one both runtimes report.
+
+**Diagnostics that cannot leak a token.** A failure on a machine you cannot log
+into needs to say which OpenVINO was installed, what is on disk and what the
+runtime saw. The collector reports exactly that, and reports the environment by
+allowlist: eight path and version variables by value, everything else as a name
+and a character count, and anything whose name suggests a credential withheld
+entirely. A missing variable stays diagnosable without its value becoming
+readable by anyone who can download the artefact.
+
+**The release archive derives its name and never reads the clock.** `--date` has
+no default. A tag push takes the date from the annotated tag's message and exits
+if it is not there, saying plainly that it refuses to fall back to the runner's
+clock. The archives are read back after being built: exactly one top-level
+directory equal to the base name, no file with a runtime or model extension,
+sidecars re-verified, and the whole thing built twice and compared byte for byte.
+Two of those checks earned their place immediately. The dirty-tree check failed
+the first local run, correctly, because `git archive` ships the commit rather
+than what you see. And the naming self-test confirmed the base name against the
+example the plan states: `openvino-nim-0-1-0-2026-9-24-ov2026-4-0`.
+
+**valgrind closed the memory check that AddressSanitizer could not.** 3.26.0,
+two targets chosen so that a leak means something in each: our own code with
+leak detection on, and one real end-to-end inference. Zero definite leaks, zero
+indirect leaks, zero errors, and the log carries `@[0.0, 2.0, 0.0, 4.0]` proving
+the run really inferred rather than exiting early under the tool. `-d:useMalloc`
+matters here: without it Nim serves allocations from its own arena and valgrind
+sees one block, so a wrapper-level leak would be invisible.
+
+**A lint rule whose first version was wrong.** Every `cast` in `src` and
+`examples` must now have an invariant written above it. The first version looked
+three lines back and reported all seven sites as undocumented, including the ones
+written minutes earlier: a real invariant takes several sentences, so the marker
+word sits at the top of a comment block while the cast sits at the bottom. Ten
+lines, and the mistake recorded beside the constant. Tests are out of scope, with
+the reason written down rather than left as an unexplained exclusion.
+
+**Two items closed by argument rather than by code.** The generated-binding
+zero-diff check has no subject: there is no generated code, because the
+`{.openvinoImport.}` macro expands at compile time and leaves no intermediate
+artefact to desynchronise or hand-edit. That is stronger than a zero-diff check,
+and saying so is more honest than inventing a generator to satisfy a checklist.
+The NOTICE question was answered the same way: no upstream text is copied, what
+the raw layer reproduces is the names and numbers an ABI consists of, and
+Apache-2.0 permits the use on even the most cautious reading. The file states the
+relationship instead of copying anything.
+
+**Thread contracts, with their authority marked.** `Core`, `Model`,
+`CompiledModel` and `Tensor` now document sharing, and `docs/ownership.md` has a
+table whose third column is how far each claim is backed: upstream's word,
+stated in our API docs, or not measured. Nothing here takes a lock, and no
+concurrency test exists; the table says so rather than implying otherwise by
+omission.
+
+Still open, and only one thing: CI has never run. The repository has no remote,
+so nine jobs that have each been exercised by hand are still nine jobs no runner
+has executed. That is the whole of the Phase 5 gate's remaining item, and closing
+it needs a push, which needs authorisation.
+
 Finally, a methodology mistake worth recording because it nearly produced a
 false pass. The first Linux runner piped every task into `tail` and then printed
 `$?`, which is `tail`'s status, not the task's. Every exit code it reported was
@@ -875,3 +959,65 @@ AddressSanitizer 根本无法覆盖 OpenVINO 的调用路径。ASan 在它自己
 都管道进 `tail`，然后打印 `$?`——那是 `tail` 的退出码，不是任务的。它报告的每一个
 退出码都毫无意义。现在脚本把完整输出留在文件里并报告真实状态，上面那些数字来自
 重跑的第二次。
+### 2026-09-25 Phase 5：CI、来源归属，以及 Checklist 的最后几项
+
+A 到 G 段全部勾选。剩下的工作与写功能关系不大，更多是把"声称"变成"可被机械检查"，
+所以下面记的多数是机制而不是特性。
+
+**CI 是按"宁可失败也不跳过"写的。** 九个作业：static、unit、abi、smoke、lifecycle、
+integration-cpu、examples-package、docs、memory，其中六个同时跑 Windows 与 Linux。
+每个作业底层调用的命令，在写 workflow 之前都已在两台真机上跑过，因此 workflow 描述
+的是已被观测到可行的事，而不是理应可行的事。
+
+固定值是查来的，不是猜的。四个第三方 action 各自固定到 commit SHA，旁边注释里写上它
+当时对应的 tag，SHA 由查询各仓库 tag 得到。OpenVINO 按平台各固定一个 wheel，用不可变
+URL 加 PyPI 公布的 sha256；`ci/install-openvino.py` 校验摘要，不匹配就删文件，然后用
+`zipfile` 解包。全程没有 pip 解析依赖——因为本包没有任何地方从 Python 里 import
+openvino。脚本还会在自身固定版本与 `TargetOpenVinoVersion` 不一致时拒绝运行，这样 CI
+不可能悄悄测一个库并不声称支持的版本。
+
+这个固定值还带来一个比计划要求更强的交叉核对结果：pip wheel 里的 18 个 C header，与
+很早之前从 Windows archive 安装记录下来的那 18 个值**逐字节相同**。也就是说本包所针对
+的 ABI 不依赖于 OpenVINO 的安装方式；wheel 文件名里的 build 号 22959，正是两台机器
+runtime 自报的那个。
+
+**不会泄露 token 的诊断。** 在一台你登不上去的机器上失败，需要知道装的是哪个
+OpenVINO、磁盘上有什么、runtime 看见了什么。收集器就报这些，而环境变量按 allowlist
+处理：8 个路径与版本类变量打印值，其余只打印名字与字符数，名字里含凭据字样的连长度都
+不打印。这样"某个变量没设"仍然可诊断，而值不会变成任何能下载产物的人都能读到的东西。
+
+**发布归档的名字是推导出来的，而且绝不读时钟。** `--date` 没有默认值。tag 触发时日期
+取自 annotated tag 的消息，取不到就退出，并明确写出"拒绝回退到 runner 的时钟"。归档
+生成后会被读回校验：顶层目录集合必须恰好等于基名、不得含任何 runtime 或模型扩展名的
+文件、sidecar 重算比对，并且整体构建两次逐字节比较。其中两项检查立刻证明了自己的价值：
+工作树不干净的检查让本机第一次运行正确地失败了，因为 `git archive` 打的是 commit 而不
+是你看到的内容；命名自检则把基名与计划里给出的例子对上了——
+`openvino-nim-0-1-0-2026-9-24-ov2026-4-0`。
+
+**valgrind 关掉了 AddressSanitizer 做不到的内存检查。** 3.26.0，两个目标是按"泄漏在
+各自语境下意味着什么"分开选的：只含本包代码的那个开启泄漏检测，另一个走一次真实端到端
+推理。definitely lost 0、indirectly lost 0、错误 0，而且日志里有
+`@[0.0, 2.0, 0.0, 4.0]`，证明它在工具下真的完成了推理而不是提前退出。`-d:useMalloc`
+在这里是关键：不加它 Nim 从自有 arena 分配，valgrind 只看到一整块，包装层的泄漏将不
+可见。
+
+**一条第一版是错的 lint 规则。** 现在 `src` 与 `examples` 里每个 `cast` 都必须在上方
+写出不变量。第一版只回看三行，结果把七处全部误报——包括几分钟前才写好的那些：真正的
+不变量说明要几句话，标记词落在注释块顶部而 cast 在底部。改成十行，并把这个失误记在
+常量旁边。测试不在规则范围内，理由写下来了，而不是留成一个没有解释的排除项。
+
+**两项是用论证而不是用代码关闭的。** "生成绑定重复生成零 diff"这一项没有对象：仓库里
+没有生成代码，`{.openvinoImport.}` 宏在编译期展开，不留下任何可能失去同步或被手改的
+中间产物。这比零 diff 检查更强，而如实说明这一点比为了满足 checklist 去造一个生成器更
+诚实。NOTICE 的问题用同样方式回答：没有复制任何上游文本，raw 层复现的是 ABI 本身由之
+构成的名字与数值，而且即便按最保守的读法 Apache-2.0 也允许这种使用。那个文件陈述关系，
+不复制内容。
+
+**线程契约，并标出每条说法的依据。** `Core`、`Model`、`CompiledModel`、`Tensor` 现在
+都写了共享语义，`docs/ownership.md` 有一张表，第三列专门写"这条说法的依据有多强"：上游
+的声明、我们 API 文档里的陈述、还是根本没测过。本包不加任何锁，也没有任何并发测试；表格
+直接这么写，而不是靠省略暗示别的。
+
+仍然未关闭的只有一件：CI 从未运行过。仓库没有远端，于是九个已被逐一手工验证过的作业，
+仍然是九个没有任何 runner 执行过的作业。这就是 Phase 5 Gate 剩下的全部内容，关闭它需要
+推送，而推送需要授权。

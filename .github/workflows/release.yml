@@ -1,0 +1,193 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# Release archive workflow.
+#
+# Two things this file is built around.
+#
+# The archive name never comes from the runner's clock. The release date is an
+# input with no default, so a release rebuilt from the same commit next month
+# produces the same file name. `ci/release-archive.py` refuses to run without
+# `--date`.
+#
+# A dry run is the default and uploading is the exception. `workflow_dispatch`
+# builds and verifies without publishing anything; only a pushed `v*` tag can
+# upload, and only then is `contents: write` granted. A pull request, including
+# one from a fork, cannot reach the upload job at all: it is not a trigger of
+# this workflow, and the job that uploads is additionally guarded on the ref
+# being a tag.
+#
+# Creating the tag itself is not automated on purpose. A tag is the point of no
+# return for consumers, so it stays a human action.
+
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      release_date:
+        description: 'Release date as YYYY-M-D, for example 2026-9-24'
+        required: true
+        type: string
+
+# Read-only by default. The upload job raises this for itself and nothing else.
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  archive:
+    name: build and verify the release archives
+    runs-on: ubuntu-24.04
+    outputs:
+      base-name: ${{ steps.name.outputs.base }}
+    steps:
+      # actions/checkout v4.4.0. fetch-depth 0 so that git archive and the tag
+      # check see the full history rather than a shallow clone.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+
+      # actions/setup-python v5.6.0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+
+      # jiro4989/setup-nim-action v2.3.1
+      - uses: jiro4989/setup-nim-action@189b145833368cc92f1e7b3e166a25a3e057a693
+        with:
+          nim-version: 2.2.12
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check the naming rule against the documented example
+        run: python ci/release-archive.py --self-test
+
+      - name: Verify version metadata consistency
+        run: nimble releaseCheck
+
+      - name: Determine the release date
+        id: date
+        shell: bash
+        run: |
+          set -euo pipefail
+          # For a tag push the date has to come from the annotated tag rather
+          # than from the clock, so that re-running this workflow on the same
+          # tag cannot change the archive name.
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            date_value='${{ inputs.release_date }}'
+          else
+            date_value="$(git tag -l --format='%(contents:subject)' \
+              "${GITHUB_REF_NAME}" | grep -oE '[0-9]{4}-[0-9]{1,2}-[0-9]{1,2}' \
+              | head -1 || true)"
+            if [ -z "$date_value" ]; then
+              echo "The tag message must contain the release date as YYYY-M-D." >&2
+              echo "Refusing to fall back to the runner's clock." >&2
+              exit 1
+            fi
+          fi
+          echo "value=$date_value" >> "$GITHUB_OUTPUT"
+          echo "release date: $date_value"
+
+      - name: Compute the archive base name
+        id: name
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="$(python ci/release-archive.py \
+            --date '${{ steps.date.outputs.value }}' --print-name)"
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          echo "base name: $base"
+
+      - name: Build and verify the archives
+        shell: bash
+        run: |
+          set -euo pipefail
+          extra=''
+          if [ "${{ github.event_name }}" = "push" ]; then
+            extra="--expect-tag ${GITHUB_REF_NAME}"
+          else
+            extra='--dry-run'
+          fi
+          python ci/release-archive.py \
+            --date '${{ steps.date.outputs.value }}' \
+            --out-dir build/release $extra
+
+      - name: Confirm the archive name matches the tag
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The tag carries the version; the archive name carries version, date
+          # and OpenVINO baseline. This checks the one component they share, so
+          # a tag and an archive cannot disagree about which version is being
+          # released.
+          version="${GITHUB_REF_NAME#v}"
+          expected="openvino-nim-${version//./-}-"
+          base='${{ steps.name.outputs.base }}'
+          case "$base" in
+            "$expected"*)
+              echo "tag and archive agree on version $version"
+              ;;
+            *)
+              echo "tag ${GITHUB_REF_NAME} and archive $base disagree" >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Verify the archives are reproducible from this commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Built twice from the same commit and metadata, then compared. This
+          # is the property that lets anyone re-derive a published archive.
+          cp -r build/release build/release-first
+          rm -rf build/release
+          python ci/release-archive.py \
+            --date '${{ steps.date.outputs.value }}' \
+            --out-dir build/release --dry-run
+          for file in build/release/*; do
+            name="$(basename "$file")"
+            if ! cmp -s "$file" "build/release-first/$name"; then
+              echo "$name differs between two builds of the same commit" >&2
+              exit 1
+            fi
+          done
+          echo "both archives and both checksums are byte-identical across runs"
+
+      # actions/upload-artifact v4.6.2
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ steps.name.outputs.base }}
+          path: build/release
+          retention-days: 14
+
+  publish:
+    name: publish the release
+    # Only a pushed tag publishes. A manual run stops after the archive job,
+    # which is what makes the dry run genuinely a dry run.
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: archive
+    runs-on: ubuntu-24.04
+    permissions:
+      # Raised here and nowhere else, so nothing before this point could
+      # publish even if it tried.
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Explain what is deliberately not automated
+        run: |
+          echo "This job uploads the archives that the archive job verified."
+          echo "It does not create tags, and it does not publish to Nimble."
+          echo "GitHub also attaches its own auto-generated source archives to"
+          echo "a release. Those are not the canonical assets: the canonical"
+          echo "ones are the four files named"
+          echo "  ${{ needs.archive.outputs.base-name }}.zip"
+          echo "  ${{ needs.archive.outputs.base-name }}.tar.gz"
+          echo "  ${{ needs.archive.outputs.base-name }}.zip.sha256"
+          echo "  ${{ needs.archive.outputs.base-name }}.tar.gz.sha256"

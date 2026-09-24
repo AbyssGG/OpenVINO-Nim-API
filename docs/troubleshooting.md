@@ -141,7 +141,9 @@ reproducible rather than quoted.
 |---|---|
 | `check`, `formatCheck`, `lint`, `test`, `releaseCheck`, `checkFixtures` | Nim only |
 | `testAbi` | The OpenVINO **headers**: `OPENVINO_INCLUDE_DIR` or `INTEL_OPENVINO_DIR` |
-| `testSmoke`, `testLifecycle`, `testIntegration`, `examples`, `docs` | A loadable runtime, oneTBB included |
+| `testSmoke`, `testLifecycle`, `testIntegration`, `examples`, `docs`, `packagingCheck` | A loadable runtime, oneTBB included |
+| `memcheck` | Linux, and valgrind. It fails rather than skipping on other platforms |
+| `releaseArchive` | Python, a clean working tree, and `OPENVINO_NIM_RELEASE_DATE` |
 
 `testAbi` passes the include directory through `CPATH` and `INCLUDE` rather than
 `--passC`. Nim forwards `--passC` verbatim, so a real Windows path such as

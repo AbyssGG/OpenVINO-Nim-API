@@ -94,6 +94,45 @@ Not released. Under development.
 
 - Added the Apache-2.0 `LICENSE` file. Previously the license was declared
   only in package metadata.
+- Added `NOTICE`, recording how this package relates to the OpenVINO C headers
+  and why no upstream text is copied: what the raw layer reproduces is the set
+  of names and numbers an ABI consists of, which a binding cannot differ from
+  and still be a binding. It also states that no third-party source is bundled
+  and that the runtime is loaded at run time and never shipped.
+  `nimble releaseCheck` requires both `LICENSE` and `NOTICE` to exist.
+- Added the full CI workflow: nine jobs covering static checks, unit tests, the
+  ABI comparison, the runtime smoke test, lifetimes under ORC and ARC, CPU
+  inference in debug and release, examples plus a packaging consumption test,
+  documentation, and a scheduled valgrind job. Six of them run on both
+  Windows and Linux.
+- Every third-party GitHub Action is pinned to a commit SHA rather than a tag,
+  with the tag it corresponded to recorded beside it.
+- Added `ci/install-openvino.py`, which installs OpenVINO for CI from an
+  immutable wheel URL verified against a published sha256, on both platforms
+  from one implementation. It refuses to run if its pinned version disagrees
+  with `TargetOpenVinoVersion`, so CI cannot test a version the library does
+  not claim.
+- Added `ci/collect-diagnostics.py`, uploaded on failure by every job that
+  needs a runtime. It reports the platform, the OpenVINO layout and what the
+  runtime sees through this package's own `list_devices` example. It never
+  dumps the environment: values are printed only for an allowlist of path and
+  version variables, everything else appears as a name and a length, and
+  anything whose name suggests a credential is withheld entirely.
+- Added the release workflow and `ci/release-archive.py`. The archive base name
+  is derived from the package version, an explicitly supplied release date and
+  the pinned OpenVINO version; the date has no default and the runner's clock is
+  never read. Archives come from `git archive`, are read back to check that they
+  contain exactly one top-level directory and no runtime or model files, carry
+  `.sha256` sidecars that are re-verified, and are built twice and compared to
+  show they are reproducible from a commit. A manual run is a dry run;
+  `contents: write` is granted only to the publishing job, which only a pushed
+  tag can reach.
+- Added `nimble packagingCheck`, `nimble memcheck` and `nimble releaseArchive`.
+- `nimble lint` now requires every `cast` in `src` and `examples` to have an
+  invariant written within ten lines above it. The first version of the rule
+  looked three lines back and reported every site that was in fact documented,
+  because a real invariant takes several sentences; that is recorded next to
+  the rule.
 - Added `README.md`, `CONTRIBUTING.md`, `STYLE_GUIDE.md`, `.editorconfig`,
   `.clang-format` and `.gitignore`.
 - Added `docs/resonance-audit.md` recording the audit of the Resonance

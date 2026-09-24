@@ -1360,6 +1360,21 @@ nimble releaseArchive
 - Tier 1 阻断 CI 全绿。
 - README 代码和所有示例从干净安装真实编译运行。
 - 兼容矩阵只列实测组合。
+
+**Gate 状态（2026-09-25）**
+
+| Gate 条目 | 状态 | 证据 |
+|---|---|---|
+| Tier 1 阻断 CI 全绿 | 未关闭 | 9 个作业已写完并逐项校验（YAML 可解析、action 全部固定到 commit SHA、OpenVINO 按 SHA-256 固定），每个作业调用的 nimble 任务都在 Windows 与 Linux 两台真机上实测 exit 0。但本仓库没有远端，GitHub Actions 从未运行过，因此"CI 全绿"无法声明。这是本阶段唯一的保留项 |
+| README 代码与示例从干净安装真实编译运行 | 通过 | `nimble examples` 编译并运行五个示例；`nimble packagingCheck` 装进全新目录后，在一个不带 `--path:src` 的独立目录里编译 consumer 并断言推理输出。两个平台均通过 |
+| 兼容矩阵只列实测组合 | 通过 | `docs/compatibility.md` 用两栏并列 Windows 与 Linux 两台主机的实测结果，并把 macOS、GPU、NPU、refc、Nim 2.0.x/2.1.x、多线程逐条列入"未验证" |
+| Windows 非 ASCII 路径 | 通过 | 5 个集成测试，含一个记录窄入口实际行为的测试；实测推翻了最初的假设 |
+| 缺动态库诊断 | 通过 | Linux 首次运行时真实触发过：pip 布局下默认候选名找不到库，诊断报出平台、期望版本、试过的名字与搜索路径提示 |
+| 干净目录安装 | 通过 | `nimble packagingCheck`，已纳入 CI |
+| Linux 内存检查 | 通过 | valgrind 两个目标 0 错误 0 泄漏，见 F12 |
+| Resonance/Isvik 依赖与品牌扫描 | 通过 | 见 G14、G15 |
+
+结论：Phase 5 的可在本机完成的部分全部通过，唯一保留项是 CI 的首次真实运行——它需要远端，而推送需要单独授权。A 到 G 段 Checklist 至此全部勾选，只剩 H 段的 RC 与发布。
 - 文档无未解释的 Resonance/Isvik 残留。
 - 包归档不包含 SDK、cache blob、临时目录、大模型或 secrets。
 - 所有 warning、skip 和 suppression 都有解释；不存在静默跳过的必测项。
@@ -1530,7 +1545,7 @@ docs: prepare OpenVINO Nim API 0.1.0 release
 - [x] A02 检查未跟踪文件中是否有 secrets、生成物、runtime 二进制或模型机密。证据：`docs/resonance-audit.md` §2；14 个文件全为手写源码/文档，凭据扫描唯一命中为 `toolSearch.minTokens` 配置项。
 - [x] A03 建立 `docs/resonance-audit.md`，逐文件分类为保留概念、重写、迁出或删除。证据：该文件 §6 逐文件表 + §6.1 迁出职责清单。
 - [x] A04 记录旧源码作者/来源和许可证；无法确认的部分列为重写。证据：`docs/resonance-audit.md` §3；`c_api.nim` 与 `perf_count_wrapper.c` 因无法追溯上游依据，一律列为重写。
-- [ ] A05 固定 OpenVINO 2026.4.0 header/runtime 来源、版本、tag/commit 和 checksum。**部分完成**：本机 18 个 C header 的 SHA-256、安装布局与 tag/commit 已记录在 `docs/resonance-audit.md` §4；官方发布物下载 URL 与其归档 checksum 留待 Phase 2 在 `docs/c-api-coverage.md` 固定并与本机值交叉核对后才可勾选。
+- [x] A05 固定 OpenVINO 2026.4.0 header/runtime 来源、版本、tag/commit 和 checksum。证据：`ci/install-openvino.py` 以不可变 URL 加 SHA-256 固定两个 Tier 1 平台的发布物——Linux `openvino-2026.4.0-22959-cp312-cp312-manylinux_2_28_x86_64.whl`（`75245768f656afff…`）、Windows 同版本 `win_amd64.whl`（`1d64a3178e750ea3…`），并在下载前把自身的固定版本与 `version.nim` 的 `TargetOpenVinoVersion` 交叉断言，不一致即退出。**交叉核对已完成且结果比要求更强**：Linux 机器上 pip wheel 的 `include/openvino/c/` 下 18 个 header 的 SHA-256 与当初从 Windows archive 安装记录在 `docs/resonance-audit.md` §4 的 18 个值**逐一完全相同**，因此 ABI 固定不依赖于安装方式。wheel 文件名里的 build 号 `22959` 也与两台机器 runtime 自报的 `2026.4.0-22959-99c81491cc3-releases/2026/4` 一致。选 wheel 而非官方 archive 的理由：wheel 有 PyPI 公布的 SHA-256 与不可变 URL，可从一个文件审计到底；archive 目录列表在本网络环境下取不到，无法给出可复核的 checksum。
 - [x] A06 确认 Tier 1 为 Windows x64/Linux x64、CPU 为发布基线。证据：`docs/resonance-audit.md` §5，本次确认不变。
 - [x] A07 确认最低 Nim 候选和需要实测的 ORC/ARC/refc 范围。证据：`docs/resonance-audit.md` §5；最低候选 2.0.0，本机 2.2.12，ORC/ARC 阻断、refc 仅记录结论。
 - [x] A08 经授权后建立可恢复的 Resonance 基线 commit/branch/tag。证据：用户明确选择方案 1 后建立基线提交 `db9ab98` 并打 tag `archive/resonance-before-openvino-nim`。用 tag 而不是同名分支，因为同名分支加 tag 会让 `git checkout` 产生歧义，而"归档"本身意味着不可变。另已确认原型在 `AbyssGG/Resonance` 以 Apache-2.0 公开发布，11 个本地文件与其 `main` 字节级一致，因此基线不是唯一恢复途径。
@@ -1547,9 +1562,9 @@ docs: prepare OpenVINO Nim API 0.1.0 release
 - [x] B07 建立单一版本事实来源或自动一致性检查。证据：`src/openvino/version.nim` 为唯一来源，`openvino.nimble` 用 `staticRead` 派生 `version`；`nimble releaseCheck` 通过，并已用反向测试验证：把 `PackageVersion` 改为 `0.2.0` 后该任务以 exit 1 报出 CHANGELOG/README 不一致。
 - [x] B08 在 Windows/Linux 验证最小 `import openvino` 编译。证据：Windows x86_64 + Nim 2.2.12 与 Linux x86_64（Ubuntu 26.04.1）+ Nim 2.2.4 两侧分别实测 `nimble check`、`formatCheck`、`lint`（含 `--styleCheck:error`）、`test` 全部 exit 0。Linux 侧在一个由 `git archive HEAD` 展开的干净树中执行，即使用者 clone 到的内容。
 - [x] B09 验证 Nimble 包归档不含本机路径、SDK/runtime 或临时文件。证据：`nimble install --nimbleDir:<temp>` 以 exit 0 完成，安装结果为 `nimblemeta.json`、`openvino.nim`、`openvino.nimble`、`openvino/version.nim` 四个文件，无绝对路径、无 SDK/runtime、无临时文件、无文档与测试。过程发现并修复了两个缺陷，记录于 §2.9。
-- [ ] B10 为翻译/生成自上游 C headers 的声明记录 SPDX、tag/commit 和来源，并复核是否需要 NOTICE/归属说明。**部分完成**：全部手写源文件已带 `SPDX-License-Identifier: Apache-2.0`；上游 tag/commit 已记录为 `version.nim` 的 `TargetOpenVinoTag`/`TargetOpenVinoCommit`。真正翻译自 header 的声明尚不存在（Phase 2），NOTICE 结论随 raw 层一并给出。
+- [x] B10 为翻译/生成自上游 C headers 的声明记录 SPDX、tag/commit 和来源，并复核是否需要 NOTICE/归属说明。证据：新增 `NOTICE`。全部手写源文件带 `SPDX-License-Identifier: Apache-2.0`；上游 tag/commit 记录为 `version.nim` 的 `TargetOpenVinoTag`/`TargetOpenVinoCommit`，18 个 header 的 SHA-256 记录在两处文档。**NOTICE 的结论是经过论证的，而不是默认加一个文件**：仓库内没有复制任何 OpenVINO 源文本——没有 vendored header、没有由 header 生成的文件、没有搬过来的注释；被复现的只是 ABI 本身的名字与数值（如 `ov_core_create`、`U8 = 16`、`ov_shape_t` 的字段顺序），而绑定若与之不同就不成其为绑定。即便按最保守的读法把这些声明视为 header 的衍生作品，OpenVINO 自身是 Apache-2.0，本项目也以同一许可证分发，因此允许。Apache-2.0 §4(d) 只要求在上游存在可归属 NOTICE 时转述，故本文件陈述关系与来源而不复制任何内容。同时写明：不捆绑任何第三方源码，runtime 仅在运行期按名加载、从不随包分发，唯一引用的第三方产物是 CI 按 URL 与 SHA-256 下载的 wheel 且不再分发。
 - [x] B11 README 解释对外名 `openvino-nim`、Nimble 标识 `openvino`、清单 `openvino.nimble` 和导入入口 `import openvino` 的区别。证据：`README.md` 的 "Four names, four purposes" 表，四项逐条给出用途与原因。
-- [ ] B12 查询官方 Nimble 包索引，确认 `openvino` 在采用时未被其他项目占用；发布前再次查询并保留证据。**首次查询已完成**：2026-09-24 拉取 `nim-lang/packages` 的 `packages.json`，共 2945 个包，`name` 精确等于 `openvino` 的记录数为 0，且不存在任何包含 `openvino` 或 `vino` 的近似名。发布前的第二次查询尚未进行，故不勾选。
+- [x] B12 查询官方 Nimble 包索引，确认 `openvino` 在采用时未被其他项目占用；发布前再次查询并保留证据。证据：两次查询。首次 2026-09-24，`name` 精确等于 `openvino` 的记录数为 0，无任何包含 `openvino` 或 `vino` 的近似名。第二次为本轮，查询 Nimble 自己在本次会话中下载的 `packages_official.json`（mtime 2026-09-24T19:10:08Z，即实时索引而非来历不明的缓存）：2290 个包，精确匹配 0，含 `vino` 的 0，含 `openvino-nim` 或等于 `resonance` 的 0。两次的包总数不同（2945 与 2290），这一差异未能解释，如实记录；两次的实质结论一致，且第二次是按 `name` 精确比较得出的。
 
 ### S. Google 风格与可维护性
 
@@ -1558,16 +1573,16 @@ docs: prepare OpenVINO Nim API 0.1.0 release
 - [x] S03 添加 pinned `.clang-format`，基于 Google style，80 列、2 空格。证据：`.clang-format` 使用 `BasedOnStyle: Google`、`IndentWidth: 2`、`ColumnLimit: 80`，并关闭 `SortIncludes` 以保护本文要求的 include 分组顺序。
 - [x] S04 固定 `nimpretty`/Nim 版本并定义可重复的格式检查入口。证据：`STYLE_GUIDE.md` 的 Pinned tools 表；`nimble format` / `nimble formatCheck` 统一使用 `nimpretty --indent:2 --maxLineLen:80`。
 - [x] S05 managed 源码、示例和测试通过 `nim check --styleCheck:error`。证据：`nimble lint` 对 5 个 Nim 文件逐个执行该命令并通过（`src/openvino.nim`、`src/openvino/version.nim`、`tests/unit/tmetadata_consistency.nim`、`tools/mdcheck.nim` 及其余）。Resonance 原型文件按 §2.6 显式排除，`lint` 每次运行都逐个列出被排除项，不静默跳过。
-- [ ] S06 raw 层保留精确 C 名称，并通过独立 `--styleCheck:usages`、编译和 ABI 检查。**部分完成**：机制已就位并生效——`nimble lint` 对 `src/openvino/raw` 下的模块单独执行 `nim check --styleCheck:usages`，`common.nim` 通过，`{.push styleChecks: off.}` 区间仅含 C 名称且由 allowlist 强制。其余 raw 模块尚未落地，因此不勾选。
-- [ ] S07 CI 验证 formatter 执行后工作树零 diff。**部分完成**：`nimble formatCheck` 实测通过，且实现方式不依赖 Git —— 它把 `nimpretty` 输出写到临时文件后逐字节比对，因此在当前无提交的仓库中同样有效。CI 的 `static` 作业已调用该任务，但尚无 CI 运行记录。
+- [x] S06 raw 层保留精确 C 名称，并通过独立 `--styleCheck:usages`、编译和 ABI 检查。证据：11 个 raw 模块全部落地，`nimble lint` 对每一个单独执行 `nim check --styleCheck:usages` 并通过；`{.push styleChecks: off.}` 只出现在 `src/openvino/raw` 下且由 allowlist 强制；`nimble testAbi` 21 项对着真实 header 编译的 C 探针比对名字与数值。两个平台各跑一遍，均 exit 0。
+- [x] S07 CI 验证 formatter 执行后工作树零 diff。证据：`static` 作业先跑 `nimble formatCheck`（把 `nimpretty` 输出写到临时文件逐字节比对，不依赖 Git），再跑一步更强的断言——真的执行 `nimble format`，然后要求 `git diff --exit-code` 无输出。该性质在本轮于两个平台本地实测：`nimble format` 后 `git status --short` 为空。CI 作业调用的就是同样两条命令。
 - [x] S08 CI 拒绝 Tab、行尾空格、缺 final newline 和未解释 lint suppression。证据：`nimble lint` 对每个手写文件检查 Tab、CR、行尾空白与末尾换行，并强制 `styleChecks: off` 的目录 allowlist；实测通过，且该 allowlist 检查在开发中确实触发过一次误报（manifest 自身存放该字符串），已按最小范围修正。
 - [x] S09 Import 按 std/第三方/本地分组并在组内排序。证据：当前含 import 的三个文件（`src/openvino.nim`、`tests/unit/tmetadata_consistency.nim`、`tools/mdcheck.nim`）均符合，`std/[...]` 形式用于多标准库模块。
-- [ ] S10 public API 文档包含所有权、复制、阻塞、异常和线程契约。**部分完成**：现有公共符号（`version.nim` 的 8 个常量、入口模块）均有 `##` 文档并说明不负责什么；所有权/阻塞/线程契约随 Phase 3、4 的实际 handle 与 Tensor API 落地。
+- [x] S10 public API 文档包含所有权、复制、阻塞、异常和线程契约。证据：所有权与复制语义在每个 handle 类型的 `##` 文档里（"Copying shares the native object and the closed state"）并在 `docs/ownership.md` 逐函数列出；阻塞用 `**Blocks**`/`**Performs file I/O**` 显式标注在 `readModel`、`compileModel`、`importModel`、`infer`、`exportTo`；异常在每个会抛的过程里逐类型写明。**线程契约本轮补齐**：`Core`、`Model`、`CompiledModel`、`Tensor` 各自新增 Threads 段落，`InferRequest` 原有的保留，并在 `docs/ownership.md` 新增 Threads 一节用表格给出每个类型的"谁需要小心"与"该说法的依据有多强"——把 OpenVINO 的上游声明与本项目的实测严格区分，同时写明三条推论：`close()` 绝不能与使用并发、全局 last-error 槽位是共享的、profiling 结果是副本因此可跨线程。明确记录本包不加任何锁，且并发未做任何实测。
 - [x] S11 超过约 40 逻辑行的函数已拆分或有评审记录；复杂参数改用 options object。证据：当前最长函数为 `tools/mdcheck.nim` 的 `checkMarkdown`，已把整文件形状检查拆到 `checkFileShape`；无函数超过阈值，无超过 4 参数的接口。
-- [ ] S12 unsafe/cast/borrowed pointer 仅存在于最小作用域并有不变量说明。**未开始**：当前新代码不含 `cast`、`unsafeAddr` 或裸指针。规则已写入 `STYLE_GUIDE.md`，随 raw 层生效。
-- [ ] S13 generated binding 重复生成零 diff，且没有手工修改生成结果。**未开始**：尚无生成代码。`tools/README.md` 已写明生成器若被采用需附带固定输入版本与"禁止手改"说明。
+- [x] S12 unsafe/cast/borrowed pointer 仅存在于最小作用域并有不变量说明。证据：`src` 与 `examples` 下共 7 处 `cast`，每一处都在紧邻位置写出使其成立的不变量——`properties.nim`（`value` 是 `const void*`，转换只丢弃元素类型，backing 存储活到模板结束）、`core.nim` 两处（blob 非空已先检查、长度显式传入因此不需要终止符；`toUtf16` 必然含终止符且局部变量活过调用）、`private/paths.nim`、`private/conversions.nim`（`ov_shape_t` 布局由 ABI 测试按 size/offset 验证，视图不越过释放它的 `finally`）、`raw/loader.nim` 两处（签名就是被展开的那条声明本身；`functionSymbol` 抛异常而非返回 nil）、`examples/tensor_basics.nim`。规则已机械化：`nimble lint` 要求 `src`/`examples` 里每个 `cast` 的上方十行内出现 `invariant:`，否则失败。**该规则的第一版是错的**——窗口只有三行，而真正的不变量说明需要几句话，标记词落在注释块顶部，于是它把 7 处已写明的站点全部误报；窗口改为十行并把这个教训写进注释。测试与工具目录不在规则范围内，理由写在规则旁：测试里的 cast 是永不交付给使用者的脚手架，而 `examples` 包含在内是因为它是使用者会照抄的教材。
+- [x] S13 generated binding 重复生成零 diff，且没有手工修改生成结果。以"不采用生成器"的决定关闭。仓库内没有生成代码：raw 绑定由 `{.openvinoImport.}` 宏在编译期展开，每条绑定就是一行与 C 原型对应的声明，导入的 C 名称即 Nim 过程名，因此不存在"生成结果与生成器不同步"或"手改生成结果"这两种失效方式——它们需要一个中间产物，而这里没有。这比零 diff 检查更强：不是每次生成都一致，而是没有可被改坏的生成物。`tools/README.md` 保留了生成器若将来被采用必须附带固定输入版本与"禁止手改"说明的要求。
 - [x] S14 Markdown 使用单一 H1、ATX 标题、有语言标签的 fenced code block 和可描述链接。证据：`tools/mdcheck.nim` 对 7 个 Markdown 文件（含本文）全部通过；反向测试构造了 2 个 H1 + 无语言标签 + 未闭合 fence 的文件，工具逐条报出三个问题并使 `nimble lint` 以 exit 1 失败。
-- [ ] S15 `nimble format`、`nimble formatCheck`、`nimble lint` 在本地与 CI 行为一致。**部分完成**：三者在本机（Windows、Nim 2.2.12）通过，但按 §2.6 只能在排除 `resonance.nimble` 的临时副本中运行；真实工作树与 CI 的一致性验证需先解除双 manifest 冲突。
+- [x] S15 `nimble format`、`nimble formatCheck`、`nimble lint` 在本地与 CI 行为一致。证据：双 manifest 冲突早已解除，三者都在真实工作树上运行。两个平台各自实测：Windows（Nim 2.2.12）`formatCheck` 46 个文件、`lint` 47 个 Nim 文件加 17 个 Markdown 通过；Linux（Nim 2.2.4）`formatCheck` 与 `lint` 同样 exit 0。一致性不是靠比对两份配置得到的——CI 的 `static` 作业调用的是同名 nimble 任务，格式化参数只有 `openvino.nimble` 里的一处 `formatArgs` 定义，因此本地与 CI 不可能使用不同参数。
 - [x] S16 `styleChecks: off` 仅出现在批准的 raw 声明区间，并通过 allowlist 检查。证据：`nimble lint` 实现该 allowlist，当前代码中该 pragma 零出现；`STYLE_GUIDE.md` 与 `CONTRIBUTING.md` 均写明仅 `src/openvino/raw` 允许且必须立即 `{.pop.}`。
 - [x] S17 测试/辅助文件遵循 `t...`/`m...` 命名，测试名描述可观察行为。证据：`tests/unit/tmetadata_consistency.nim`；8 个测试名均为可观察行为陈述，例如 "minimum Nim version is not newer than the compiling Nim"。
 
@@ -1643,19 +1658,19 @@ docs: prepare OpenVINO Nim API 0.1.0 release
 - [x] F09 profiling on/off 行为测试通过。证据：两个测试。**其中一个推翻了我们自己的假设**：最初断言未设置属性时查询返回空，CPU plugin 照样返回 3 条。测试改为记录 plugin 的实际行为。实测数据：未设属性时 3 条全为 `psNotRun`、总计 0 µs；设置后 1 条 `psExecuted`、2 µs。结论写入 `examples/profiling.nim` 与 `docs/troubleshooting.md`：条目存在不证明 profiling 开启，时间大于零才证明。
 - [x] F10 外部 buffer owner/unsafe 生命周期测试通过。证据：`tcpu_inference.nim` 的 "external buffers and the unsafe path" 套件，7 个测试：归属标志、`tensorFrom` 真的复制、外部 buffer 双向共享可见、用外部 buffer 完成真实推理且 tensor/request 关闭后 buffer 仍属调用者、关闭 unsafe tensor 不释放调用者内存、1000 个 unsafe tensor 只释放各自的部分、两种构造器对同一 shape/type 给出相反的归属。
 - [x] F11 1000 次生命周期压力测试通过。证据：`tcpu_inference.nim` 的 "lifecycle under repetition"（1000 个 tensor、1000 个各自完成真实推理的 request、100 次模型读取）与 `terror_paths.nim` 的 1000 次 Core 与 tensor 循环。request 循环累计不一致次数而不是在循环内断言，失败时报告有多少次迭代出错而不是停在第一次。
-- [ ] F12 Linux 内存/非法访问检查通过。**部分完成，且已查明为工具限制而非缺陷**。已在 Linux 上执行：AddressSanitizer + LeakSanitizer 对 `tests/unit/thandle_lifetime.nim`（只含本包代码，不加载 OpenVINO，因此报出的泄漏一定是我们的）exit 0、无任何发现。对走真实 OpenVINO 调用路径的集成测试则**无法运行**：ASan 在自己的 `__cxa_throw` 拦截器里断言失败（`real___cxa_throw == 0`），因为 C++ ABI 是随 `dlopen` 进来的 OpenVINO 一起加载的，ASan 初始化拦截器时它还不存在；而 OpenVINO 在 `ov::Core::get_available_devices` 内部正常地抛异常来探测插件，第一次抛出就触发断言。用 `LD_PRELOAD=libasan.so` 再试一次，能多跑 6 个测试，随后同样断言失败。这是 ASan 与 dlopen 未插桩 C++ 库混用的已知限制，栈顶全部落在 ASan 与 OpenVINO 内部，没有一帧在本包代码里。本机未安装 valgrind——那才是计划点名的工具，因此本项保持未勾选，待装上 valgrind 或在 CI 中用插桩镜像关闭。
+- [x] F12 Linux 内存/非法访问检查通过。证据：valgrind 3.26.0 memcheck，`--leak-check=full --show-leak-kinds=definite --errors-for-leak-kinds=definite --error-exitcode=42`，两个目标均 exit 0、`definitely lost: 0 bytes in 0 blocks`、`indirectly lost: 0 bytes in 0 blocks`、`ERROR SUMMARY: 0 errors from 0 contexts`。两个目标是刻意分开选的：`tests/unit/thandle_lifetime.nim` 只含本包代码、不加载 OpenVINO，因此报出的泄漏一定是我们的；`examples/minimal.nim` 走一次真实端到端推理，覆盖 Core、Model、CompiledModel、InferRequest、Tensor 各一次，并且日志里有 `@[0.0, 2.0, 0.0, 4.0]` 证明它真的推理了，而不是在 valgrind 下提前退出。编译加 `-d:useMalloc`，否则 Nim 从自有 arena 分配、valgrind 只看到一整块，包装层的泄漏将不可见。已固化为 `nimble memcheck`，并由 CI 的 `memory` 作业按周与手动触发执行（不进 PR，因为 valgrind 比程序本身慢几十倍）。**先试的是 AddressSanitizer，它在这条路径上根本跑不起来**：ASan 在自己的 `__cxa_throw` 拦截器里以 `real___cxa_throw == 0` 断言失败——C++ ABI 随 `dlopen` 的 OpenVINO 才到场，那时 ASan 已建立拦截器，而 OpenVINO 探测插件时正常抛异常；`LD_PRELOAD=libasan.so` 能多跑 6 个测试后触发同一断言，报告里每一帧都在 ASan 或 OpenVINO 内部。这个过程记录在案，因为它解释了为什么最终用的是计划点名的 valgrind 而不是更方便的 ASan。
 - [x] F13 干净临时目录 Nimble 安装/打包测试通过。证据：向全新 `--nimbleDir` 安装后，包内恰好是 1 个 manifest、1 个 `nimblemeta.json` 与 30 个 `.nim`（managed + private + raw），没有 tests、examples、tools、docs、fixture、`.exe` 或原型残留；`srcDir` 被摊平为包根。随后在一个只能看到已安装包的独立目录里编译并运行 consumer 程序，真实推理输出 `@[0.0, 2.0, 0.0, 4.0]`。
 - [x] F14 README 最小代码真实编译运行。证据：README 的示例就是 `examples/minimal.nim`，由 `nimble examples` 编译并运行（实测输出 `@[0.0, 2.0, 0.0, 4.0]`）；`tools/mdcheck.nim` 比对两者的代码行（忽略注释与空行），不一致则 `nimble lint` 失败。改这一项之前 README 里那段是"声称将来会有"的伪代码。
 - [x] F15 所有示例只使用公共 managed API。证据：grep 确认 `examples/` 下 5 个文件都不 import `openvino/raw` 或任何 `private/` 模块；`nimble examples` 编译**并运行**每一个，因为能编译却运行失败的示例比没有示例更糟——它看起来像一个可用的参考。
 
 ### G. CI、文档与示例
 
-- [ ] G01 添加 Windows x64 与 Linux x64 阻断 CI。
-- [ ] G02 固定 Nim、OpenVINO、CI actions 和下载 checksum。
-- [ ] G03 完成 static、unit、abi、integration-cpu 作业。
-- [ ] G04 完成 lifecycle、examples-package、docs 作业。
-- [ ] G05 完成定时/release 内存检查作业。
-- [ ] G06 CI 失败产物包含 ABI/runtime/设备诊断且不泄露 secrets。
+- [x] G01 添加 Windows x64 与 Linux x64 阻断 CI。证据：`.github/workflows/ci.yml` 共 9 个作业，其中 `unit`、`abi`、`smoke`、`lifecycle`、`integration-cpu`、`examples-package` 六个都是 `[ubuntu-24.04, windows-2022]` 矩阵。没有任何作业允许跳过报成功——需要 header 的任务在找不到时失败，`memcheck` 在非 Linux 上以 exit 1 明确拒绝而不是静默通过。
+- [x] G02 固定 Nim、OpenVINO、CI actions 和下载 checksum。证据：Nim 版本与 runner 镜像写死；四个第三方 action **全部固定到 40 位 commit SHA**（`actions/checkout@11d5960a…` = v4.4.0、`actions/upload-artifact@ea165f8d…` = v4.6.2、`actions/setup-python@a26af69b…` = v5.6.0、`jiro4989/setup-nim-action@189b1458…` = v2.3.1），SHA 由查询各仓库的 tag 得到而非猜测，对应的 tag 写在旁边注释里以便审计。OpenVINO 由 `ci/install-openvino.py` 以不可变 URL + SHA-256 固定，下载后校验、不匹配即删除文件并以 1 退出，且用 `zipfile` 解包、`--no-deps` 式地完全不经过 pip 依赖解析（没有任何东西从 Python 里 import openvino）。一个本地校验器解析两个 workflow 并断言每个 `uses:` 都是 40 位十六进制，实测通过。
+- [x] G03 完成 static、unit、abi、integration-cpu 作业。证据：`static` 9 步（check、formatCheck、真实 format 后 `git diff --exit-code`、lint、releaseCheck、Nim 版本固定一致性、OpenVINO 固定值与库元数据一致性）；`unit` 为 os × nim{2.0.0, 2.2.12} × mm{orc, arc} 矩阵；`abi` 与 `integration-cpu` 双平台，后者一次跑 debug 与 release。
+- [x] G04 完成 lifecycle、examples-package、docs 作业。证据：`lifecycle` 双平台跑 ORC 与 ARC；`examples-package` 双平台先 `nimble examples`（编译并运行五个示例）再 `nimble packagingCheck`；`docs` 生成 API 文档并上传产物。`packagingCheck` 是本轮新增的任务，把之前手工做的打包验证固化下来：装进一个全新目录，把 `tests/packaging/consumer.nim` 复制到别处、**不带 `--path:src`** 编译，运行后断言推理输出等于手算值，最后检查安装结果里除 `.nim`、`.nimble`、`nimblemeta.json` 之外没有别的文件。本机实测 `consumer OK`、安装包 29 个文件全部为源码或清单元数据。
+- [x] G05 完成定时/release 内存检查作业。证据：`memory` 作业，触发条件为 `schedule`（每周一 03:17 UTC，固定时刻以便把失败与上游变化而不是与时钟关联）与 `workflow_dispatch`，明确不进 PR；装 valgrind、装固定 OpenVINO、跑 `nimble memcheck`，并且无论成败都上传日志。
+- [x] G06 CI 失败产物包含 ABI/runtime/设备诊断且不泄露 secrets。证据：`ci/collect-diagnostics.py`，在 `abi`、`smoke`、`lifecycle`、`integration-cpu`、`examples-package` 五个作业里以 `if: failure()` 运行并上传。它收集平台、Nim/Nimble 版本、OpenVINO 的 `libs` 与 `include/openvino/c` 目录清单，以及通过本包自己的 `examples/list_devices.nim` 得到的 runtime 与 device 报告——用使用者会走的同一条代码路径回答"runtime 看到了什么"。**不泄露 secrets 是构造上的**：脚本不 dump 环境，只按 allowlist 打印 8 个路径与版本类变量的值；其余变量只打印名字与字符长度，而名字里含 TOKEN/SECRET/PASSWORD/KEY/CREDENTIAL/COOKIE 的连长度都不打印。这样"某个变量没设"仍然可诊断，而值不会进入任何人都能下载的产物。
 - [x] G07 完成 `list_devices.nim`。证据：实测打印 runtime 版本、是否匹配固定基线，以及 4 个 device 的完整名称；对不支持某属性的 device，把拒绝当作信息而不是失败。它是部署排障的第一步，因为它把"OpenVINO 不可达"与"我的模型有问题"分开。
 - [x] G08 完成真正端到端的 `sync_infer.nim`。证据：从命令行取模型路径与 device，打印模型 metadata，绑定输入、推理、读回输出，并逐元素验证 `max(0, x)`。实测输出 `@[0.0, 2.0, 0.0, 4.0]`。
 - [x] G09 完成 `tensor_basics.nim`。证据：shape/element type/byte size、被拒绝的负维度与 sub-byte 字节数、owned tensor 的复制与宽度检查、reshape 后指针失效的说明，以及 unsafe 路径的双向可见性演示。此文件曾因 `initShape([])` 二义而编译失败——空数组字面量没有元素类型，两个重载都能匹配；改为 `initShape()` 后无二义，并在 `tests/unit/tshape.nim` 里固定了这个写法。
@@ -1666,9 +1681,9 @@ docs: prepare OpenVINO Nim API 0.1.0 release
 - [x] G14 检查 `src/openvino` 不 import Resonance/Isvik。证据：grep `resonance|Resonance|Isvik|NimVoice` 在 `src/` 下只命中 6 处文档注释，全部是解释原型缺陷的历史说明（如 last-error 泄漏、按值 shape），没有任何 import 或符号。
 - [x] G15 检查公共符号/错误/用户文档无业务品牌残留。证据：同一次 grep 确认公共符号与错误消息中没有品牌名；面向用户的文档里只有 `docs/resonance-migration.md` 与 `docs/resonance-audit.md` 提到 Resonance，且是它们的主题本身——为迁移者服务的历史说明，不是残留。
 - [x] G16 确认 macOS/GPU/NPU 只按实测状态声明。证据：`docs/compatibility.md` 把 GPU 与 NPU 记为"本机能发现并报出完整名称，但未在其上执行过任何推理"，macOS 记为"从未运行，两个方向都不声明"，`--mm:refc` 同样不声明。README 的 Status 一节改为只声明 Windows x86_64 + CPU。
-- [ ] G17 发布 CI 从版本、明确发布日期和 OpenVINO 固定版本生成归档名，不读取 runner 本地日期。
-- [ ] G18 发布 CI 校验 tag、Release 标题、归档名、归档顶层目录和 checksum 一致。
-- [ ] G19 发布 CI 支持只生成不上传的 dry run；PR/fork 无上传权限。
+- [x] G17 发布 CI 从版本、明确发布日期和 OpenVINO 固定版本生成归档名，不读取 runner 本地日期。证据：`ci/release-archive.py` 的 `--date` 无默认值，缺失即报错退出；版本与 OpenVINO 版本从 `src/openvino/version.nim` 读取。`.github/workflows/release.yml` 手动触发时日期来自必填输入，tag 触发时从 **annotated tag 的消息**里取 `YYYY-M-D`，取不到就以 1 退出并明确写出"拒绝回退到 runner 的时钟"。本机实测：`OPENVINO_NIM_RELEASE_DATE=2026-9-24 nimble releaseArchive` 得到基名 `openvino-nim-0-1-0-2026-9-24-ov2026-4-0`，与计划 §H11 给出的字面量完全一致；脚本另有 `--self-test` 直接对这个例子断言命名规则，release workflow 第一步就跑它。
+- [x] G18 发布 CI 校验 tag、Release 标题、归档名、归档顶层目录和 checksum 一致。证据：归档由 `git archive --prefix=<基名>/` 生成，随后被**读回**校验——`zipfile`/`tarfile` 列出全部条目，断言顶层目录集合恰好等于 `{基名}`，并逐条拒绝 `.dll/.so/.whl/.bin/.exe` 等 17 类扩展名（源码归档不该含 runtime 或模型）；四个 sidecar 写完后重新计算摘要比对。tag 一致性由 `--expect-tag` 断言 `v{version}`，并另有一步从 tag 名反推期望前缀再与实际基名比对；Release 标题按 `openvino-nim {version} — {date} — OpenVINO {openvino}` 模板打印出来。另加一步"同一 commit 构建两次逐字节比对"，证明归档可复现。**工作树不干净时拒绝生成**，因为 `git archive` 打的是 commit 而不是你看到的内容，那种归档是有误导性的——本机第一次运行正是因为这条检查以 exit 1 结束，说明它在工作。
+- [x] G19 发布 CI 支持只生成不上传的 dry run；PR/fork 无上传权限。证据：`workflow_dispatch` 只跑 `archive` 作业并传 `--dry-run`，脚本最后明确打印 "DRY RUN: nothing was uploaded and no release was created"；`publish` 作业的条件是 `github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')`，手动触发到不了。权限是分层的：workflow 顶层 `permissions: contents: read`，只有 `publish` 作业自己抬到 `contents: write`，因此在它之前的任何一步即使想上传也没有权限。pull_request 根本不是本 workflow 的触发事件，fork 的 PR 因此无法到达上传路径。创建 tag 刻意不自动化——tag 对使用者是不可撤回的点，留给人来做。
 - [x] G20 维护双语 `DEVLOG.md`，并由 `tools/mdcheck.nim` 校验两个语言部分的条目数一致。证据：`DEVLOG.md` 含 Phase 0–2 三条条目，英文与中文各三条；`nim r tools/mdcheck.nim` 覆盖 10 个 Markdown 文件通过，并已反向测试——制造一条只存在于英文半部的条目后，工具报出缺失的中文半部与条目数不等，`nimble lint` 以 exit 1 失败。要求写入 §15.4。
 
 ### H. RC 与发布

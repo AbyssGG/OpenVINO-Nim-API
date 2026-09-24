@@ -26,7 +26,13 @@ type CompiledModel* = object
   ## A model compiled for a specific device.
   ##
   ## Owns one `ov_compiled_model_t`. Copying shares the native object and the
-  ## closed state. Independent of the `Model` it was compiled from, which may be
+  ## closed state.
+  ##
+  ## Threads: creating requests from one compiled model on several threads is
+  ## the shape OpenVINO is built for, and each request then has its own tensors.
+  ## This package adds no lock, and it has not been measured under concurrency;
+  ## `setProperties` after requests exist is a change under other threads' feet
+  ## and is not covered by anything here. Independent of the `Model` it was compiled from, which may be
   ## closed immediately afterwards.
   handle: Handle[ov_compiled_model_t]
 

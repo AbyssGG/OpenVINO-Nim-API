@@ -20,6 +20,11 @@ type Model* = object
   ##
   ## Owns one `ov_model_t`. Copying shares the native object and the closed
   ## state.
+  ##
+  ## Threads: read-only queries on one `Model` from several threads are not
+  ## tested and not claimed. Reading a model is cheap relative to compiling, so
+  ## the simple answer is one `Model` per thread, and the plain answer is that
+  ## concurrency here has not been measured.
   handle: Handle[ov_model_t]
 
 proc releaseModel(native: ptr ov_model_t) {.nimcall.} =

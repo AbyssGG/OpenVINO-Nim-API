@@ -191,7 +191,8 @@ Start with whichever question you have:
 | I have Resonance code | [Migration guide](docs/resonance-migration.md) |
 | Why was it done this way? | [Symbol loading](docs/decisions/0001-symbol-loading.md), [handle model](docs/decisions/0002-handle-model.md) |
 
-Project documents: [development plan](OPENVINO_NIM_0.1_DEVELOPMENT_PLAN.md),
+Project documents: [notice and provenance](NOTICE),
+[development plan](OPENVINO_NIM_0.1_DEVELOPMENT_PLAN.md),
 [development log in English and Chinese](DEVLOG.md),
 [style guide](STYLE_GUIDE.md), [contributing](CONTRIBUTING.md),
 [changelog](CHANGELOG.md),
@@ -199,4 +200,6 @@ Project documents: [development plan](OPENVINO_NIM_0.1_DEVELOPMENT_PLAN.md),
 
 ## License
 
-Apache-2.0. See [LICENSE](LICENSE).
+Apache-2.0. See [LICENSE](LICENSE), and [NOTICE](NOTICE) for how this package
+relates to the OpenVINO C headers, why no upstream text is copied, and what is
+and is not bundled.

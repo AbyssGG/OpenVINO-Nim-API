@@ -96,6 +96,9 @@ proc showUnsafePath() =
   # A `seq` would be wrong here: growing one moves its storage, and the tensor
   # would keep pointing at the old address.
   let elements = 4
+  # invariant: the allocation is `elements * sizeof(float32)` bytes, and every
+  # index used below is in `0 ..< elements`. `allocShared0` returns memory that
+  # does not move, and the `defer` frees it after the tensor is closed.
   let buffer = cast[ptr UncheckedArray[float32]](
     allocShared0(elements * sizeof(float32)))
   defer: deallocShared(buffer)

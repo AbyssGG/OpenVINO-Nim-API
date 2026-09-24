@@ -116,8 +116,17 @@ Absences are decisions too, and each of these was asked for at some point:
 |---|---|---|
 | Layer direction | `nimble lint` | `src/openvino.nim` re-exporting `raw` |
 | Naming per layer | `nimble lint` | A managed name in upstream style, or the reverse |
+| Cast justification | `nimble lint` | A `cast` in `src` or `examples` with no invariant written within ten lines above it |
 | Declarations against headers | `nimble testAbi` | A struct field order, enum value or type width that drifted from the C headers |
 | Real symbol resolution | `nimble testSmoke` | A symbol that does not exist in the installed runtime |
 | Ownership under ORC and ARC | `nimble testLifecycle` | A destructor that fires at a different time and frees twice |
 | End-to-end behaviour | `nimble testIntegration` | Inference that returns the wrong numbers |
-| Documentation and fixtures | `nimble lint` | A README example that no longer compiles; a fixture checksum that was never computed |
+| Documentation and fixtures | `nimble lint` | A README example that no longer compiles; a fixture checksum that was never computed; a relative link that does not resolve |
+| Consumability | `nimble packagingCheck` | A manifest that installs the wrong files; a module that only resolves inside the checkout |
+| Memory and invalid access | `nimble memcheck` | A handle the wrapper forgets to release, or a read past the end of a tensor |
+| Release naming | `ci/release-archive.py --self-test` | An archive name that stopped matching the documented rule |
+
+CI runs all of these, and nothing in it is allowed to skip and report success.
+The job layout, and the reasoning behind the pins, is in
+`.github/workflows/ci.yml`; the release archive rules are in
+`.github/workflows/release.yml`.

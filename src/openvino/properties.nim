@@ -114,6 +114,10 @@ template withRawProperties*(properties: openArray[Property];
     keyStorage[index] = property.key
     valueStorage[index] = property.value
   for index in 0 ..< properties.len:
+    # invariant: `ov_property_t.value` is declared `const void*`, and for every
+    # key this package binds the value is a C string. The cast only discards the
+    # element type; the pointer stays the one `valueStorage` owns, and that
+    # sequence lives until the end of this template, which is past the call.
     rawStorage[index] = ov_property_t(
       key: keyStorage[index].cstring,
       value: cast[pointer](valueStorage[index].cstring))

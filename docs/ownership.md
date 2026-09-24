@@ -123,3 +123,44 @@ obligations listed on the function.
   can belong to another thread's failure. This is why it is copied immediately.
 - `0.1.0` provides no callback API. A Nim exception must never cross a C
   callback boundary, and that needs its own design.
+
+## Threads
+
+Nothing in this package takes a lock. That is a deliberate absence: a binding
+that locked on every call would make a single-threaded program pay for a
+guarantee it did not ask for, and it still could not make the interesting cases
+safe. What follows is therefore a division of responsibility, not a promise.
+
+Read the second column as "who has to be careful", and the third as how far the
+claim is backed.
+
+| Type | Sharing across threads | Backing |
+|---|---|---|
+| `Core` | OpenVINO documents `ov::Core` as safe to share, and reading or compiling concurrently through one `Core` is the intended use | Upstream's claim. Not measured here |
+| `Model` | Not claimed. One per thread is the simple answer | Not measured |
+| `CompiledModel` | Creating requests from one compiled model on several threads is the shape OpenVINO is built for | Upstream's claim. Not measured here |
+| `InferRequest` | **Not safe.** Bind, infer and read on one thread, or give each thread its own request | Stated in the API docs. The one-request-per-thread pattern is what `createInferRequest` exists for |
+| `Tensor` | **Not safe.** Mutable storage with no lock | Two `copyFrom` calls race; `setShape` may move the storage under another thread's pointer |
+| `Shape`, `ElementType`, `Property` | Immutable values, safe to share and to copy | They hold owned Nim data and touch no native state |
+| Exceptions | Each carries its own copied message and status | `lastErrorMessage` is read and copied before any other OpenVINO call, because the runtime keeps one global slot |
+
+Three rules that follow from the table and are worth stating on their own.
+
+**`close()` is never concurrent with use.** The closed check refuses a call on a
+closed handle, but it cannot help if another thread closes between the check and
+the native call. Close an object when no other thread is using it. This is the
+one case where the handle model's safety argument stops at the thread boundary.
+
+**The global last-error slot is shared.** OpenVINO keeps one, so a failure on
+another thread can overwrite it between a failed call and the attempt to read
+its detail. This package reads and copies the detail immediately, in one place,
+which is why `checkStatus` does the read itself rather than leaving it to a
+caller.
+
+**Profiling results are copies.** `profilingInfo()` returns Nim-owned strings
+and numbers, and releases the native list before returning, so the result can
+outlive the request and cross a thread boundary freely.
+
+None of this has been measured under load. No concurrency test exists, and the
+compatibility document lists multi-threaded use as untested rather than as
+working.

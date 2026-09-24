@@ -92,5 +92,9 @@ template withWidePath*(text: string; pointerName, body: untyped) =
   ## handing out an address into freed memory.
   block:
     var units = toUtf16(text)
+    # invariant: `toUtf16` always appends a terminator, so `units` is never
+    # empty and index 0 exists. The cast names the 16-bit element width that
+    # `wchar_t` has on Windows, which is where the only callers are. `units` is
+    # a local of this block, so the pointer stays valid for exactly `body`.
     let pointerName = cast[ptr uint16](addr units[0])
     body
