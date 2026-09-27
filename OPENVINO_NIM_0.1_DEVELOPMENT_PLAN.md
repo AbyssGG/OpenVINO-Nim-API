@@ -1732,11 +1732,11 @@ docs: prepare OpenVINO Nim API 0.1.0 release
 - [x] H07 全新 Windows/Linux 环境完成安装、runtime 加载和 CPU 推理。证据：`examples-package`、`smoke` 与 `integration-cpu` 已在 Windows/Linux 运行；本轮 Windows 再次运行 `packagingCheck`、ABI、smoke、debug/release integration、ORC/ARC lifecycle 全部通过。
 - [ ] H08 经授权创建并验证 `v0.1.0-rc.1`。
 - [ ] H09 RC 后只接受阻断性修复并重跑 release Gate。
-- [x] H10 经用户明确授权后创建正式 tag、push、release 和发布包。证据：tag `v0.1.0` 的最终 release workflow [#36062222998](https://github.com/AbyssGG/OpenVINO-Nim-API/actions/runs/36062222998) 在干净提交 `5a053d6` 上完成 archive、可重复性和 publish；GitHub Release [v0.1.0](https://github.com/AbyssGG/OpenVINO-Nim-API/releases/tag/v0.1.0) 为非 draft、非 prerelease。
+- [x] H10 经用户明确授权后创建正式 tag、push、release 和发布包。证据：tag `v0.1.0` 的最终 release workflow [#36291935922](https://github.com/AbyssGG/OpenVINO-Nim-API/actions/runs/36291935922) 在干净提交 `ef8da5d` 上完成 archive、可重复性和 publish；GitHub Release [v0.1.0](https://github.com/AbyssGG/OpenVINO-Nim-API/releases/tag/v0.1.0) 为非 draft、非 prerelease，远端 tag 已解析到该提交。
 - [x] H11 对 `0.1.0`、`2026-9-25`、OpenVINO `2026.4.0` 生成精确基名 `openvino-nim-0-1-0-2026-9-25-ov2026-4-0`；元数据变化时按模板重算，且发布日期必须是真实日历日期。证据：`ci/release-archive.py --self-test`、`--print-name` 本机通过，普通 CI static job 也会运行 self-test；`2026-99-99` 与非闰年的 `2026-2-29` 被拒绝；release workflow 在归档前重复运行同一断言。
-- [x] H12 生成同基名的 `.zip`、`.tar.gz`、`.zip.sha256` 和 `.tar.gz.sha256`。证据：最终 Release `v0.1.0` 恰好包含这四个文件，基名为 `openvino-nim-0-1-0-2026-9-25-ov2026-4-0`；下载四个正式资产后重新计算两个归档的 SHA-256，均与 sidecar 一致。
+- [x] H12 生成同基名的 `.zip`、`.tar.gz`、`.zip.sha256` 和 `.tar.gz.sha256`。证据：最终 Release `v0.1.0` 恰好包含这四个文件，基名为 `openvino-nim-0-1-0-2026-9-25-ov2026-4-0`；下载四个正式资产后重新计算两个归档的 SHA-256，均与 sidecar 一致；两种归档各含 115 个 entry，包内 README 展示名为 `OpenVINO Nim API`。
 - [x] H13 两种归档都只有一个与基名相同的顶层目录，且不包含 OpenVINO runtime/SDK。证据：发布脚本读回 zip/tar 的每个 entry，检查唯一顶层目录并拒绝 17 类二进制、runtime 与模型扩展名；本机与 GitHub dry run 均通过。
-- [x] H14 在相同 commit 和发布元数据下重复生成归档，逐项 checksum 一致。证据：最终 release workflow 在提交 `5a053d6` 上连续构建两次并逐文件比较；正式 ZIP 摘要为 `5754a08e858d092b3fc3457b853be0707ecd2c676243770b33057cf574f7f8f1`，tar.gz 摘要为 `71d2d7093c776a3cfb3ebae28dc464f9da7b23c694d2c21773f585fc65f61485`，下载后按 sidecar 独立复核通过。
+- [x] H14 在相同 commit 和发布元数据下重复生成归档，逐项 checksum 一致。证据：最终 release workflow 在提交 `ef8da5d` 上连续构建两次并逐文件比较；正式 ZIP 摘要为 `a14e2eaacda03a7a722a35ef1375a84feafb0ed51024695885acb4e216955924`，tar.gz 摘要为 `c3cdde094e0a5656a941896942d84d8f7b59659bad8473ded6ac66b173d655c3`，下载后按 sidecar 独立复核通过。
 - [x] H15 确认托管平台自动生成的源码包不被误写为规范命名资产；规范资产由受控发布流程上传。证据：`RELEASE_NOTES.md` 明确区分两者；tag-only `publish` 作业只接受 archive 作业验证过的四个文件，并创建或幂等更新 GitHub Release。
 - [x] H16 项目展示名为 `OpenVINO Nim API`，GitHub 仓库名精确为 `OpenVINO-Nim-API`，并与包/归档前缀 `openvino-nim` 分离。证据：仓库为 `AbyssGG/OpenVINO-Nim-API`；`ProjectDisplayName`、`RepositoryName`、单元测试与 `releaseCheck` 固定展示名到 URL-safe 仓库名的映射。
 
