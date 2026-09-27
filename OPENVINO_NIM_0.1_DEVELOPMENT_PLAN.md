@@ -22,7 +22,7 @@
 
 | 项目 | 约定 |
 |---|---|
-| 项目名 | `OpenVINO-Nim-API` |
+| 项目名 | `OpenVINO Nim API` |
 | GitHub 仓库名 | `OpenVINO-Nim-API` |
 | 对外发行名/归档前缀 | `openvino-nim` |
 | Nimble 包标识 | `openvino`（Nimble 标识不允许连字符，并与导入根模块一致） |
@@ -69,7 +69,8 @@ now `AbyssGG/OpenVINO-Nim-API`, the default branch is `main`, and the public
 remote is configured at `https://github.com/AbyssGG/OpenVINO-Nim-API.git`.
 
 The implementation, tests, CI workflows, README, changelog, release notes and
-API documentation are tracked in Git. The public repository name is exactly
+API documentation are tracked in Git. The human-readable project name is
+`OpenVINO Nim API`; the public repository name is exactly
 `OpenVINO-Nim-API`; the Nimble identifier remains `openvino`, and release
 archives use the lowercase `openvino-nim` prefix. Unwanted editor metadata was
 removed and must not be reintroduced.
@@ -1003,7 +1004,8 @@ managed 层至少区分：
 
 | 用途 | 0.1.0 约定 | 说明 |
 |---|---|---|
-| GitHub 仓库名 | `OpenVINO-Nim-API` | 与项目展示名精确一致 |
+| 项目展示名 | `OpenVINO Nim API` | 用于 README 标题、文档标题和项目说明 |
+| GitHub 仓库名 | `OpenVINO-Nim-API` | 项目展示名的 URL-safe 连字符形式 |
 | 对外发行名、归档前缀 | `openvino-nim` | 面向文件系统和包工具，保持小写 |
 | Nimble 包标识与清单文件 | `openvino`、`openvino.nimble` | Nimble 包名语法不接受 `-`；标识与根模块一致，也不改变对外发行名 |
 | Nim 源码导入入口 | `import openvino` | 用户代码中的稳定模块名 |
@@ -1258,7 +1260,7 @@ nimble releaseArchive
 - `import openvino` 在 Windows/Linux 都可编译，即使功能仍为空壳。
 - 包归档不包含旧构建产物、runtime 二进制或开发路径。
 - README、nimble 元数据和 CHANGELOG 的项目名、版本、许可证一致。
-- README 明确说明 `OpenVINO-Nim-API`、`openvino-nim`、`openvino`、`import openvino` 和 Release 归档名前缀分别用于什么场景。
+- README 明确说明 `OpenVINO Nim API`、`OpenVINO-Nim-API`、`openvino-nim`、`openvino`、`import openvino` 和 Release 归档名前缀分别用于什么场景。
 - managed 示例代码通过 `nimpretty` 和 `--styleCheck:error`；C probe 通过 pinned Google-based `clang-format` 检查。
 - raw C 名称例外已有独立检查策略，不存在仓库级 style/lint 关闭。
 
@@ -1596,7 +1598,7 @@ docs: prepare OpenVINO Nim API 0.1.0 release
 - [x] B08 在 Windows/Linux 验证最小 `import openvino` 编译。证据：Windows x86_64 + Nim 2.2.12 与 Linux x86_64（Ubuntu 26.04.1）+ Nim 2.2.4 两侧分别实测 `nimble check`、`formatCheck`、`lint`（含 `--styleCheck:error`）、`test` 全部 exit 0。Linux 侧在一个由 `git archive HEAD` 展开的干净树中执行，即使用者 clone 到的内容。
 - [x] B09 验证 Nimble 包归档不含本机路径、SDK/runtime 或临时文件。证据：`nimble install --nimbleDir:<temp>` 以 exit 0 完成，安装结果为 `nimblemeta.json`、`openvino.nim`、`openvino.nimble`、`openvino/version.nim` 四个文件，无绝对路径、无 SDK/runtime、无临时文件、无文档与测试。过程发现并修复了两个缺陷，记录于 §2.9。
 - [x] B10 为翻译/生成自上游 C headers 的声明记录 SPDX、tag/commit 和来源，并复核是否需要 NOTICE/归属说明。证据：新增 `NOTICE`。全部手写源文件带 `SPDX-License-Identifier: Apache-2.0`；上游 tag/commit 记录为 `version.nim` 的 `TargetOpenVinoTag`/`TargetOpenVinoCommit`，18 个 header 的 SHA-256 记录在两处文档。**NOTICE 的结论是经过论证的，而不是默认加一个文件**：仓库内没有复制任何 OpenVINO 源文本——没有 vendored header、没有由 header 生成的文件、没有搬过来的注释；被复现的只是 ABI 本身的名字与数值（如 `ov_core_create`、`U8 = 16`、`ov_shape_t` 的字段顺序），而绑定若与之不同就不成其为绑定。即便按最保守的读法把这些声明视为 header 的衍生作品，OpenVINO 自身是 Apache-2.0，本项目也以同一许可证分发，因此允许。Apache-2.0 §4(d) 只要求在上游存在可归属 NOTICE 时转述，故本文件陈述关系与来源而不复制任何内容。同时写明：不捆绑任何第三方源码，runtime 仅在运行期按名加载、从不随包分发，唯一引用的第三方产物是 CI 按 URL 与 SHA-256 下载的 wheel 且不再分发。
-- [x] B11 README 解释仓库名 `OpenVINO-Nim-API`、发行前缀 `openvino-nim`、Nimble 标识 `openvino`、清单 `openvino.nimble` 和导入入口 `import openvino` 的区别。证据：`README.md` 的 "Six naming roles" 表逐条给出用途与原因。
+- [x] B11 README 解释展示名 `OpenVINO Nim API`、仓库名 `OpenVINO-Nim-API`、发行前缀 `openvino-nim`、Nimble 标识 `openvino`、清单 `openvino.nimble` 和导入入口 `import openvino` 的区别。证据：`README.md` 的 "Six naming roles" 表逐条给出用途与原因。
 - [x] B12 查询官方 Nimble 包索引，确认 `openvino` 在采用时未被其他项目占用；发布前再次查询并保留证据。证据：两次查询。首次 2026-09-24，`name` 精确等于 `openvino` 的记录数为 0，无任何包含 `openvino` 或 `vino` 的近似名。第二次为本轮，查询 Nimble 自己在本次会话中下载的 `packages_official.json`（mtime 2026-09-24T19:10:08Z，即实时索引而非来历不明的缓存）：2290 个包，精确匹配 0，含 `vino` 的 0，含 `openvino-nim` 或等于 `resonance` 的 0。两次的包总数不同（2945 与 2290），这一差异未能解释，如实记录；两次的实质结论一致，且第二次是按 `name` 精确比较得出的。
 
 ### S. Google 风格与可维护性
@@ -1730,13 +1732,13 @@ docs: prepare OpenVINO Nim API 0.1.0 release
 - [x] H07 全新 Windows/Linux 环境完成安装、runtime 加载和 CPU 推理。证据：`examples-package`、`smoke` 与 `integration-cpu` 已在 Windows/Linux 运行；本轮 Windows 再次运行 `packagingCheck`、ABI、smoke、debug/release integration、ORC/ARC lifecycle 全部通过。
 - [ ] H08 经授权创建并验证 `v0.1.0-rc.1`。
 - [ ] H09 RC 后只接受阻断性修复并重跑 release Gate。
-- [x] H10 经用户明确授权后创建正式 tag、push、release 和发布包。证据：tag `v0.1.0` 的 release workflow [#36061882708](https://github.com/AbyssGG/OpenVINO-Nim-API/actions/runs/36061882708) 在干净提交 `1171f91` 上完成 archive、可重复性和 publish；GitHub Release [v0.1.0](https://github.com/AbyssGG/OpenVINO-Nim-API/releases/tag/v0.1.0) 为非 draft、非 prerelease。
+- [x] H10 经用户明确授权后创建正式 tag、push、release 和发布包。证据：tag `v0.1.0` 的最终 release workflow [#36062222998](https://github.com/AbyssGG/OpenVINO-Nim-API/actions/runs/36062222998) 在干净提交 `5a053d6` 上完成 archive、可重复性和 publish；GitHub Release [v0.1.0](https://github.com/AbyssGG/OpenVINO-Nim-API/releases/tag/v0.1.0) 为非 draft、非 prerelease。
 - [x] H11 对 `0.1.0`、`2026-9-25`、OpenVINO `2026.4.0` 生成精确基名 `openvino-nim-0-1-0-2026-9-25-ov2026-4-0`；元数据变化时按模板重算，且发布日期必须是真实日历日期。证据：`ci/release-archive.py --self-test`、`--print-name` 本机通过，普通 CI static job 也会运行 self-test；`2026-99-99` 与非闰年的 `2026-2-29` 被拒绝；release workflow 在归档前重复运行同一断言。
-- [x] H12 生成同基名的 `.zip`、`.tar.gz`、`.zip.sha256` 和 `.tar.gz.sha256`。证据：commit `cb826e9` 的本机干净 worktree 和 commit `de49201` 的 [release dry run #36056222987](https://github.com/AbyssGG/OpenVINO-Nim-API/actions/runs/36056222987) 都生成并验证恰好四个规范文件。
+- [x] H12 生成同基名的 `.zip`、`.tar.gz`、`.zip.sha256` 和 `.tar.gz.sha256`。证据：最终 Release `v0.1.0` 恰好包含这四个文件，基名为 `openvino-nim-0-1-0-2026-9-25-ov2026-4-0`；下载四个正式资产后重新计算两个归档的 SHA-256，均与 sidecar 一致。
 - [x] H13 两种归档都只有一个与基名相同的顶层目录，且不包含 OpenVINO runtime/SDK。证据：发布脚本读回 zip/tar 的每个 entry，检查唯一顶层目录并拒绝 17 类二进制、runtime 与模型扩展名；本机与 GitHub dry run 均通过。
-- [x] H14 在相同 commit 和发布元数据下重复生成归档，逐项 checksum 一致。证据：本机两次构建与 GitHub dry run 的重复构建均逐文件相等；本机规范归档摘要为 zip `171b2f6e…b3080da`、tar.gz `1d225555…1f0bb1`，两个 sidecar 本身也逐字节一致。
+- [x] H14 在相同 commit 和发布元数据下重复生成归档，逐项 checksum 一致。证据：最终 release workflow 在提交 `5a053d6` 上连续构建两次并逐文件比较；正式 ZIP 摘要为 `5754a08e858d092b3fc3457b853be0707ecd2c676243770b33057cf574f7f8f1`，tar.gz 摘要为 `71d2d7093c776a3cfb3ebae28dc464f9da7b23c694d2c21773f585fc65f61485`，下载后按 sidecar 独立复核通过。
 - [x] H15 确认托管平台自动生成的源码包不被误写为规范命名资产；规范资产由受控发布流程上传。证据：`RELEASE_NOTES.md` 明确区分两者；tag-only `publish` 作业只接受 archive 作业验证过的四个文件，并创建或幂等更新 GitHub Release。
-- [x] H16 GitHub 仓库名精确为 `OpenVINO-Nim-API`，并与包/归档前缀 `openvino-nim` 分离。证据：仓库已重命名为 `AbyssGG/OpenVINO-Nim-API`；`RepositoryName`、单元测试与 `releaseCheck` 固定该映射。
+- [x] H16 项目展示名为 `OpenVINO Nim API`，GitHub 仓库名精确为 `OpenVINO-Nim-API`，并与包/归档前缀 `openvino-nim` 分离。证据：仓库为 `AbyssGG/OpenVINO-Nim-API`；`ProjectDisplayName`、`RepositoryName`、单元测试与 `releaseCheck` 固定展示名到 URL-safe 仓库名的映射。
 
 ### I. Open-source completeness and bilingual entry points
 
@@ -1799,7 +1801,7 @@ maintained entry point rather than a second API vocabulary.
 - managed/Nim、raw/C 和 Markdown 是否分别通过规定的 Google-style/Nim-style 自动检查，且 formatter 零 diff？
 - raw C 标识符的风格例外是否局部、可审计，未关闭 managed 层检查？
 - 包是否可在干净环境安装，且不携带 OpenVINO runtime 或受限模型？
-- GitHub 仓库名是否精确为 `OpenVINO-Nim-API`，发行归档前缀是否保持 `openvino-nim`，同时 `openvino.nimble`、Nimble 标识和 `import openvino` 是否保持一致？
+- 项目展示名是否为 `OpenVINO Nim API`，GitHub 仓库名是否精确为 `OpenVINO-Nim-API`，发行归档前缀是否保持 `openvino-nim`，同时 `openvino.nimble`、Nimble 标识和 `import openvino` 是否保持一致？
 - Git tag、Release 标题、规范归档名、归档顶层目录和 SHA-256 是否由同一组版本元数据生成并完全一致？
 - `0.1.0` 在 `2026-9-24` 面向 OpenVINO `2026.4.0` 时，规范归档基名是否精确为 `openvino-nim-0-1-0-2026-9-24-ov2026-4-0`？
 - 相同 commit 和发布元数据能否生成 checksum 相同的 `.zip` 与 `.tar.gz`？

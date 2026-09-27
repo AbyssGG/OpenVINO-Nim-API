@@ -37,10 +37,10 @@ suite "package metadata":
   test "public entry point exports the distribution name":
     check PackageName == "openvino-nim"
 
-  test "the repository name matches the project name exactly":
-    check ProjectDisplayName == "OpenVINO-Nim-API"
+  test "the repository name is the URL-safe project name":
+    check ProjectDisplayName == "OpenVINO Nim API"
     check RepositoryName == "OpenVINO-Nim-API"
-    check RepositoryName == ProjectDisplayName
+    check RepositoryName == ProjectDisplayName.replace(" ", "-")
 
   test "the distribution name remains safe for package and archive tools":
     check ProjectDisplayName != PackageName
@@ -48,11 +48,11 @@ suite "package metadata":
     check ProjectDisplayName != ProjectDisplayName.toLowerAscii()
 
   test "the display name lowercases to something close to the package name":
-    # Not equal: the display name ends in -API and the distribution name does
-    # not. Checked so that the relationship between them stays a deliberate
-    # one rather than a coincidence nobody reviewed.
-    check ProjectDisplayName.toLowerAscii() == "openvino-nim-api"
-    check ProjectDisplayName.toLowerAscii().startsWith(PackageName)
+    # The display name ends in API and the distribution name does not. Convert
+    # its spaces to hyphens before comparing the machine-readable form.
+    let slug = ProjectDisplayName.toLowerAscii().replace(" ", "-")
+    check slug == "openvino-nim-api"
+    check slug.startsWith(PackageName)
 
   test "both names are recognisably about OpenVINO and Nim":
     # So that a reader who meets one of them can find the other.
@@ -61,10 +61,8 @@ suite "package metadata":
     check "openvino" in PackageName
     check "nim" in PackageName
 
-  test "neither name contains a space":
-    # A space would break a slug, a path and an archive name. The display name
-    # is mixed case rather than spaced precisely so that it stays usable.
-    check ' ' notin ProjectDisplayName
+  test "only the human-readable name contains spaces":
+    check ' ' in ProjectDisplayName
     check ' ' notin RepositoryName
     check ' ' notin PackageName
 

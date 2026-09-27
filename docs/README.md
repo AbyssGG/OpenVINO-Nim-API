@@ -1,6 +1,6 @@
 # Documentation
 
-This directory is the English documentation set for OpenVINO-Nim-API. The
+This directory is the English documentation set for OpenVINO Nim API. The
 repository keeps the API and implementation vocabulary in English so that
 code, diagnostics and links remain searchable; [the Chinese README](../README_zh-CN.md)
 provides a bilingual entry point.

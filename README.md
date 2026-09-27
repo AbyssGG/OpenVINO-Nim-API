@@ -1,4 +1,4 @@
-# OpenVINO-Nim-API
+# OpenVINO Nim API
 
 [![CI](https://github.com/AbyssGG/OpenVINO-Nim-API/actions/workflows/ci.yml/badge.svg)](https://github.com/AbyssGG/OpenVINO-Nim-API/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
@@ -10,7 +10,7 @@
 
 Nim bindings for the [OpenVINO](https://docs.openvino.ai/) Runtime C API.
 
-OpenVINO-Nim-API provides two layers. The managed API is idiomatic Nim with
+OpenVINO Nim API provides two layers. The managed API is idiomatic Nim with
 private native handles, Nim exceptions and documented ownership rules. The
 raw layer is a header-faithful binding to the OpenVINO C ABI for callers who
 need it.
@@ -101,22 +101,23 @@ source of confusion when installing the package.
 
 | Name | Where it is used | Why |
 |---|---|---|
-| `OpenVINO-Nim-API` | Project title, prose, repository description | The display name. Mixed case, for reading |
+| `OpenVINO Nim API` | Project title, prose, repository description | The human-readable display name |
 | `OpenVINO-Nim-API` | GitHub repository name | The exact public repository name requested by the project owner |
 | `openvino-nim` | Release archive prefix and distribution references | Lowercase because file systems and package indexes disagree about case |
 | `openvino` | Nimble package identifier | Nimble package identifiers may not contain a hyphen |
 | `openvino.nimble` | Manifest file name | Nimble requires the manifest name to match the package identifier |
 | `import openvino` | Nim source code | The stable import root, kept identical to the package identifier |
 
-The project title and GitHub repository deliberately match exactly. Package
-and archive tooling still use their lowercase identifiers: `openvino-nim` for
-release assets and `openvino` for Nimble and imports. A Git tag remains a
-SemVer tag such as `v0.1.0`; it is not derived from any of these names.
+The GitHub repository is the hyphenated form of the human-readable project
+title. Package and archive tooling use their lowercase identifiers:
+`openvino-nim` for release assets and `openvino` for Nimble and imports. A Git
+tag remains a SemVer tag such as `v0.1.0`; it is not derived from any of these
+names.
 
 `nimble releaseCheck` asserts that this README mentions the repository,
-display and distribution names, that the first two match, and that the
-distribution name stays lowercase, so none can quietly drift from
-`src/openvino/version.nim`.
+display and distribution names, that the repository is the hyphenated display
+name, and that the distribution name stays lowercase, so none can quietly
+drift from `src/openvino/version.nim`.
 
 Release archives use the base name
 `openvino-nim-{version}-{date}-ov{openvino-version}` with dots replaced by

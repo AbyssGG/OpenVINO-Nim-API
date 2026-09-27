@@ -652,12 +652,13 @@ task releaseCheck, "Verify version metadata is consistent across the repo":
     if not readme.contains(needle):
       failures.add("README.md does not mention '" & needle & "'")
 
-  # The repository's public identity matches the display name exactly. Release
-  # archives remain lowercase because they are consumed by package and file
-  # system tooling with different case rules.
-  if repositoryName != displayName:
+  # The repository is the URL-safe, hyphenated form of the human-readable
+  # display name. Release archives remain lowercase because they are consumed
+  # by package and file-system tooling with different case rules.
+  if repositoryName != displayName.replace(" ", "-"):
     failures.add("RepositoryName '" & repositoryName &
-      "' must exactly match ProjectDisplayName '" & displayName & "'")
+      "' must be the hyphenated form of ProjectDisplayName '" &
+      displayName & "'")
   if displayName == packageName:
     failures.add("ProjectDisplayName and PackageName must differ; the first " &
       "is for reading and the second is what tools consume")

@@ -13,7 +13,11 @@ and the OpenVINO runtime baseline evolve independently:
 
 ## Unreleased
 
-No changes yet.
+- Changed the human-readable project title to `OpenVINO Nim API` while keeping
+  the public repository name `OpenVINO-Nim-API` and release prefix
+  `openvino-nim` unchanged.
+- Updated the development-plan evidence with the final `v0.1.0` workflow,
+  commit and independently verified published checksums.
 
 ## 0.1.0
 

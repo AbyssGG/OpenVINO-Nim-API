@@ -1,6 +1,6 @@
 # Security policy
 
-OpenVINO-Nim-API is a community-maintained binding. Please do not disclose a
+OpenVINO Nim API is a community-maintained binding. Please do not disclose a
 suspected vulnerability in a public issue, pull request or code comment.
 
 ## Reporting

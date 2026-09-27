@@ -1,6 +1,6 @@
 # Support
 
-OpenVINO-Nim-API is an early, community-maintained project. It is not an
+OpenVINO Nim API is an early, community-maintained project. It is not an
 Intel-supported product and it does not provide a service-level agreement.
 
 Before opening an issue:

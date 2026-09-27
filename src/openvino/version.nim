@@ -14,7 +14,7 @@
 ## here performs I/O or native calls.
 
 const
-  ProjectDisplayName* = "OpenVINO-Nim-API"
+  ProjectDisplayName* = "OpenVINO Nim API"
     ## Human-readable project name, for titles, prose and the repository
     ## description.
     ##
@@ -31,7 +31,7 @@ const
 
   RepositoryName* = "OpenVINO-Nim-API"
     ## Exact public GitHub repository name. GitHub repository names may use
-    ## mixed case and hyphens, so this intentionally matches the project
+    ## mixed case and hyphens, so this is the URL-safe form of the project
     ## display name rather than the lowercase release archive prefix.
 
   PackageName* = "openvino-nim"

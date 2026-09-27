@@ -1,4 +1,4 @@
-# OpenVINO-Nim-API
+# OpenVINO Nim API
 
 [English](README.md) | **简体中文**
 
@@ -46,7 +46,8 @@ GPU、NPU、macOS、异步回调、动态 shape 和预处理不在当前已验�
 
 | 名称 | 用途 |
 |---|---|
-| `OpenVINO-Nim-API` | 项目显示名和 GitHub 仓库名 |
+| `OpenVINO Nim API` | 项目显示名 |
+| `OpenVINO-Nim-API` | GitHub 仓库名 |
 | `openvino-nim` | 发布归档前缀 |
 | `openvino` | Nimble 包标识和 `import` 根模块 |
 | `openvino.nimble` | Nimble 清单文件 |

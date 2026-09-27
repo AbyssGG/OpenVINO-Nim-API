@@ -1,6 +1,6 @@
-# OpenVINO-Nim-API 0.1.0
+# OpenVINO Nim API 0.1.0
 
-OpenVINO-Nim-API 0.1.0 is the first release of the community-maintained Nim
+OpenVINO Nim API 0.1.0 is the first release of the community-maintained Nim
 bindings for the OpenVINO Runtime C API. It is not an official Intel or
 OpenVINO project.
 

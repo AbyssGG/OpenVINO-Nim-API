@@ -1,6 +1,6 @@
 # API overview
 
-OpenVINO-Nim-API has a small managed surface and an explicit raw C layer. The
+OpenVINO Nim API has a small managed surface and an explicit raw C layer. The
 managed surface is the compatibility target for application code; raw modules
 mirror the pinned OpenVINO 2026.4 C headers and are intentionally less safe.
 
