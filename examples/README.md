@@ -8,7 +8,7 @@ download models or depend on a YOLO/GenAI application.
 |---|---|---|
 | `list_devices.nim` | Runtime version and device discovery | None |
 | `minimal.nim` | The smallest complete synchronous inference | None |
-| `sync_infer.nim` | Model metadata and inference from user-supplied paths | `<model.xml> <device>` |
+| `sync_infer.nim` | Model metadata and verified inference with four `float32` inputs | `<model.xml> <device>` |
 | `tensor_basics.nim` | Shapes, element types and safe/unsafe data paths | None |
 | `profiling.nim` | Per-node profiling and property configuration | None |
 
@@ -21,9 +21,14 @@ nimble examples
 Run one file directly from the repository root:
 
 ```shell
-nim c -r --path:src examples/sync_infer.nim \
-  tests/fixtures/relu_1x4_f32.xml CPU
+nim c -r --path:src examples/sync_infer.nim tests/fixtures/relu_1x4_f32.xml CPU
 ```
+
+`sync_infer.nim` accepts a model path and device, but its input values and
+`max(0, x)` output check are specific to the ReLU fixture. To use another
+model, update the input count, element types, shapes, data preparation and
+output validation. The fixture has no weights; an IR model with weights also
+needs its `.bin` file.
 
 Use [Getting started](../docs/getting-started.md) for loader setup and
 [the API overview](../docs/api-overview.md) for the ownership rules that the

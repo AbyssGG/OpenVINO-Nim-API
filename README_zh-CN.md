@@ -19,12 +19,13 @@ Corporation 的认可或附属关系。** OpenVINO 是 Intel Corporation 的商�
 - OpenVINO Runtime `2026.4.0`；
 - CPU 上的同步推理、生命周期、ABI、集成和示例测试。
 
-GPU、NPU、macOS、异步回调、动态 shape 和预处理不在当前已验证声明中。
+GPU、NPU 和 macOS 尚未验证。异步推理、回调、动态形状 API 和预处理尚未实现。
 请查看英文的[兼容性矩阵](docs/compatibility.md)和[路线图](docs/roadmap.md)。
 
 ## 快速开始
 
-1. 安装 OpenVINO Runtime `2026.4.x`，并在当前 shell 执行官方环境配置脚本。
+1. 安装 OpenVINO Runtime `2026.4.x`。Windows 使用 CMD 调用 `setupvars.bat`；
+   Linux 在 Bash 中使用 `source` 加载 `setupvars.sh`。后续命令在同一会话执行。
 2. 克隆仓库并安装本地 Nim 包：
 
    ```shell
@@ -41,6 +42,13 @@ GPU、NPU、macOS、异步回调、动态 shape 和预处理不在当前已验�
 
 英文[入门指南](docs/getting-started.md)包含 Windows/Linux 的动态库检查、
 测试命令和常见故障处理。
+
+Nimble 索引条目尚未发布，因此目前从仓库安装。安装后的包名和导入名均为
+`openvino`，代码中使用 `import openvino`。
+
+示例使用仓库自带的无权重 ReLU 模型，预期输出为 `@[0.0, 2.0, 0.0, 4.0]`。
+接入自己的模型时，需要修改输入个数、元素类型、形状、数据准备和结果校验；
+仅替换模型路径不足以完成适配。有权重的 IR 模型还需要对应的 `.bin` 文件。
 
 ## 名称约定
 

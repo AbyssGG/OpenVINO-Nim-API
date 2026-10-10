@@ -57,8 +57,9 @@ before designing an application around a future feature.
 
 ## Quick start
 
-1. Install OpenVINO Runtime `2026.4.x` and run its official environment setup
-   script for the current shell.
+1. Install OpenVINO Runtime `2026.4.x`. On Windows, run `setupvars.bat` in
+   Command Prompt (CMD); on Linux, source `setupvars.sh` in Bash. Keep using
+   that shell for the remaining commands.
 2. Clone this repository and install the local Nim package:
 
    ```shell
@@ -159,24 +160,26 @@ visible to the dynamic loader:
 Loading `openvino_c` alone is not enough to run inference. `Core` also needs
 `plugins.xml`, the device plugins and the model frontends from the same
 official runtime layout. Copying a single library out of an OpenVINO
-installation will fail at model load time, not at library load time.
+installation can load successfully and still fail when creating a `Core` or
+reading a model.
 
-The official setup scripts (`setupvars.bat` on Windows, `setupvars.sh` on
-Linux) configure the environment for the current shell. This package never
-modifies environment variables or the process search path on your behalf.
+Run `setupvars.bat` in CMD on Windows, or source `setupvars.sh` in Bash on
+Linux. Run installation and inference in that same session; environment
+changes made by a batch file launched from PowerShell do not propagate back
+to its parent shell. See [Getting started](docs/getting-started.md) for the
+commands and pip-specific loader setup.
 
 ## Installing the package
 
-```shell
-nimble install openvino
-```
-
-The Nimble package index entry is not published yet. Until then, install from
-a local checkout:
+The Nimble package index entry is not published yet. Run this command from
+the repository root after cloning the checkout:
 
 ```shell
 nimble install
 ```
+
+The installed package is named `openvino`; import it with `import openvino`.
+Use `nimble install openvino` after the package index entry is published.
 
 ## Minimal synchronous inference
 
@@ -209,13 +212,22 @@ proc main() =
 main()
 ```
 
-Prints `@[0.0, 2.0, 0.0, 4.0]`: the model is a ReLU, so the two negative
+Run the example from the repository root:
+
+```shell
+nim c -r --path:src examples/minimal.nim
+```
+
+It prints `@[0.0, 2.0, 0.0, 4.0]`: the model is a ReLU, so the two negative
 inputs become zero and the two positive ones pass through.
 
-This is not a transcription. The same code is `examples/minimal.nim`, which
-`nimble examples` compiles and runs, and `nimble lint` fails if the two drift
-apart. Note what is absent: no device is chosen for you, no cache directory
-appears, and every object is closed where it was created.
+The code matches `examples/minimal.nim`, which `nimble examples` compiles and
+runs. `nimble lint` checks that the README example stays in sync. Each owned
+object is closed in the scope that creates it.
+
+To adapt it to another model, update the input count, element type, shape,
+data preparation and output validation. The bundled fixture has no weights;
+an IR model with weights also needs its `.bin` file.
 
 More examples, all using the public API only:
 
@@ -223,7 +235,7 @@ More examples, all using the public API only:
 |---|---|
 | `examples/list_devices.nim` | Runtime version and device discovery, useful first when a deployment misbehaves |
 | `examples/minimal.nim` | The block above |
-| `examples/sync_infer.nim` | The same loop with the model path and device taken from the command line, plus model metadata |
+| `examples/sync_infer.nim` | Model metadata and the four-value ReLU loop, with model path and device arguments |
 | `examples/tensor_basics.nim` | Shapes, element types, and the difference between the safe data paths and the unsafe one |
 | `examples/profiling.nim` | Per-node timings, and what the numbers do and do not mean |
 
@@ -236,20 +248,28 @@ Failures surface as distinguishable Nim exceptions rather than status codes:
 | `OpenVinoError` | An OpenVINO C call returned a non-OK status |
 | `OpenVinoLibraryError` | The dynamic library or a required symbol is missing |
 | `OpenVinoVersionError` | The detected runtime major/minor is unsupported |
+| `OpenVinoArgumentError` | An argument or handle state is invalid before the C call |
 
 `OpenVinoError` carries the operation name, the numeric status, the stable
 status description and the native detail captured at the moment of failure.
 Argument errors such as a negative index, an invalid shape or a call on a
 closed object are raised before entering the C layer.
 
+Call `requireSupportedRuntime()` if your application should fail early on a
+runtime outside the `2026.4` baseline. This check is explicit; package import
+and `newCore()` do not call it automatically.
+
 ## Lifetime and zero-copy rules
 
 Two rules cover most of what you need to know:
 
-1. Every managed type owns exactly one native handle and offers an
+1. Each managed handle owns one native handle and offers an
    idempotent `close()`. Calling `close()` twice is harmless. Using an
    object after `close()` raises a Nim error instead of crashing in native
    code. Destructors are a backstop, not a replacement for `close()`.
+   Assigning a managed value shares the handle and its closed state; closing
+   either alias closes both. `Shape` and `Property` are Nim-owned values and
+   do not need `close()`.
 2. Tensors allocated by OpenVINO or copied from Nim data are the safe
    default. Any entry point that borrows caller memory without owning it is
    named with `unsafe` and documents exactly what the caller must guarantee
