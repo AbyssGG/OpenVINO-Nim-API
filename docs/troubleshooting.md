@@ -1,22 +1,22 @@
 # Troubleshooting
 
-Ordered by how early the failure happens. Work down the list: each step rules
-out everything above it.
+Start with the section that matches the failing operation. Check library
+loading before device discovery, model reading and inference.
 
 ## The library will not load
 
 Symptom: `OpenVinoLibraryError` before anything else happens.
 
-The message already names every library name that was tried and distinguishes
-two cases. Read which one you have.
+The exception lists the library names tried. Use the reported loader failure
+to choose the next check:
 
 | Message says | Meaning | Fix |
 |---|---|---|
 | no such file | The loader never found a candidate | Put the runtime's library directory on the search path |
 | the file exists but failed to load | A candidate was found and the OS refused it | A dependency of the library is missing, or the architecture does not match |
 
-**The dependency that catches almost everyone is oneTBB.** `openvino_c.dll`
-depends on it, and it lives in a different directory from the runtime libraries.
+`openvino_c.dll` depends on oneTBB, which can live in a different directory
+from the runtime libraries.
 On Windows both of these must be on `PATH`:
 
 ```text
@@ -26,25 +26,26 @@ On Windows both of these must be on `PATH`:
 
 With only the first, `LoadLibrary` fails even when given the full path to
 `openvino_c.dll`, and the error looks exactly like a missing file. The official
-`setupvars.bat` sets both; copying one DLL out of an installation sets neither.
+`setupvars.bat` sets both. Run it in CMD and run inference in that same
+session. A batch file launched from PowerShell does not update the parent
+PowerShell environment.
 
 On Linux the equivalent is `LD_LIBRARY_PATH` covering `runtime/lib/intel64` and
 the oneTBB directory, or an `ldconfig` entry. `ldd libopenvino_c.so` names what
 is missing.
 
-**A pip installation has no file called `libopenvino_c.so`.** The wheel ships
-`libopenvino_c.so.2640`, with that as its SONAME, and no unversioned symlink,
-because a wheel has no reason to carry a link that only a linker would use. This
-package tries both names, so a pip install works, but the directory still has to
-be on the loader path:
+A Linux pip wheel may provide only `libopenvino_c.so.2640`, without an
+unversioned `libopenvino_c.so` symlink. The package tries both names. Add the
+wheel's library directory to the loader path, using the Python environment
+where OpenVINO is installed:
 
 ```shell
-export LD_LIBRARY_PATH="$(python -c 'import openvino,os;print(os.path.join(os.path.dirname(openvino.__file__),"libs"))')${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+OV_LIB_DIR=$(python -c 'import openvino, os; print(os.path.join(os.path.dirname(openvino.__file__), "libs"))')
+export LD_LIBRARY_PATH="$OV_LIB_DIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 ```
 
-oneTBB ships in that same directory in the wheel layout, so one path covers
-both. If the failure message lists two names tried and neither was found, the
-directory is what is missing, not the library.
+Check that oneTBB is also available in that layout. If neither candidate is
+found, verify the Python environment and loader path before reinstalling.
 
 Architecture mismatch is the other case: a 32-bit Nim build cannot load a 64-bit
 runtime. Nothing in the message will say "architecture", so check it if the path
@@ -65,16 +66,19 @@ it by using a complete OpenVINO installation rather than selected files from one
 list is empty, the C API library loaded but no plugin did. Same cause as above: a
 layout that is missing `plugins.xml` or the plugin libraries.
 
-If `CPU` is missing specifically, the installation is not a runtime installation.
-CPU is always present in a complete one.
+If `CPU` is missing, check the CPU plugin and its dependencies in the selected
+installation. A listed device confirms discovery; it does not verify that a
+model can compile and run on that device.
 
 ## A symbol cannot be resolved
 
 Symptom: `OpenVinoLibraryError` naming one symbol.
 
-The installed runtime is older than `2026.4`. The non-variadic property entry
-points this package requires do not exist in earlier versions. See
-`docs/compatibility.md` for why there is no fallback.
+Check whether the loader selected an older or mixed OpenVINO installation.
+The non-variadic property entry points this package requires are unavailable
+in runtimes before `2026.4`. See [Compatibility](compatibility.md) for the
+baseline and fallback policy. `runtimeVersion()` reports the loaded runtime;
+`requireSupportedRuntime()` checks its major/minor against the baseline.
 
 `nimble testSmoke` checks all 55 required symbols at once and names the first
 that is missing, which is faster than finding out one call at a time.
@@ -93,7 +97,9 @@ that is missing, which is faster than finding out one call at a time.
 Check these in order, because each is cheaper to rule out than the next:
 
 1. **Element type.** `port.elementType()` is what the model declares. Binding an
-   `f32` tensor to an `f16` input is not refused by the shapes.
+   `f32` tensor to an `f16` input is not validated by checking shape alone.
+   Typed tensor access checks width and size, but does not convert data or
+   distinguish integers from floats of the same width.
 2. **Shape and layout.** A shape of `[1, 3, 224, 224]` and one of
    `[1, 224, 224, 3]` hold the same number of elements. Nothing will complain;
    the output will simply be wrong.
@@ -105,21 +111,25 @@ Check these in order, because each is cheaper to rule out than the next:
    anything. If the buffer was a `seq` that grew, or a local that went out of
    scope, the tensor is reading memory that no longer belongs to it.
 
+If `sync_infer.nim` reports unexpected output for your own model, check its
+verification code too. The example supplies four `float32` values and expects
+ReLU output; adapt both the input preparation and output check to your model.
+
 ## A crash rather than an exception
 
-The managed layer raises before calling into C for a closed object, a negative
-index or an invalid shape, so a hard crash points at one of these:
+The managed layer rejects closed objects, negative indexes and invalid shapes
+before calling into C. For a crash, first check these lifetime conditions:
 
 - An `unsafe` entry point whose contract was not met. That is what the name is
   for; the documented conditions are address stability, alignment, capacity and
   lifetime.
-- Direct use of `openvino/raw`, where releasing is yours to do. `docs/ownership.md`
-  lists what each call returns and who releases it.
+- Direct use of `openvino/raw`, where the caller releases native resources.
+  [Ownership rules](ownership.md) lists the release function for each result.
 - One `InferRequest` used from several threads. Not supported and not tested.
 
 ## Profiling shows nodes that are not in the model
 
-Expected. The names are the plugin's, after fusion and other graph
+Profiling names come from the plugin after fusion and other graph
 transformations, so they need not match the IR. A fused node may account for
 several IR nodes.
 
@@ -139,9 +149,9 @@ reproducible rather than quoted.
 
 | Task | Needs |
 |---|---|
-| `check`, `formatCheck`, `lint`, `test`, `releaseCheck`, `checkFixtures` | Nim only |
+| `check`, `formatCheck`, `lint`, `test`, `releaseCheck`, `checkFixtures`, `docs` | Nim only |
 | `testAbi` | The OpenVINO **headers**: `OPENVINO_INCLUDE_DIR` or `INTEL_OPENVINO_DIR` |
-| `testSmoke`, `testLifecycle`, `testIntegration`, `examples`, `docs`, `packagingCheck` | A loadable runtime, oneTBB included |
+| `testSmoke`, `testLifecycle`, `testIntegration`, `examples`, `packagingCheck` | A loadable runtime, oneTBB included |
 | `memcheck` | Linux, and valgrind. It fails rather than skipping on other platforms |
 | `releaseArchive` | Python, a clean working tree, and `OPENVINO_NIM_RELEASE_DATE` |
 

@@ -10,14 +10,35 @@ Install OpenVINO from an official distribution. The Nim package loads the C
 runtime at execution time; it does not bundle the runtime, plugins, frontends,
 or oneTBB.
 
-On Windows, open a fresh PowerShell and run the official `setupvars.bat` from
-the OpenVINO installation. The shell must be able to find `openvino_c.dll` and
-the runtime's oneTBB directory.
+On Windows, open Command Prompt (CMD) and run the official `setupvars.bat`.
+Replace the path below with your OpenVINO installation directory:
 
-On Linux, source the official `setupvars.sh`, or export a loader path that
-contains `libopenvino_c.so.2640` and its oneTBB dependency. A pip wheel may
-provide only the versioned library name; the package tries both the unversioned
-and versioned Linux names.
+```bat
+call "C:\path\to\openvino\setupvars.bat"
+```
+
+Run the remaining installation and inference commands in the same CMD
+session. Running a batch file from PowerShell sets the environment in a child
+process; those changes do not propagate back to the parent PowerShell session.
+The loader must be able to find both `openvino_c.dll` and oneTBB.
+
+On Linux, source the official setup script in the current Bash session:
+
+```shell
+source /path/to/openvino/setupvars.sh
+```
+
+For a pip installation, add the library directory to the loader path. Use the
+Python environment where OpenVINO is installed:
+
+```shell
+OV_LIB_DIR=$(python -c 'import openvino, os; print(os.path.join(os.path.dirname(openvino.__file__), "libs"))')
+export LD_LIBRARY_PATH="$OV_LIB_DIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+```
+
+The package tries both `libopenvino_c.so` and `libopenvino_c.so.2640`. Some
+wheel layouts provide only the versioned name. Keep oneTBB available on the
+loader path as well.
 
 The C library alone is insufficient. `Core` also needs `plugins.xml`, device
 plugins and model frontends from the same runtime installation.
@@ -30,8 +51,9 @@ cd OpenVINO-Nim-API
 nimble install
 ```
 
-The Nimble index entry may not exist while `0.1.0` is unreleased. A local
-`nimble install` installs the package into Nimble's configured package path.
+Version `0.1.0` is released, but its Nimble index entry is not published yet.
+Run `nimble install` from the checkout to install the package into Nimble's
+configured package path. The package and import name are both `openvino`.
 
 ## 3. Run the examples
 
@@ -42,14 +64,18 @@ require a downloaded model:
 nimble examples
 ```
 
-To run the command-line example directly:
+Run commands from the repository root so that the fixture path resolves.
+To run the command-line example directly in CMD or Bash:
 
 ```shell
-nim c -r --path:src examples/sync_infer.nim \
-  tests/fixtures/relu_1x4_f32.xml CPU
+nim c -r --path:src examples/sync_infer.nim tests/fixtures/relu_1x4_f32.xml CPU
 ```
 
 The expected ReLU output is `@[0.0, 2.0, 0.0, 4.0]`.
+
+This fixture has no weights, so it does not require a separate `.bin` file.
+The example supplies four `float32` values and verifies `max(0, x)`; changing
+only the model path does not adapt it to an arbitrary model.
 
 ## 4. Run checks
 
@@ -84,6 +110,12 @@ It creates every managed object in the scope that owns it, closes each object
 explicitly, and runs one synchronous request. Copy that file before adapting
 the code to a real model.
 
+For your model, check the input count, each port's `elementType()` and static
+`shape()`. Prepare data for every required input and replace the ReLU output
+check with the expected behavior of your model. Keep an IR model's `.xml` and
+`.bin` files together when it has weights. Image layout, normalization and
+postprocessing are application responsibilities.
+
 The [API overview](api-overview.md) explains which objects are copied, which
 operations block, and where the raw layer begins.
 
@@ -93,7 +125,7 @@ operations block, and where the raw layer begins.
 |---|---|---|
 | `OpenVinoLibraryError` says the library is missing | Loader path does not contain the C library | Re-run the official setup script in the same shell |
 | The C library loads but `newCore()` fails | Plugins, frontends or oneTBB are missing | Use one consistent OpenVINO installation layout |
-| A model path works on one host only | Narrow path encoding differs by host | Use the managed path API and read [compatibility](compatibility.md) |
+| A model file cannot be found | A relative path resolves from a different working directory | Run from the repository root or use an absolute model path |
 | `nimble install openvino` cannot find a package | `0.1.0` is not indexed yet | Install from the checkout with `nimble install` |
 
 For detailed failure messages, see [Troubleshooting](troubleshooting.md).

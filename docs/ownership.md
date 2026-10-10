@@ -17,9 +17,9 @@ as backstop, and every alias sharing one closed state.
 | **Borrowed** | Valid only while something else lives; must never be released |
 | **Static** | Valid for the process lifetime; must never be released |
 
-Confusing borrowed with owned leaks. Confusing static with owned corrupts the
-heap. Both mistakes are present in the prototype this package replaces, which
-is why every row below names the kind explicitly.
+Failing to release an owned allocation leaks memory. Releasing borrowed or
+static memory can invalidate another owner's data or corrupt the heap. Use
+the release function listed for each owned result below.
 
 ## Opaque handles
 
@@ -126,13 +126,9 @@ obligations listed on the function.
 
 ## Threads
 
-Nothing in this package takes a lock. That is a deliberate absence: a binding
-that locked on every call would make a single-threaded program pay for a
-guarantee it did not ask for, and it still could not make the interesting cases
-safe. What follows is therefore a division of responsibility, not a promise.
-
-Read the second column as "who has to be careful", and the third as how far the
-claim is backed.
+The package adds no locking around managed handle operations. The table
+distinguishes upstream thread-safety claims from behavior verified by this
+project. Do not close any handle while another thread uses it.
 
 | Type | Sharing across threads | Backing |
 |---|---|---|
@@ -144,7 +140,7 @@ claim is backed.
 | `Shape`, `ElementType`, `Property` | Immutable values, safe to share and to copy | They hold owned Nim data and touch no native state |
 | Exceptions | Each carries its own copied message and status | `lastErrorMessage` is read and copied before any other OpenVINO call, because the runtime keeps one global slot |
 
-Three rules that follow from the table and are worth stating on their own.
+Apply these rules when managing objects across threads:
 
 **`close()` is never concurrent with use.** The closed check refuses a call on a
 closed handle, but it cannot help if another thread closes between the check and
