@@ -10,6 +10,13 @@ Install OpenVINO from an official distribution. The Nim package loads the C
 runtime at execution time; it does not bundle the runtime, plugins, frontends,
 or oneTBB.
 
+Choose `2026.4` for your OS/architecture in the
+[official download selector](https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html).
+Follow the [OpenVINO installation guide](https://docs.openvino.ai/2026/get-started/install-openvino.html)
+to extract the runtime archive. Alternatively, install the wheel into a Python
+environment with `python -m pip install "openvino==2026.4.0"`; Python is only an
+installation/conversion tool, not required by the Nim inference application.
+
 On Windows, open Command Prompt (CMD) and run the official `setupvars.bat`.
 Replace the path below with your OpenVINO installation directory:
 
@@ -43,6 +50,15 @@ loader path as well.
 The C library alone is insufficient. `Core` also needs `plugins.xml`, device
 plugins and model frontends from the same runtime installation.
 
+### macOS (experimental)
+
+This project has not verified macOS inference. If the official selector offers
+`2026.4` for your architecture, extract it and source its `setupvars.sh` in the
+same shell. The loader looks for `libopenvino_c.dylib`; an explicit compiler
+option `-d:openvinoLib=/full/path/to/libopenvino_c.dylib` selects that library,
+but does not configure its dependencies or plugins. Keep the complete official
+runtime layout. Do not interpret these instructions as a support claim.
+
 ## 2. Install the package from a checkout
 
 ```shell
@@ -54,6 +70,14 @@ nimble install
 Version `0.1.0` is released, but its Nimble index entry is not published yet.
 Run `nimble install` from the checkout to install the package into Nimble's
 configured package path. The package and import name are both `openvino`.
+
+For application development without a checkout, install directly from Git:
+
+```shell
+nimble install https://github.com/AbyssGG/OpenVINO-Nim-API
+```
+
+The examples and fixture below still need a checkout.
 
 ## 3. Run the examples
 

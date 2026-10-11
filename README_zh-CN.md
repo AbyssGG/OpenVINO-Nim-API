@@ -5,6 +5,9 @@
 OpenVINO Runtime C API 的 Nim 绑定。项目主文档以英文维护，本页提供中文
 入口和关键说明；API 名称、代码示例和兼容性结论以英文文档为准。
 
+Nim 编译为原生程序，推理应用不需要 Python 运行时，适合减少部署中的应用栈。
+这不意味着单文件部署：OpenVINO 动态库、插件和模型仍需单独提供。
+
 **本项目由社区维护，不是 Intel 或 OpenVINO 官方项目，也没有得到 Intel
 Corporation 的认可或附属关系。** OpenVINO 是 Intel Corporation 的商标。
 
@@ -46,6 +49,12 @@ GPU、NPU 和 macOS 尚未验证。异步推理、回调、动态形状 API 和�
 Nimble 索引条目尚未发布，因此目前从仓库安装。安装后的包名和导入名均为
 `openvino`，代码中使用 `import openvino`。
 
+不需要示例和模型文件时，也可以直接从 Git 安装：
+
+```shell
+nimble install https://github.com/AbyssGG/OpenVINO-Nim-API
+```
+
 示例使用仓库自带的无权重 ReLU 模型，预期输出为 `@[0.0, 2.0, 0.0, 4.0]`。
 接入自己的模型时，需要修改输入个数、元素类型、形状、数据准备和结果校验；
 仅替换模型路径不足以完成适配。有权重的 IR 模型还需要对应的 `.bin` 文件。
@@ -65,6 +74,7 @@ Nimble 索引条目尚未发布，因此目前从仓库安装。安装后的包�
 
 ## 文档入口
 
+- [生成的 API 文档站](https://abyssgg.github.io/OpenVINO-Nim-API/)（维护者启用 Pages 后可用）
 - [英文 README](README.md)
 - [英文入门指南](docs/getting-started.md)
 - [英文 API overview](docs/api-overview.md)

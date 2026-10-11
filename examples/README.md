@@ -30,6 +30,33 @@ model, update the input count, element types, shapes, data preparation and
 output validation. The fixture has no weights; an IR model with weights also
 needs its `.bin` file.
 
+## Obtaining another model
+
+The bundled fixture is the best first test: no download or conversion is
+needed. For your own ONNX model, use OpenVINO's offline conversion tools in a
+separate Python environment with `openvino==2026.4.0` installed:
+
+```shell
+ovc /path/to/model.onnx --output_model /path/to/converted/model.xml
+```
+
+See [OpenVINO model conversion](https://docs.openvino.ai/2026/openvino-workflow/model-preparation.html)
+for supported source formats and conversion options. Keep the generated XML
+and BIN together. Python is needed for this preparation step, not for the Nim
+inference application.
+
+To find a public example model, browse
+[Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo) and follow
+the chosen model's download/conversion instructions. Check its license,
+input layout, normalization, output meaning and compatibility with your
+OpenVINO version before use; no Zoo model is tested by this repository.
+
+For image classification, prepare the required image tensor in application
+code and interpret the output scores using that model's labels. The bindings
+do not include image decoding, resizing, normalization, a classification
+pipeline or model downloading. Do not run the ReLU example unchanged against
+a classification model.
+
 Use [Getting started](../docs/getting-started.md) for loader setup and
 [the API overview](../docs/api-overview.md) for the ownership rules that the
 examples intentionally make visible.

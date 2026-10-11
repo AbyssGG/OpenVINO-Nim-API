@@ -6,6 +6,12 @@ writing code, and
 [OPENVINO_NIM_0.1_DEVELOPMENT_PLAN.md](OPENVINO_NIM_0.1_DEVELOPMENT_PLAN.md)
 for the phase-by-phase scope of `0.1.0`.
 
+Please follow our [Code of Conduct](CODE_OF_CONDUCT.md). New to the project?
+Documentation corrections, clearer examples and reproducible bug reports are
+welcome. Use the issue templates for bugs and feature requests, and
+[Discussions](https://github.com/AbyssGG/OpenVINO-Nim-API/discussions) for
+questions once the maintainer enables it. Never include private models or secrets.
+
 ## Prerequisites
 
 | Component | Requirement | Needed for |
@@ -149,6 +155,32 @@ Creating tags, pushing, opening pull requests, publishing releases and
 publishing to the Nimble package index all require explicit authorisation
 from the project owner for that specific action. Nothing in the development
 plan or in this document grants that authorisation implicitly.
+
+## Maintainer discoverability checklist
+
+These settings and submissions are manual; merging the repository changes
+does not perform them:
+
+- In Settings → Pages, set **Source = GitHub Actions**. Allow the
+  `github-pages` environment to deploy from `main`, then run `docs-pages`
+  once (or push to `main`) and verify its deployment.
+- After the site is live, set the repository homepage to
+  `https://abyssgg.github.io/OpenVINO-Nim-API/`.
+- Enable **Discussions** under Settings → General → Features so the question
+  links in the issue chooser and README work.
+- Upload an original **1280 × 640** social preview image under Settings →
+  General → Social preview. Do not imply Intel endorsement.
+- Review `docs/promotion/nimble-packages-entry.json`, check that `openvino`
+  is available in `nim-lang/packages`, and submit the entry to `packages.json`
+  following that repository's current contribution rules. Keep Git-URL
+  installation instructions until the entry is accepted.
+- Review and submit the Nim forum, Show HN, r/nim and Chinese drafts in
+  `docs/promotion/`, and the awesome-list entries where appropriate. Check
+  platform rules, disclose authorship and avoid duplicate/spam submissions.
+  Update draft statements about registry and documentation availability
+  before posting.
+- Optionally review repository topics such as `nim`, `nim-lang`, `openvino`,
+  `inference`, `machine-learning`, `bindings` and `edge-ai`.
 
 ## License
 

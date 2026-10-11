@@ -1,5 +1,8 @@
 blank_issues_enabled: false
 contact_links:
+  - name: Questions and community discussion
+    url: https://github.com/AbyssGG/OpenVINO-Nim-API/discussions
+    about: Ask usage questions here once Discussions is enabled by the maintainer.
   - name: Troubleshooting guide
     url: https://github.com/AbyssGG/OpenVINO-Nim-API/blob/main/docs/troubleshooting.md
     about: Check the loader and runtime diagnostics before opening an issue.
