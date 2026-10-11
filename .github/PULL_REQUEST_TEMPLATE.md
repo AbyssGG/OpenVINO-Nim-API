@@ -19,7 +19,7 @@
 
 ## Checklist
 
-- [ ] No editor metadata, runtime binaries, model weights or credentials were added.
+- [ ] No editor metadata or build artifacts were added.
 - [ ] No runtime binaries, model weights, credentials or absolute local paths were added.
 - [ ] New public symbols have ownership, blocking behaviour and exception docs.
 - [ ] `docs/c-api-coverage.md` or the managed API overview is updated.

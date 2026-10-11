@@ -1,18 +1,18 @@
 # SPDX-License-Identifier: Apache-2.0
 #
-# Manual API documentation publishing. The repository keeps this workflow
+# API documentation publishing. The repository keeps this workflow
 # separate from blocking CI so Pages can be enabled by a maintainer when the
 # repository settings and deployment environment are ready.
 
 name: docs-pages
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
@@ -21,7 +21,7 @@ concurrency:
 jobs:
   build:
     name: build API pages
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
       # actions/checkout v7.0.1
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -33,7 +33,10 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Generate API documentation
-        run: nimble docs
+        run: |
+          nim doc --project --index:on --path:src --outdir:htmldocs src/openvino.nim
+          nimble docs
+          cp -R build/docs/. htmldocs/
 
       # actions/configure-pages v6.0.0
       - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d
@@ -41,12 +44,15 @@ jobs:
       # actions/upload-pages-artifact v5.0.0
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9
         with:
-          path: build/docs
+          path: htmldocs
 
   deploy:
     name: deploy API pages
     needs: build
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

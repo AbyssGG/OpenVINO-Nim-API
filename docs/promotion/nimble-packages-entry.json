@@ -1,0 +1,9 @@
+{
+  "name": "openvino",
+  "url": "https://github.com/AbyssGG/OpenVINO-Nim-API",
+  "method": "git",
+  "tags": ["openvino", "inference", "machine-learning", "bindings"],
+  "description": "Nim bindings for the OpenVINO Runtime C API, with managed handles and synchronous inference",
+  "license": "Apache-2.0",
+  "web": "https://github.com/AbyssGG/OpenVINO-Nim-API"
+}

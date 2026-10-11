@@ -4,11 +4,17 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Nim](https://img.shields.io/badge/Nim-%E2%89%A52.0.0-yellow.svg)](https://nim-lang.org/)
 [![OpenVINO](https://img.shields.io/badge/OpenVINO-2026.4.x-6b4fbb.svg)](https://docs.openvino.ai/)
-[![Status](https://img.shields.io/badge/status-v0.1.0-brightgreen.svg)](https://github.com/AbyssGG/OpenVINO-Nim-API/releases/tag/v0.1.0)
+[![Latest release](https://img.shields.io/github/v/release/AbyssGG/OpenVINO-Nim-API)](https://github.com/AbyssGG/OpenVINO-Nim-API/releases/latest)
 
 **English** | [简体中文](README_zh-CN.md)
 
-Nim bindings for the [OpenVINO](https://docs.openvino.ai/) Runtime C API.
+**Run OpenVINO inference from Nim: native binaries, an idiomatic managed API,
+and direct access to the Runtime C API.**
+
+Nim compiles to native code, so your inference application needs no Python
+runtime. This makes Nim + OpenVINO useful for small deployments without a
+Python application stack—not a promise of a single-file deployment: OpenVINO
+libraries, plugins and your model still ship separately.
 
 OpenVINO Nim API provides two layers. The managed API is idiomatic Nim with
 private native handles, Nim exceptions and documented ownership rules. The
@@ -38,7 +44,7 @@ made for GPU, NPU or macOS. See [compatibility](docs/compatibility.md) for what
 was and was not run. Nothing in this README should be read as a claim that a
 feature already works unless it says so.
 
-## Feature overview
+## Features
 
 | Capability | 0.1.0 status | Notes |
 |---|---|---|
@@ -57,10 +63,18 @@ before designing an application around a future feature.
 
 ## Quick start
 
-1. Install OpenVINO Runtime `2026.4.x`. On Windows, run `setupvars.bat` in
+1. Install [Nim](https://nim-lang.org/install.html) `2.0.0` or newer and
+   [OpenVINO Runtime](#installing-the-openvino-runtime) `2026.4.x`.
+   On Windows, run `setupvars.bat` in
    Command Prompt (CMD); on Linux, source `setupvars.sh` in Bash. Keep using
-   that shell for the remaining commands.
-2. Clone this repository and install the local Nim package:
+   that shell for the remaining commands. macOS is not verified by this project.
+2. Install directly from Git (the Nimble registry entry is not published yet):
+
+   ```shell
+   nimble install https://github.com/AbyssGG/OpenVINO-Nim-API
+   ```
+
+3. For the bundled model and runnable examples, clone the repository:
 
    ```shell
    git clone https://github.com/AbyssGG/OpenVINO-Nim-API.git
@@ -68,15 +82,38 @@ before designing an application around a future feature.
    nimble install
    ```
 
-3. Run the verified examples against the included four-value ReLU fixture:
+4. Run the verified examples against the included four-value ReLU fixture:
 
    ```shell
    nimble examples
    ```
 
-The [getting started guide](docs/getting-started.md) has platform-specific
-loader checks and troubleshooting. The complete inference snippet is kept
-below and is compiled from the same source as `examples/minimal.nim`.
+Here is the managed inference flow, using that fixture from the repository root:
+
+```nim
+import openvino
+
+proc main() =
+  let core = newCore()
+  defer: core.close()
+  let compiled = core.compileModel("tests/fixtures/relu_1x4_f32.xml", "CPU")
+  defer: compiled.close()
+  let request = compiled.createInferRequest()
+  defer: request.close()
+  let input = tensorFrom(etF32, initShape(1, 4), [float32(-1.5), 2.0, -0.25, 4.0])
+  defer: input.close()
+  request.setInputTensor(0, input); request.infer()
+  let output = request.outputTensor(0)
+  defer: output.close()
+  echo output.toSeq(float32)
+main()
+```
+
+Expected output: `@[0.0, 2.0, 0.0, 4.0]`. Save it as `quickstart.nim` and run
+`nim c -r quickstart.nim` after installing the package.
+The [getting started guide](docs/getting-started.md) has loader checks and
+troubleshooting. The expanded [minimal example](#minimal-synchronous-inference)
+below is checked against `examples/minimal.nim` by the repository's lint task.
 
 ## Release artifacts
 
@@ -152,10 +189,26 @@ The package binds to the OpenVINO runtime at run time and never ships it.
 Install OpenVINO `2026.4.x` separately, then make sure the C API library is
 visible to the dynamic loader:
 
+Use the [official installation selector](https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html)
+and [installation documentation](https://docs.openvino.ai/2026/get-started/install-openvino.html)
+to obtain the `2026.4` runtime for your OS and architecture.
+
+| Platform | Installation and activation |
+|---|---|
+| Linux x86_64 | Extract the official runtime archive; in Bash run `source /path/to/openvino/setupvars.sh` |
+| Windows x86_64 | Extract the official runtime archive; in CMD run `call "C:\path\to\openvino\setupvars.bat"` |
+| macOS | Use the official distribution for your architecture, if available for `2026.4`; source its `setupvars.sh` and keep the complete library layout. **Experimental: no macOS inference validation here** |
+
+Python/pip is an optional installation route, not an inference dependency.
+For example, `python -m pip install "openvino==2026.4.0"` installs into that
+Python environment; configure its library directory as described in
+[Getting started](docs/getting-started.md).
+
 | Platform | Library | Loader notes |
 |---|---|---|
 | Windows | `openvino_c.dll` | Must be on the DLL search path |
 | Linux | `libopenvino_c.so`, or `libopenvino_c.so.2640` | Must be on the loader search path. A pip installation ships only the versioned name; both are tried |
+| macOS (unverified) | `libopenvino_c.dylib` | Keep dependencies on the loader path; `-d:openvinoLib=/full/path/to/libopenvino_c.dylib` can select the C library explicitly |
 
 Loading `openvino_c` alone is not enough to run inference. `Core` also needs
 `plugins.xml`, the device plugins and the model frontends from the same
@@ -171,8 +224,13 @@ commands and pip-specific loader setup.
 
 ## Installing the package
 
-The Nimble package index entry is not published yet. Run this command from
-the repository root after cloning the checkout:
+The Nimble package index entry is not published yet. Install from its Git URL:
+
+```shell
+nimble install https://github.com/AbyssGG/OpenVINO-Nim-API
+```
+
+Alternatively, run this command from the repository root after cloning:
 
 ```shell
 nimble install
@@ -229,7 +287,9 @@ To adapt it to another model, update the input count, element type, shape,
 data preparation and output validation. The bundled fixture has no weights;
 an IR model with weights also needs its `.bin` file.
 
-More examples, all using the public API only:
+## Examples
+
+All examples use the public managed API and the bundled, weight-free model:
 
 | Example | What it shows |
 |---|---|
@@ -238,6 +298,9 @@ More examples, all using the public API only:
 | `examples/sync_infer.nim` | Model metadata and the four-value ReLU loop, with model path and device arguments |
 | `examples/tensor_basics.nim` | Shapes, element types, and the difference between the safe data paths and the unsafe one |
 | `examples/profiling.nim` | Per-node timings, and what the numbers do and do not mean |
+
+See the [example guide](examples/README.md) for commands and instructions for
+obtaining and adapting another model with OpenVINO conversion tools.
 
 ## Error diagnosis
 
@@ -280,6 +343,10 @@ Two rules cover most of what you need to know:
 The [documentation hub](docs/README.md) groups the English guides and the
 generated API reference.
 
+**[API documentation site](https://abyssgg.github.io/OpenVINO-Nim-API/)**
+is published by the Pages workflow once the maintainer enables GitHub Pages.
+Until its first deployment, use `nimble docs` locally or the `api-docs` CI artifact.
+
 Start with whichever question you have:
 
 | Question | Document |
@@ -302,7 +369,17 @@ Project documents: [notice and provenance](NOTICE),
 [changelog](CHANGELOG.md),
 [prototype audit](docs/resonance-audit.md).
 
-## Project layout
+## Architecture
+
+`import openvino` exposes the managed layer: private native handles,
+idempotent `close()`, Nim exceptions, validated arguments and safe tensor
+copies. `import openvino/raw` explicitly opts into header-faithful C ABI
+declarations; raw callers are responsible for native lifetimes and status codes.
+The managed root never re-exports the raw API.
+
+See [Architecture](docs/architecture.md) for the design and ownership boundary.
+
+### Project layout
 
 | Path | Purpose |
 |---|---|
@@ -314,7 +391,15 @@ Project documents: [notice and provenance](NOTICE),
 | `docs/` | Architecture, compatibility, API coverage and decisions |
 | `.github/workflows/` | Static, runtime, documentation and release checks |
 
-## Community and support
+## Roadmap
+
+After `0.1.0`, priorities include Nim-safe asynchronous callbacks, dynamic-shape
+and preprocessing APIs, and verified coverage beyond CPU on Windows/Linux.
+These are plans, not supported features or delivery promises.
+See the [roadmap](docs/roadmap.md) and discuss concrete use cases before
+depending on them.
+
+## Contributing
 
 Bug reports should include the OpenVINO runtime version, Nim version, target
 device and the smallest reproducible example. Start with
@@ -326,6 +411,11 @@ Pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md), keep the
 managed/raw boundary intact, and update tests and documentation with any
 public API change. The project is community maintained and is not an Intel
 product.
+
+For usage questions and ideas, use
+[Discussions](https://github.com/AbyssGG/OpenVINO-Nim-API/discussions)
+once enabled by the maintainer. Please follow the
+[Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## License
 

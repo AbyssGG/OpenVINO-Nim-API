@@ -11,7 +11,7 @@ provides a bilingual entry point.
 |---|---|
 | I am new to the project | [Getting started](getting-started.md) |
 | I need the public types and functions | [API overview](api-overview.md) |
-| I need the generated symbol pages | [API index](api-index.html) after `nimble docs` |
+| I need the generated symbol pages | [API site](https://abyssgg.github.io/OpenVINO-Nim-API/) once Pages is enabled, or local `build/docs/index.html` after `nimble docs` |
 | I need to know what really works | [Compatibility](compatibility.md) |
 | I need to diagnose a loader or runtime failure | [Troubleshooting](troubleshooting.md) |
 | I need the C binding boundary | [C API coverage](c-api-coverage.md) |
@@ -33,11 +33,13 @@ artifact in CI and can also be opened locally at `build/docs/index.html`.
 
 ## Optional GitHub Pages deployment
 
-The manual `docs-pages` workflow builds the same output and deploys it to
+The `docs-pages` workflow runs `nim doc --project --index:on --outdir:htmldocs`
+on the main module (with `--path:src`), then adds the curated public-module
+pages and index from `nimble docs`. It deploys the result to
 GitHub Pages. A maintainer must first enable Pages for GitHub Actions and allow
 the `github-pages` environment; until then, the normal CI artifact remains the
-supported hosted copy. The workflow is deliberately manual so an unopened
-Pages setting cannot break the required test workflow.
+supported hosted copy. Publishing runs on pushes to `main` or manual dispatch,
+separately from required CI. The site documents `main`, not a frozen release.
 
 Markdown is checked by `nimble lint`. New documents need one H1 heading,
 language-tagged fenced blocks, descriptive links and a final newline.

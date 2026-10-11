@@ -13,6 +13,11 @@ and the OpenVINO runtime baseline evolve independently:
 
 ## Unreleased
 
+- Improved onboarding with Git-URL installation, compact inference guidance,
+  runtime installation links and explicit deployment limitations.
+- Added ecosystem announcement and package-index submission drafts.
+- Added a Discussions entry point and automatic main-branch API Pages publishing.
+
 - Changed the human-readable project title to `OpenVINO Nim API` while keeping
   the public repository name `OpenVINO-Nim-API` and release prefix
   `openvino-nim` unchanged.
