@@ -26,11 +26,11 @@ suite "the shared library version suffix":
       $TargetOpenVinoMinor & $TargetOpenVinoPatch
 
   test "the suffix for the current baseline is the one a real install uses":
-    # The literal is the name observed on OpenVINO 2026.4.0 installed with pip:
-    # libopenvino_c.so.2640. Asserting the derivation alone would keep passing
+    # The literal is the name observed on OpenVINO 2026.4.1 installed with pip:
+    # libopenvino_c.so.2641. Asserting the derivation alone would keep passing
     # if the scheme itself were wrong, so the measured value is pinned too.
-    check TargetOpenVinoVersion == "2026.4.0"
-    check soVersionSuffix == "2640"
+    check TargetOpenVinoVersion == "2026.4.1"
+    check soVersionSuffix == "2641"
 
   test "the version components agree with the version string":
     let parts = TargetOpenVinoVersion.split('.')
@@ -62,17 +62,20 @@ suite "candidate library names":
       check candidateLibraries() == @["libopenvino_c.dylib"]
 
   else:
-    test "Linux tries the unversioned name first, then the versioned one":
+    test "Linux tries the unversioned name first, then versioned patches":
       # Order matters. The archive and apt layouts provide the symlink, which
       # is the name upstream documents; the pip wheel provides only the
       # versioned file. Trying the documented name first keeps the common case
-      # on the path OpenVINO's own instructions describe.
+      # on the path OpenVINO's own instructions describe, followed by the
+      # pinned patch SONAME and earlier verified patches in the same series.
       let candidates = candidateLibraries()
-      check candidates.len == 2
+      check candidates.len == 3
       check candidates[0] == "libopenvino_c.so"
       check candidates[1] == "libopenvino_c.so." & soVersionSuffix
+      check candidates[2] == "libopenvino_c.so.2640"
 
-    test "the versioned candidate is the pip wheel's SONAME":
+    test "the versioned candidates cover the verified 2026.4 pip wheels":
+      check "libopenvino_c.so.2641" in candidateLibraries()
       check "libopenvino_c.so.2640" in candidateLibraries()
 
 suite "explicit paths":

@@ -66,7 +66,7 @@ proc stringMetadata(name: string): string =
 #
 # `nimble releaseCheck` closes the loop by asserting each literal against
 # src/openvino/version.nim, so the single source of truth still wins.
-version = "0.1.0"
+version = "0.1.1"
 author = "WANG"
 description = "Community-maintained Nim bindings for the OpenVINO Runtime " &
   "C API. Not an official Intel or OpenVINO project."
@@ -423,6 +423,23 @@ task testIntegration, "Run the CPU inference loop through the public API":
     for path in sources:
       exec "nim c --hints:off --path:src " & buildMode & " -r " & path
 
+task testHardware, "Run the GPU and NPU inference suites on a hardware host":
+  # Optional hardware verification. Kept separate from `testIntegration` so
+  # CPU-only CI runners do not fail for lack of an accelerator, while still
+  # failing loudly when invoked on a host without GPU and NPU.
+  var sources: seq[string] = @[]
+  collectNimSources("tests/hardware", sources)
+  if sources.len == 0:
+    echo "No hardware tests found under tests/hardware."
+    quit(1)
+  for memoryManager in ["orc", "arc"]:
+    for buildMode in ["", "-d:release"]:
+      let modeName = (if buildMode.len == 0: "debug" else: "release")
+      echo "--- mm: ", memoryManager, ", build: ", modeName, " ---"
+      for path in sources:
+        exec "nim c --hints:off --path:src --mm:" & memoryManager & " " &
+          buildMode & " -r " & path
+
 task testSmoke, "Load a real OpenVINO runtime and exercise the raw layer":
   # Needs an installed runtime on the loader path, not just the headers. The
   # test itself reports a missing or incomplete runtime as a failure with the
@@ -468,6 +485,7 @@ task packagingCheck, "Install into a clean directory and consume it from there":
   rmDir scratch
   mkDir nimbleDir
   mkDir consumerDir
+  writeFile(nimbleDir & "/packages_official.json", "[]\n")
 
   exec "nimble install -y --nimbleDir:" & nimbleDir
 
@@ -478,10 +496,9 @@ task packagingCheck, "Install into a clean directory and consume it from there":
   # No --path:src. The only way `import openvino` can resolve is the install.
   # NimScript has no `ExeExt`, so the suffix is spelled out per platform.
   let exeSuffix = (when defined(windows): ".exe" else: "")
-  let binary = consumerDir & "/consumer" & exeSuffix
+  let binary = thisDir() & "/" & consumerDir & "/consumer" & exeSuffix
   exec "nim c --hints:off --nimblePath:" & nimbleDir & "/pkgs2" &
-    " --out:" & binary & " " & consumerDir & "/consumer.nim"
-  exec binary & " " & fixture
+    " --out:" & binary & " -r " & consumerDir & "/consumer.nim " & fixture
 
   # What landed in the package. Anything here that is not a Nim source or the
   # manifest metadata means the manifest is shipping something it should not.

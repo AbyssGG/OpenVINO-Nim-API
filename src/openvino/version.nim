@@ -39,7 +39,7 @@ const
     ## `RepositoryName`; the Nimble package identifier and Nim import root are
     ## both `openvino`, because Nimble identifiers may not contain a hyphen.
 
-  PackageVersion* = "0.1.0"
+  PackageVersion* = "0.1.1"
     ## SemVer version of this Nim package. Versioned independently of the
     ## OpenVINO runtime: see `TargetOpenVinoVersion`.
 
@@ -47,7 +47,7 @@ const
     ## Lowest Nim version the package claims to support. The claim is only
     ## valid for combinations actually exercised by CI.
 
-  TargetOpenVinoVersion* = "2026.4.0"
+  TargetOpenVinoVersion* = "2026.4.1"
     ## Exact OpenVINO release this package is developed and verified
     ## against. Raw bindings are derived from this release's C headers.
 
@@ -59,7 +59,7 @@ const
     ## Minor component of `TargetOpenVinoVersion`, kept separately so that
     ## consistency can be checked mechanically.
 
-  TargetOpenVinoPatch* = 0
+  TargetOpenVinoPatch* = 1
     ## Patch component of `TargetOpenVinoVersion`.
     ##
     ## Needed for more than bookkeeping: upstream builds the shared-library
@@ -67,9 +67,9 @@ const
     ## derives the versioned library name from these constants rather than
     ## carrying a second copy of the number.
 
-  TargetOpenVinoTag* = "2026.4.0"
+  TargetOpenVinoTag* = "2026.4.1"
     ## Upstream Git tag the pinned C headers are taken from.
 
-  TargetOpenVinoCommit* = "99c8149"
+  TargetOpenVinoCommit* = "e213a14"
     ## Upstream release commit for `TargetOpenVinoTag`, recorded so that
     ## header provenance stays auditable.

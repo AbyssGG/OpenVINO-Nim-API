@@ -3,16 +3,21 @@
 This roadmap separates work that is already usable from work that needs a
 design and tests. It is not a promise of a release date.
 
-## Available in 0.1.0
+## Available in 0.1.1
 
-- Windows x86_64 and Linux x86_64 CPU inference with OpenVINO `2026.4.0`.
+- Windows x86_64 and Linux x86_64 CPU inference with OpenVINO `2026.4.1` and
+  `2026.4.0`.
+- Verified Windows x86_64 GPU (`GPU`, `GPU.0` Intel iGPU, `GPU.1` NVIDIA dGPU)
+  and NPU (`Intel(R) AI Boost`) inference, profiling and blob export/import via
+  `nimble testHardware`.
 - Managed Core, Model, CompiledModel, InferRequest, Tensor, Shape and Property
   types with explicit ownership and exceptions.
 - Raw declarations for the verified synchronous C ABI path.
 - Runtime version/device discovery, profiling and explicit compiled-model blob
   export/import.
 - ABI probes, smoke tests, lifecycle tests under ORC and ARC, debug/release
-  integration tests, examples and clean-directory packaging checks.
+  integration and hardware tests, examples and clean-directory packaging
+  checks.
 
 ## Next priorities
 

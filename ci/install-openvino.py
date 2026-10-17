@@ -40,38 +40,38 @@ import zipfile
 
 # The pinned OpenVINO version. Must equal TargetOpenVinoVersion in
 # src/openvino/version.nim; checked below rather than trusted.
-OPENVINO_VERSION = "2026.4.0"
+OPENVINO_VERSION = "2026.4.1"
 
 # The upstream build number, which appears in the wheel file name and in the
 # runtime's own version string. Recording it here means a wheel rebuilt under
 # the same version number cannot be substituted silently.
-OPENVINO_BUILD = "22959"
+OPENVINO_BUILD = "22982"
 
 # One wheel per Tier 1 platform, addressed by immutable URL and verified by
 # the sha256 that PyPI publishes for it. cp312 because the CI pins Python 3.12.
 WHEELS = {
     "Linux": {
         "filename": (
-            "openvino-2026.4.0-22959-cp312-cp312-manylinux_2_28_x86_64.whl"
+            "openvino-2026.4.1-22982-cp312-cp312-manylinux_2_28_x86_64.whl"
         ),
         "url": (
-            "https://files.pythonhosted.org/packages/09/96/"
-            "106f20950f8636f23925fa9867f9b1d7d10dd20f7b0300b10f8da40fdf16/"
-            "openvino-2026.4.0-22959-cp312-cp312-manylinux_2_28_x86_64.whl"
+            "https://files.pythonhosted.org/packages/ec/3a/"
+            "2a173ac1ad749ff0b041788eefc1ade0d410231fedfc43f77474f3b806cc/"
+            "openvino-2026.4.1-22982-cp312-cp312-manylinux_2_28_x86_64.whl"
         ),
         "sha256": (
-            "75245768f656afffd49078cee55b50b9501bb6778798aec3cc30e5613a86e370"
+            "6b4375c17ddcac83a5180349e2e2bb811185c261066e2a920659892d58ef0e3b"
         ),
     },
     "Windows": {
-        "filename": "openvino-2026.4.0-22959-cp312-cp312-win_amd64.whl",
+        "filename": "openvino-2026.4.1-22982-cp312-cp312-win_amd64.whl",
         "url": (
-            "https://files.pythonhosted.org/packages/62/95/"
-            "6b1a095f865cd5a02f773590a419525ee9f9fc25770901cf461dad38aa29/"
-            "openvino-2026.4.0-22959-cp312-cp312-win_amd64.whl"
+            "https://files.pythonhosted.org/packages/d0/44/"
+            "66a61b7cfccea1dfa20e95a04b4157f07a0e4dc3f7e894b22a92abb8822b/"
+            "openvino-2026.4.1-22982-cp312-cp312-win_amd64.whl"
         ),
         "sha256": (
-            "1d64a3178e750ea35f4095dc8ee6e0492795a5cf85c0dd24593a29f8a60c209d"
+            "4e04316abff1b99e29b8cbd38deaef9bde4739eba216d982d4b3981e456ecd87"
         ),
     },
 }

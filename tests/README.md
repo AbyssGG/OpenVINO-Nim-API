@@ -10,6 +10,7 @@ require the pinned OpenVINO headers or runtime as noted below.
 | `tests/abi/` / `nimble testAbi` | C struct layout, enum values, calling conventions and required symbols | Headers for ABI; runtime for smoke |
 | `tests/lifecycle/` / `nimble testLifecycle` | Error paths and native-handle release under ORC and ARC | Yes |
 | `tests/integration/` / `nimble testIntegration` | Real CPU ReLU inference in debug and release builds | Yes |
+| `tests/hardware/` / `nimble testHardware` | Real GPU and NPU ReLU inference, external buffers, non-ASCII paths, profiling and blob round-trip under ORC and ARC in debug and release builds | Yes (plus GPU/NPU hardware) |
 | `tests/packaging/` / `nimble packagingCheck` | Install into a clean Nimble directory and compile outside the checkout | Yes |
 | `tests/fixtures/` | Small deterministic model and provenance/checksum record | No |
 
@@ -21,6 +22,7 @@ nimble testAbi
 nimble testSmoke
 nimble testLifecycle
 nimble testIntegration
+nimble testHardware
 nimble packagingCheck
 ```
 

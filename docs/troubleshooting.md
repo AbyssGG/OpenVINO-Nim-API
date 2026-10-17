@@ -34,10 +34,11 @@ On Linux the equivalent is `LD_LIBRARY_PATH` covering `runtime/lib/intel64` and
 the oneTBB directory, or an `ldconfig` entry. `ldd libopenvino_c.so` names what
 is missing.
 
-A Linux pip wheel may provide only `libopenvino_c.so.2640`, without an
-unversioned `libopenvino_c.so` symlink. The package tries both names. Add the
-wheel's library directory to the loader path, using the Python environment
-where OpenVINO is installed:
+A Linux pip wheel provides only `libopenvino_c.so.2641` (or
+`libopenvino_c.so.2640`), without an unversioned `libopenvino_c.so` symlink.
+The package tries the unversioned name first and then the verified `2026.4.x`
+SONAMEs. Add the wheel's library directory to the loader path, using the
+Python environment where OpenVINO is installed:
 
 ```shell
 OV_LIB_DIR=$(python -c 'import openvino, os; print(os.path.join(os.path.dirname(openvino.__file__), "libs"))')
@@ -133,9 +134,16 @@ Profiling names come from the plugin after fusion and other graph
 transformations, so they need not match the IR. A fused node may account for
 several IR nodes.
 
-Also measured: the CPU plugin returns a node list even when profiling was never
-requested. The presence of entries does not prove profiling is on; timings above
-zero do. On this fixture the two runs differ like this:
+Also measured across plugins when `enableProfiling()` was **not** set at
+compilation time:
+
+- The `CPU` plugin returns a node list with `status = psNotRun` and `0 us`.
+- The `NPU` plugin returns an empty list (`@[]`).
+- The `GPU` plugin (`GPU`, `GPU.0`, `GPU.1`) raises `OpenVinoError` stating
+  that profiling data was not collected because `enable_profiling` was not set.
+
+When compiled with `[enableProfiling()]`, all three plugins return timed
+execution entries. On CPU for the ReLU fixture the two runs differ like this:
 
 | Run | Entries | Executed | Total real time |
 |---|---|---|---|
@@ -152,6 +160,7 @@ reproducible rather than quoted.
 | `check`, `formatCheck`, `lint`, `test`, `releaseCheck`, `checkFixtures`, `docs` | Nim only |
 | `testAbi` | The OpenVINO **headers**: `OPENVINO_INCLUDE_DIR` or `INTEL_OPENVINO_DIR` |
 | `testSmoke`, `testLifecycle`, `testIntegration`, `examples`, `packagingCheck` | A loadable runtime, oneTBB included |
+| `testHardware` | A loadable runtime plus at least one GPU or NPU device |
 | `memcheck` | Linux, and valgrind. It fails rather than skipping on other platforms |
 | `releaseArchive` | Python, a clean working tree, and `OPENVINO_NIM_RELEASE_DATE` |
 

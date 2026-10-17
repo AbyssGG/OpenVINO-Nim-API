@@ -33,11 +33,16 @@ const
     ## the package is only verified against the pinned baseline recorded in
     ## `openvino/version`.
 
+const soSeriesPrefix* =
+  $(TargetOpenVinoMajor mod 100) & $TargetOpenVinoMinor
+  ## Upstream's shared-library major-minor prefix: the last two digits of the
+  ## year, then the minor. `2026.4.x` gives `264`.
+
 const soVersionSuffix* =
-  $(TargetOpenVinoMajor mod 100) & $TargetOpenVinoMinor & $TargetOpenVinoPatch
+  soSeriesPrefix & $TargetOpenVinoPatch
   ## Upstream's shared-library version suffix for the pinned release: the last
-  ## two digits of the year, then the minor, then the patch. `2026.4.0` gives
-  ## `2640`, which is the suffix observed on a real installation.
+  ## two digits of the year, then the minor, then the patch. `2026.4.1` gives
+  ## `2641`, which is the suffix observed on a real installation.
   ##
   ## Derived rather than written out, so bumping the baseline in
   ## `openvino/version` cannot leave a stale library name behind. The scheme
@@ -59,16 +64,17 @@ else:
   const platformLibraries = [
     "libopenvino_c.so",
     "libopenvino_c.so." & soVersionSuffix]
-    ## Two names, in this order, because two common Linux installations
-    ## disagree about which exists.
+    ## Unversioned symlink first, then the pinned release's versioned SONAME.
+    ## Earlier verified patches in the same major.minor series are appended by
+    ## `candidateLibraries`.
     ##
     ## The archive and apt packages ship the versioned file plus an
     ## unversioned development symlink, so the first name resolves. The pip
     ## wheel ships only `libopenvino_c.so.<suffix>`, with that as its SONAME
     ## and no symlink, because a wheel has no reason to carry a link that only
-    ## a linker would use. Measured on OpenVINO 2026.4.0 installed with pip:
-    ## with only the first name, loading failed on an installation that was
-    ## complete and working.
+    ## a linker would use. Measured on OpenVINO 2026.4.0 and 2026.4.1
+    ## installed with pip: with only the first name, loading failed on an
+    ## installation that was complete and working.
 
 const platformName* =
   when defined(windows): "Windows"
@@ -90,6 +96,9 @@ proc candidateLibraries*(): seq[string] =
   result = @[]
   for name in platformLibraries:
     result.add(name)
+  when not defined(windows) and not defined(macosx):
+    for patch in countdown(TargetOpenVinoPatch - 1, 0):
+      result.add("libopenvino_c.so." & soSeriesPrefix & $patch)
 
 proc isExplicitPath*(candidate: string): bool =
   ## Reports whether `candidate` names a specific file rather than a bare

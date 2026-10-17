@@ -14,8 +14,9 @@ Relationship to the OpenVINO C headers
 The modules under src/openvino/raw declare the same functions, types, constants
 and struct layouts that the OpenVINO C headers declare, because a binding that
 declared anything else would not work. The declarations were written by hand in
-Nim from the headers of OpenVINO 2026.4.0, upstream tag 2026.4.0, release commit
-99c8149. The SHA-256 of all 18 headers is recorded in docs/c-api-coverage.md and
+Nim from the headers of OpenVINO 2026.4.0 (commit 99c8149) and verified
+byte-identical against OpenVINO 2026.4.1 (upstream tag 2026.4.1, release commit
+e213a14). The SHA-256 of all 18 headers is recorded in docs/c-api-coverage.md and
 docs/resonance-audit.md, and tests/abi compares the declarations against headers
 compiled by a C compiler rather than against a transcription.
 

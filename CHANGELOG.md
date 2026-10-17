@@ -13,11 +13,47 @@ and the OpenVINO runtime baseline evolve independently:
 
 ## Unreleased
 
+## 0.1.1
+
+Released on 2026-10-18 as
+[`v0.1.1`](https://github.com/AbyssGG/OpenVINO-Nim-API/releases/tag/v0.1.1).
+
+### Nim API
+
+- Added `tests/hardware/thardware_inference.nim` and `nimble testHardware` to
+  verify GPU and NPU compatibility across `--mm:orc` and `--mm:arc` in both
+  debug and release builds (model compilation from `Model` and path, non-ASCII
+  model paths, positional/named/in-place input binding, caller-owned external
+  buffers via `unsafeTensorFromPointer`, 100x single-request and 200x
+  multi-request lifetime loops, profiling with and without `enableProfiling()`,
+  and compiled-model blob round-tripping).
+- Extended Linux `candidateLibraries()` in `src/openvino/private/library.nim`
+  to try the unversioned symlink first, followed by the pinned patch SONAME
+  (`libopenvino_c.so.2641`) and earlier verified patches in the `2026.4` series
+  (`libopenvino_c.so.2640`), so pip installations of both `2026.4.1` and
+  `2026.4.0` load out of the box on Linux.
+- Updated `nimble packagingCheck` to seed an empty local package list in the
+  isolated Nimble directory and run the external consumer through `nim c -r`,
+  removing network and relative-path execution issues on Windows.
 - Changed the human-readable project title to `OpenVINO Nim API` while keeping
   the public repository name `OpenVINO-Nim-API` and release prefix
   `openvino-nim` unchanged.
 - Updated the development-plan evidence with the final `v0.1.0` workflow,
   commit and independently verified published checksums.
+
+### OpenVINO compatibility
+
+- Updated the pinned baseline to OpenVINO `2026.4.1` (upstream tag `2026.4.1`,
+  release commit `e213a14`, build `22982`) and verified that all 18 C headers
+  in `2026.4.1` have identical SHA-256 digests to `2026.4.0`.
+- Verified end-to-end compatibility on Windows 11 x86_64 (Nim 2.2.12) against
+  both OpenVINO `2026.4.1` and `2026.4.0` across `CPU` (`Intel(R) Core(TM)
+  Ultra 7 270K Plus`), `GPU` / `GPU.0` (`Intel(R) Graphics (iGPU)`), `GPU.1`
+  (`NVIDIA GeForce RTX 5080 (dGPU)` via OpenCL), and `NPU` (`Intel(R) AI
+  Boost`), and documented plugin differences in `profilingInfo()` when
+  `enableProfiling()` is not set.
+- Updated `ci/install-openvino.py` to pin the `2026.4.1` build `22982` Linux
+  and Windows wheels by immutable URL and SHA-256.
 
 ## 0.1.0
 

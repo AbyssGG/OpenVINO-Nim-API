@@ -4,7 +4,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Nim](https://img.shields.io/badge/Nim-%E2%89%A52.0.0-yellow.svg)](https://nim-lang.org/)
 [![OpenVINO](https://img.shields.io/badge/OpenVINO-2026.4.x-6b4fbb.svg)](https://docs.openvino.ai/)
-[![Status](https://img.shields.io/badge/status-v0.1.0-brightgreen.svg)](https://github.com/AbyssGG/OpenVINO-Nim-API/releases/tag/v0.1.0)
+[![Status](https://img.shields.io/badge/status-v0.1.1-brightgreen.svg)](https://github.com/AbyssGG/OpenVINO-Nim-API/releases/tag/v0.1.1)
 
 **English** | [简体中文](README_zh-CN.md)
 
@@ -21,35 +21,46 @@ Corporation.** OpenVINO is a trademark of Intel Corporation.
 
 ## Status
 
-Version `0.1.0` was released on 2026-09-25. Download the source archives from
-the [GitHub Release](https://github.com/AbyssGG/OpenVINO-Nim-API/releases/tag/v0.1.0).
-The work is tracked phase by phase in
+Version `0.1.1` was released on 2026-10-18 targeting OpenVINO `2026.4.1` (and
+verified against `2026.4.0`). Download the source archives from the
+[GitHub Release](https://github.com/AbyssGG/OpenVINO-Nim-API/releases/tag/v0.1.1).
+The foundational design and initial release work are tracked in
 [OPENVINO_NIM_0.1_DEVELOPMENT_PLAN.md](OPENVINO_NIM_0.1_DEVELOPMENT_PLAN.md).
 
-Synchronous inference works. `Core`, `Model`, `CompiledModel`,
-`InferRequest`, `Tensor`, properties, profiling and explicit blob
-export/import are implemented and covered by tests that run real inference on
-CPU, including a thousand-iteration lifetime loop.
+Synchronous inference works across CPU, GPU and NPU. `Core`, `Model`,
+`CompiledModel`, `InferRequest`, `Tensor`, properties, profiling and explicit
+blob export/import are implemented and covered by tests that run real
+inference on CPU (`nimble testIntegration`) and on GPU and NPU hardware
+(`nimble testHardware`), including multi-hundred and thousand-iteration
+lifetime loops under both `--mm:orc` and `--mm:arc`.
 
-Verified on two hosts: Windows 11 x86_64 with Nim 2.2.12, and Ubuntu 26.04
-x86_64 with Nim 2.2.4, both against OpenVINO `2026.4.0` on CPU. On each host
-the ABI, smoke, lifetime, integration and example suites all pass. No claim is
-made for GPU, NPU or macOS. See [compatibility](docs/compatibility.md) for what
-was and was not run. Nothing in this README should be read as a claim that a
-feature already works unless it says so.
+Verified on two hosts:
+
+- **Windows 11 x86_64** with Nim 2.2.12 against OpenVINO `2026.4.1` (build
+  `22982`) and `2026.4.0` (build `22959`) across **CPU** (`Intel(R) Core(TM)
+  Ultra 7 270K Plus`), **GPU.0** (`Intel(R) Graphics (iGPU)`), **GPU.1**
+  (`NVIDIA GeForce RTX 5080 (dGPU)` via OpenCL) and **NPU** (`Intel(R) AI
+  Boost`).
+- **Ubuntu 26.04 x86_64** with Nim 2.2.4 against OpenVINO `2026.4.0` on CPU,
+  plus GitHub Actions Linux and Windows runners against OpenVINO `2026.4.1`.
+
+No claim is made for macOS. See [compatibility](docs/compatibility.md) for
+what was and was not run, including measured plugin differences between CPU,
+GPU and NPU. Nothing in this README should be read as a claim that a feature
+already works unless it says so.
 
 ## Feature overview
 
-| Capability | 0.1.0 status | Notes |
+| Capability | 0.1.1 status | Notes |
 |---|---|---|
 | Managed Nim API | Available | `Core`, `Model`, `CompiledModel`, `InferRequest`, `Tensor`, shapes and properties |
-| Raw C ABI layer | Available | Import it explicitly with `openvino/raw`; pinned to OpenVINO 2026.4 headers |
+| Raw C ABI layer | Available | Import it explicitly with `openvino/raw`; pinned to OpenVINO `2026.4.1` headers |
 | Synchronous CPU inference | Available | Windows and Linux x86_64 are verified in CI and on clean hosts |
+| Synchronous GPU & NPU inference | Available (Windows x86_64) | Verified on Intel iGPU (`GPU.0`), NVIDIA dGPU (`GPU.1`) and Intel AI Boost (`NPU`) via `nimble testHardware` |
 | Runtime discovery and diagnostics | Available | Version, device listing, symbol checks and actionable loader errors |
-| Profiling and explicit blob I/O | Available | No implicit cache directory or device policy is added |
+| Profiling and explicit blob I/O | Available | Verified on CPU, GPU and NPU; no implicit cache directory or device policy is added |
 | Async inference and callbacks | Roadmap | Needs a Nim-safe callback and thread-lifetime design |
-| Dynamic shapes and preprocessing | Roadmap | The corresponding C headers are intentionally not in the 0.1.0 surface |
-| GPU/NPU inference | Not claimed | Device discovery is not evidence of a verified inference path |
+| Dynamic shapes and preprocessing | Roadmap | The corresponding C headers are intentionally not in the 0.1.x surface |
 
 The roadmap is deliberately explicit about what is not implemented. See
 [the API overview](docs/api-overview.md) and [the roadmap](docs/roadmap.md)
@@ -80,7 +91,7 @@ below and is compiled from the same source as `examples/minimal.nim`.
 
 ## Release artifacts
 
-The `v0.1.0` Release follows the packaging contract in the development plan
+The `v0.1.1` Release follows the packaging contract in the development plan
 and contains exactly four canonical assets with one shared base name:
 
 ```text
@@ -112,7 +123,7 @@ source of confusion when installing the package.
 The GitHub repository is the hyphenated form of the human-readable project
 title. Package and archive tooling use their lowercase identifiers:
 `openvino-nim` for release assets and `openvino` for Nimble and imports. A Git
-tag remains a SemVer tag such as `v0.1.0`; it is not derived from any of these
+tag remains a SemVer tag such as `v0.1.1`; it is not derived from any of these
 names.
 
 `nimble releaseCheck` asserts that this README mentions the repository,
@@ -122,7 +133,7 @@ drift from `src/openvino/version.nim`.
 
 Release archives use the base name
 `openvino-nim-{version}-{date}-ov{openvino-version}` with dots replaced by
-hyphens. For version `0.1.0` released against OpenVINO `2026.4.0`, the
+hyphens. For version `0.1.1` released against OpenVINO `2026.4.1`, the
 archive base name is generated by the release tooling rather than written by
 hand, so that the Git tag, release title, archive name and checksums cannot
 drift apart.
@@ -132,9 +143,9 @@ drift apart.
 | Component | Requirement |
 |---|---|
 | Nim | 2.0.0 or newer; CI pins the exact versions that are verified |
-| OpenVINO Runtime | `2026.4.x`, verified against `2026.4.0` |
+| OpenVINO Runtime | `2026.4.x`, verified against `2026.4.1` and `2026.4.0` |
 | Tier 1 platforms | Windows x86_64, Linux x86_64 |
-| Baseline device | CPU |
+| Verified devices | CPU (Windows & Linux), GPU and NPU (Windows x86_64) |
 
 The `2026.4` requirement is not arbitrary. This package uses the
 non-variadic properties API (`ov_property_t`, `ov_core_compile_model_props`,
@@ -143,8 +154,15 @@ pairs through C varargs. The package does not silently fall back to older
 runtimes.
 
 GPU and NPU devices are discovered dynamically when the corresponding
-OpenVINO plugins are installed. They are not build or release prerequisites,
-and support for them is not claimed beyond what CI verifies.
+OpenVINO plugins and hardware drivers are installed. Standard CI runners have
+CPU only and run `nimble testIntegration`; on a host with GPU or NPU hardware,
+run `nimble testHardware` to exercise compilation, synchronous inference,
+external buffers, non-ASCII model paths, profiling and blob export/import on
+every discovered GPU and NPU device. Note one measured plugin difference: when
+a model is compiled **without** `enableProfiling()`, `request.profilingInfo()`
+returns zero-time entries on `CPU`, an empty list on `NPU`, and raises
+`OpenVinoError` on `GPU`; when compiled **with** `[enableProfiling()]`, all
+three plugins return timed execution entries.
 
 ## Installing the OpenVINO runtime
 
@@ -155,7 +173,7 @@ visible to the dynamic loader:
 | Platform | Library | Loader notes |
 |---|---|---|
 | Windows | `openvino_c.dll` | Must be on the DLL search path |
-| Linux | `libopenvino_c.so`, or `libopenvino_c.so.2640` | Must be on the loader search path. A pip installation ships only the versioned name; both are tried |
+| Linux | `libopenvino_c.so`, `libopenvino_c.so.2641`, or `libopenvino_c.so.2640` | Must be on the loader search path. A pip installation ships only the versioned name; all verified `2026.4.x` SONAMEs are tried |
 
 Loading `openvino_c` alone is not enough to run inference. `Core` also needs
 `plugins.xml`, the device plugins and the model frontends from the same

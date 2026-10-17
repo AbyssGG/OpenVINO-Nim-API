@@ -36,7 +36,8 @@ OV_LIB_DIR=$(python -c 'import openvino, os; print(os.path.join(os.path.dirname(
 export LD_LIBRARY_PATH="$OV_LIB_DIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 ```
 
-The package tries both `libopenvino_c.so` and `libopenvino_c.so.2640`. Some
+The package tries `libopenvino_c.so` first and then the verified `2026.4.x`
+versioned SONAMEs (`libopenvino_c.so.2641` and `libopenvino_c.so.2640`). Some
 wheel layouts provide only the versioned name. Keep oneTBB available on the
 loader path as well.
 
@@ -51,7 +52,7 @@ cd OpenVINO-Nim-API
 nimble install
 ```
 
-Version `0.1.0` is released, but its Nimble index entry is not published yet.
+Version `0.1.1` is released, but its Nimble index entry is not published yet.
 Run `nimble install` from the checkout to install the package into Nimble's
 configured package path. The package and import name are both `openvino`.
 
@@ -89,13 +90,15 @@ nimble test
 nimble docs
 ```
 
-With OpenVINO headers and the runtime available, run the full local matrix:
+With OpenVINO headers and the runtime available, run the full local matrix (and
+`nimble testHardware` on hosts with GPU or NPU hardware):
 
 ```shell
 nimble testAbi
 nimble testSmoke
 nimble testLifecycle
 nimble testIntegration
+nimble testHardware
 nimble examples
 nimble packagingCheck
 ```
@@ -126,6 +129,6 @@ operations block, and where the raw layer begins.
 | `OpenVinoLibraryError` says the library is missing | Loader path does not contain the C library | Re-run the official setup script in the same shell |
 | The C library loads but `newCore()` fails | Plugins, frontends or oneTBB are missing | Use one consistent OpenVINO installation layout |
 | A model file cannot be found | A relative path resolves from a different working directory | Run from the repository root or use an absolute model path |
-| `nimble install openvino` cannot find a package | `0.1.0` is not indexed yet | Install from the checkout with `nimble install` |
+| `nimble install openvino` cannot find a package | `0.1.1` is not indexed yet | Install from the checkout with `nimble install` |
 
 For detailed failure messages, see [Troubleshooting](troubleshooting.md).

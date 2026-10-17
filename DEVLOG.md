@@ -594,6 +594,37 @@ false pass. The first Linux runner piped every task into `tail` and then printed
 meaningless. The runner now keeps full output in a file and reports the real
 status, and the numbers above come from that second run.
 
+### 2026-10-18 Release 0.1.1: GPU/NPU hardware verification and OpenVINO 2026.4.1
+
+Added `tests/hardware/thardware_inference.nim` and `nimble testHardware`,
+bumped the package version to `0.1.1`, and retargeted the pinned baseline to
+OpenVINO `2026.4.1` (upstream tag `2026.4.1`, commit `e213a14`, build `22982`).
+
+Every installed C header in `2026.4.1` was hashed and compared against the 18
+digests recorded for `2026.4.0`: all 18 SHA-256 values are byte-identical. On
+Linux, the `2026.4.1` wheel ships `libopenvino_c.so.2641` as its SONAME with no
+unversioned symlink, so `candidateLibraries()` now emits `"libopenvino_c.so"`
+followed by the versioned SONAMEs for the `2026.4` series in descending patch
+order (`libopenvino_c.so.2641`, `libopenvino_c.so.2640`). Both `2026.4.1` and
+`2026.4.0` pip installations therefore load without `-d:openvinoLib`.
+
+On the Windows 11 x86_64 host (Nim 2.2.12), `nimble testHardware` ran 45 tests
+per pass across `--mm:orc` and `--mm:arc` in debug and release builds against
+both `2026.4.1` and `2026.4.0`, covering all discovered accelerators: `GPU` and
+`GPU.0` (`Intel(R) Graphics (iGPU)`), `GPU.1` (`NVIDIA GeForce RTX 5080 (dGPU)`
+via OpenCL), and `NPU` (`Intel(R) AI Boost`). Every device passed model
+compilation from `Model` and from file path, non-ASCII paths, positional/named/
+in-place input binding, caller-owned buffers via `unsafeTensorFromPointer`,
+100x single-request and 200x multi-request lifecycle loops, profiling with
+`enableProfiling()`, and explicit blob export/import (`151,336` bytes on
+`GPU.0`, `7,389` bytes on `GPU.1`, and `65,663` bytes on `NPU`).
+
+One plugin difference was measured and pinned in tests and documentation: when
+`enableProfiling()` is **not** passed at compilation time, `profilingInfo()`
+returns zero-time entries on `CPU`, an empty sequence (`@[]`) on `NPU`, and
+raises `OpenVinoError` (`status = -1`) on `GPU`. When compiled with
+`[enableProfiling()]`, all three plugins return timed execution entries.
+
 ## 中文
 
 ### 2026-09-24 Phase 0：审计原型并冻结范围
@@ -1038,3 +1069,29 @@ formatter 运行、exit 0、树未变，两个平台都如此。教训与前面 
 仍然未关闭的只有一件：CI 从未运行过。仓库没有远端，于是九个已被逐一手工验证过的作业，
 仍然是九个没有任何 runner 执行过的作业。这就是 Phase 5 Gate 剩下的全部内容，关闭它需要
 推送，而推送需要授权。
+
+### 2026-10-18 0.1.1 发布：GPU/NPU 硬件兼容性验证与 OpenVINO 2026.4.1 升级
+
+新增 `tests/hardware/thardware_inference.nim` 与 `nimble testHardware` 任务，将包版本
+升级至 `0.1.1`，并将固定基线升级至 OpenVINO `2026.4.1`（上游 tag `2026.4.1`，commit
+`e213a14`，build `22982`）。
+
+对 `2026.4.1` 的全部 18 个 C 头文件重新计算 SHA-256 并与 `2026.4.0` 记录值逐一核对：
+18 个摘要全部逐字节一致。Linux 的 `2026.4.1` wheel 仅提供 `libopenvino_c.so.2641` 且无
+不带版本号的符号链接，因此 `candidateLibraries()` 在 `"libopenvino_c.so"` 之后按降序尝试
+`2026.4` 系列的各补丁 SONAME（`libopenvino_c.so.2641`、`libopenvino_c.so.2640`），使
+`2026.4.1` 与 `2026.4.0` 的 pip 安装均无需 `-d:openvinoLib` 即可直接加载。
+
+在 Windows 11 x86_64 主机（Nim 2.2.12）上，`nimble testHardware` 在 `--mm:orc` 与
+`--mm:arc` 的 debug 和 release 模式下分别针对 `2026.4.1` 与 `2026.4.0` 运行了每轮 45 项
+硬件测试，覆盖全部加速器：`GPU` / `GPU.0`（`Intel(R) Graphics (iGPU)`）、`GPU.1`
+（`NVIDIA GeForce RTX 5080 (dGPU)`，OpenCL）以及 `NPU`（`Intel(R) AI Boost`）。所有设备
+均通过从 `Model` 与文件路径编译、非 ASCII 路径、位置/名称/内置输入绑定、
+`unsafeTensorFromPointer` 外部零拷贝缓冲区、100 次单请求与 200 次多请求生命周期循环、
+`enableProfiling()` 性能剖析，以及显式编译模型 Blob 导出/导入（`GPU.0` 为 151,336 字节，
+`GPU.1` 为 7,389 字节，`NPU` 为 65,663 字节）。
+
+实测并记录了一项插件差异：当编译模型时未传入 `enableProfiling()`，`profilingInfo()` 在
+`CPU` 上返回耗时为 0 的节点列表，在 `NPU` 上返回空序列 `@[]`，而在 `GPU` 上抛出
+`OpenVinoError`（`status = -1`）；当传入 `[enableProfiling()]` 编译时，三类插件均返回带
+计时的执行节点。

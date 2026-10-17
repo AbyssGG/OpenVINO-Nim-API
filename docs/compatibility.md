@@ -10,11 +10,11 @@ Two hosts, both running every task in the list at the end of this document.
 | Component | Windows host | Linux host |
 |---|---|---|
 | Operating system | Windows 11 x86_64 | Ubuntu 26.04.1 LTS x86_64, kernel 7.0.0-34 |
-| Nim | 2.2.12 | 2.2.4 |
-| OpenVINO Runtime | 2026.4.0, archive install | 2026.4.0, pip install |
-| OpenVINO build string | `2026.4.0-22959-99c81491cc3-releases/2026/4` | identical |
+| Nim | 2.2.12 | 2.2.4 (and 2.2.12 / 2.0.0 in CI) |
+| OpenVINO Runtime | 2026.4.1 (wheel) and 2026.4.0 (archive) | 2026.4.1 (CI wheel) and 2026.4.0 (pip install) |
+| OpenVINO build string | `2026.4.1-22982-e213a147257-releases/2026/4` and `2026.4.0-22959-99c81491cc3-releases/2026/4` | identical |
 | C compiler | the one Nim 2.2.12 selects by default | gcc 15 |
-| Device | CPU | CPU |
+| Devices | `CPU`, `GPU` (`GPU.0` Intel iGPU, `GPU.1` NVIDIA RTX 5080 dGPU), `NPU` (`Intel(R) AI Boost`) | `CPU` |
 | Memory managers | ORC, ARC | ORC, ARC |
 | Build modes | debug, release | debug, release |
 
@@ -26,22 +26,46 @@ What each check produced, the same on both hosts unless stated:
 | `nimble testSmoke` | 9 tests; 55 required symbols resolve against the real runtime |
 | `nimble testLifecycle` | the lifetime and error-path suites under ORC and then ARC |
 | `nimble testIntegration` | 50 tests in debug and 50 in release; ReLU on CPU gives `@[0.0, 2.0, 0.0, 4.0]`, matching a hand-computed value |
+| `nimble testHardware` | Windows host: 45 tests per run across ORC/ARC and debug/release (180 assertions total) on `GPU`, `GPU.0` (`Intel(R) Graphics (iGPU)`), `GPU.1` (`NVIDIA GeForce RTX 5080 (dGPU)`) and `NPU` (`Intel(R) AI Boost`) |
 | `nimble examples` | all five examples compile and run |
 | `nimble packagingCheck` | installs into a clean directory; a consumer compiled outside the checkout, without `--path:src`, runs a real inference |
 | `nimble memcheck` | Linux only. valgrind 3.26.0: no definite leak and no invalid access, on our own code and on one real inference |
 
-Both hosts have the same upstream OpenVINO build, so the ABI comparison is one
-ABI checked against two compilers and two C libraries rather than two versions
-that happen to agree. The two Nim versions differ, which is deliberate: 2.2.4
-and 2.2.12 are both exercised.
+All 18 C headers in OpenVINO `2026.4.1` (build `22982`, commit `e213a14`) have
+identical SHA-256 digests to `2026.4.0` (build `22959`, commit `99c8149`). Both
+hosts share the same upstream OpenVINO builds, so the ABI comparison is one ABI
+checked against two compilers and two C libraries rather than two versions that
+happen to agree. The two Nim versions differ, which is deliberate: 2.2.4 and
+2.2.12 are both exercised (plus 2.0.0 in CI).
 
 Host details worth recording because they affected a result. The Windows
-installation is `C:\Program Files (x86)\Intel\openvino_2026`, a symlink to
-`openvino_2026.4.0`, on a host whose active code page is 936. The Linux
-installation is a pip wheel under
-`<venv>/lib/python3.14/site-packages/openvino`, which ships only
-`libopenvino_c.so.2640` and no unversioned symlink; that is what the second
-Linux candidate library name exists for.
+installation includes `C:\Program Files (x86)\Intel\openvino_2026` (a symlink
+to `openvino_2026.4.0`) and the unpacked `2026.4.1` runtime wheel, on a host
+whose active code page is 936. The Linux installation is a pip wheel, which
+ships only `libopenvino_c.so.2641` (in `2026.4.1`) or `libopenvino_c.so.2640`
+(in `2026.4.0`) and no unversioned symlink; `candidateLibraries()` tries the
+unversioned symlink first and then the versioned SONAMEs for the `2026.4`
+series in descending patch order.
+
+### Measured GPU and NPU hardware compatibility (Windows 11 x86_64)
+
+On the Windows 11 x86_64 host, `nimble testHardware` exercises every discovered
+GPU and NPU device against both OpenVINO `2026.4.1` and `2026.4.0`:
+
+| Device ID | Reported `deviceFullName` | Blob export size | Unprofiled `profilingInfo()` | Profiled `profilingInfo()` (`[enableProfiling()]`) |
+|---|---|---|---|---|
+| `CPU` | `Intel(R) Core(TM) Ultra 7 270K Plus` | 2,914 bytes | 3 entries (`psNotRun`, `0 us`) | 3 entries (1 executed, `jit_avx2_f32`) |
+| `GPU` / `GPU.0` | `Intel(R) Graphics (iGPU)` | 151,336 bytes | Raises `OpenVinoError` (`status = -1`) | 5 entries (2 executed) |
+| `GPU.1` | `NVIDIA GeForce RTX 5080 (dGPU)` | 7,389 bytes | Raises `OpenVinoError` (`status = -1`) | 3 entries (2 executed) |
+| `NPU` | `Intel(R) AI Boost` | 65,663 bytes | 0 entries (`@[]`) | 3 entries (3 executed, `Shave` / `DPU`) |
+
+Every device above passed model compilation (from `Model` and from file path,
+including non-ASCII paths), synchronous ReLU inference (positional, named, and
+in-place request tensor), caller-owned zero-copy buffers via
+`unsafeTensorFromPointer`, 100-iteration single-request and 200-iteration
+multi-request lifetime loops under `--mm:orc` and `--mm:arc`, profiling with
+`enableProfiling()`, and compiled-model blob round-tripping (`exportTo` /
+`importModel`).
 
 ## Not verified
 
@@ -51,12 +75,10 @@ others are known to be missing.
 | Combination | Status |
 |---|---|
 | macOS | Never run. No claim either way |
-| GitHub Actions | The `main` workflow has run successfully on the public repository; see the linked run in the development plan. A local task can still pass while a hosted runner exposes a packaging or environment difference, so both records are kept |
+| Linux GPU and NPU | Not tested on the Linux host (which was verified on CPU only) |
 | Concurrency | No test exists. See the Threads section of `docs/ownership.md` for what is claimed and on whose authority |
-| GPU | The plugin is discovered on this host and reports a full device name. No inference has been run on it |
-| NPU | Discovered on this host. No inference has been run on it |
 | `--mm:refc` | Never run. The handle model is written for ORC and ARC; refc is not claimed |
-| Nim 2.0.x and 2.1.x | The manifest requires `>= 2.0.0`; the oldest version actually run is 2.2.4. The minimum is a floor, not a verified version |
+| Nim 2.1.x | The manifest requires `>= 2.0.0`; CI runs `2.0.0` and `2.2.12`, and the Linux host ran `2.2.4` |
 | OpenVINO 2026.5 and later | Not released at the time of writing |
 | OpenVINO 2026.3 and earlier | Refused by design, see below |
 | 32-bit targets | Never run |
@@ -123,6 +145,7 @@ nimble testAbi
 nimble testSmoke
 nimble testLifecycle
 nimble testIntegration
+nimble testHardware
 nimble examples
 nimble packagingCheck
 nimble docs

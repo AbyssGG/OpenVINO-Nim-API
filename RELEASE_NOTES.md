@@ -1,30 +1,37 @@
-# OpenVINO Nim API 0.1.0
+# OpenVINO Nim API 0.1.1
 
-OpenVINO Nim API 0.1.0 is the first release of the community-maintained Nim
-bindings for the OpenVINO Runtime C API. It is not an official Intel or
-OpenVINO project.
+OpenVINO Nim API 0.1.1 is a minor update to the community-maintained Nim
+bindings for the OpenVINO Runtime C API, adding verified OpenVINO `2026.4.1`
+support and a full GPU and NPU hardware compatibility suite. It is not an
+official Intel or OpenVINO project.
 
-Published as [`v0.1.0`](https://github.com/AbyssGG/OpenVINO-Nim-API/releases/tag/v0.1.0)
-on 2026-09-25.
+Published as [`v0.1.1`](https://github.com/AbyssGG/OpenVINO-Nim-API/releases/tag/v0.1.1)
+on 2026-10-18.
 
 ## Highlights
 
-- A managed, idiomatic Nim API for synchronous inference with `Core`, `Model`,
-  `CompiledModel`, `InferRequest`, `Tensor`, ports and properties.
-- A separate header-faithful raw C ABI layer available through
-  `import openvino/raw`; the default `import openvino` does not expose it.
-- Explicit ownership and idempotent `close()` operations, with ORC and ARC
-  lifetime coverage and a destructor backstop.
-- Safe copied tensors by default, plus an explicitly named unsafe external
-  buffer path for callers that need zero-copy access.
-- Model compilation, compiled-model export/import, profiling, device
-  discovery and non-ASCII Windows paths.
+- Retargeted and verified against OpenVINO `2026.4.1` (build `22982`, commit
+  `e213a14`) while retaining full compatibility with `2026.4.0` (all 18 C
+  headers are byte-identical across both releases, and the Linux loader tries
+  both `libopenvino_c.so.2641` and `libopenvino_c.so.2640` after
+  `libopenvino_c.so`).
+- Verified GPU and NPU hardware compatibility on Windows 11 x86_64 across
+  `GPU` / `GPU.0` (`Intel(R) Graphics (iGPU)`), `GPU.1` (`NVIDIA GeForce RTX
+  5080 (dGPU)` via OpenCL) and `NPU` (`Intel(R) AI Boost`), alongside `CPU`
+  (`Intel(R) Core(TM) Ultra 7 270K Plus`), via the new
+  `tests/hardware/thardware_inference.nim` suite and `nimble testHardware`
+  task under both `--mm:orc` and `--mm:arc` (debug and release).
+- Documented measured plugin differences when calling `profilingInfo()` on a
+  model compiled without `enableProfiling()` (`CPU` returns zero-time entries,
+  `NPU` returns `@[]`, and `GPU` raises `OpenVinoError`, whereas all three
+  return timed execution entries when compiled with `[enableProfiling()]`).
 
 ## Compatibility
 
-This release targets OpenVINO `2026.4.0` and requires Nim `2.0.0` or newer.
-The release gate exercises Windows x86_64 and Linux x86_64 with CPU inference.
-GPU, NPU and macOS support are not claimed. See
+This release targets OpenVINO `2026.4.1` (and supports `2026.4.0`) and requires
+Nim `2.0.0` or newer. CI exercises Windows x86_64 and Linux x86_64 on CPU, and
+the Windows 11 x86_64 host is verified across CPU, Intel iGPU (`GPU.0`), NVIDIA
+dGPU (`GPU.1`) and Intel NPU (`NPU`). macOS support is not claimed. See
 [the compatibility matrix](docs/compatibility.md) for the exact combinations
 that were tested.
 
@@ -42,12 +49,12 @@ checkout with `nimble install`.
 
 ## Release assets
 
-The published `v0.1.0` assets are:
+The published `v0.1.1` assets are:
 
-- `openvino-nim-0-1-0-2026-9-25-ov2026-4-0.zip`
-- `openvino-nim-0-1-0-2026-9-25-ov2026-4-0.tar.gz`
-- `openvino-nim-0-1-0-2026-9-25-ov2026-4-0.zip.sha256`
-- `openvino-nim-0-1-0-2026-9-25-ov2026-4-0.tar.gz.sha256`
+- `openvino-nim-0-1-1-2026-10-18-ov2026-4-1.zip`
+- `openvino-nim-0-1-1-2026-10-18-ov2026-4-1.tar.gz`
+- `openvino-nim-0-1-1-2026-10-18-ov2026-4-1.zip.sha256`
+- `openvino-nim-0-1-1-2026-10-18-ov2026-4-1.tar.gz.sha256`
 
 The release workflow uploads exactly these four canonical assets, all sharing
 one generated base name:
@@ -67,8 +74,8 @@ but are not the project's reproducible, checksummed release artifacts.
 Verify a downloaded archive with the sidecar from the same Release:
 
 ```shell
-sha256sum -c openvino-nim-0-1-0-YYYY-M-D-ov2026-4-0.zip.sha256
-sha256sum -c openvino-nim-0-1-0-YYYY-M-D-ov2026-4-0.tar.gz.sha256
+sha256sum -c openvino-nim-0-1-1-2026-10-18-ov2026-4-1.zip.sha256
+sha256sum -c openvino-nim-0-1-1-2026-10-18-ov2026-4-1.tar.gz.sha256
 ```
 
 For the complete change list, see [CHANGELOG.md](CHANGELOG.md). For deployment

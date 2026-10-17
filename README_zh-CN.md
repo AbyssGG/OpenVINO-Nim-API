@@ -10,17 +10,28 @@ Corporation 的认可或附属关系。** OpenVINO 是 Intel Corporation 的商�
 
 ## 项目状态
 
-版本 `0.1.0` 已于 2026-09-25 发布。请从
-[GitHub Release](https://github.com/AbyssGG/OpenVINO-Nim-API/releases/tag/v0.1.0)
-下载四个校验过的源码资产。当前已经验证的范围是：
+版本 `0.1.1` 已于 2026-10-18 发布，针对 OpenVINO `2026.4.1`（同时兼容并已验证
+`2026.4.0`）。请从
+[GitHub Release](https://github.com/AbyssGG/OpenVINO-Nim-API/releases/tag/v0.1.1)
+下载四个校验过的源码资产。当前已经实测验证的范围是：
 
-- Windows x86_64 和 Linux x86_64；
-- Nim 2.2.12 和 2.2.4；
-- OpenVINO Runtime `2026.4.0`；
-- CPU 上的同步推理、生命周期、ABI、集成和示例测试。
+- Windows 11 x86_64（Nim 2.2.12）与 Ubuntu 26.04 x86_64（Nim 2.2.4）；
+- OpenVINO Runtime `2026.4.1`（build `22982`）与 `2026.4.0`（build `22959`）；
+- **CPU**（`Intel(R) Core(TM) Ultra 7 270K Plus`）、**GPU.0**（`Intel(R)
+  Graphics (iGPU)`）、**GPU.1**（`NVIDIA GeForce RTX 5080 (dGPU)`）与 **NPU**
+  （`Intel(R) AI Boost`）上的模型编译、同步推理（位置参数、按名称绑定、请求内
+  置输入 tensor）、外部零拷贝缓冲区（`unsafeTensorFromPointer`）、非 ASCII 模
+  型路径、性能剖析（`enableProfiling()`）以及显式编译模型 Blob 导出/导入
+  （`exportTo` / `importModel`），均在 `--mm:orc` 与 `--mm:arc`（debug 与
+  release）下通过测试（`nimble testIntegration` 与 `nimble testHardware`）。
 
-GPU、NPU 和 macOS 尚未验证。异步推理、回调、动态形状 API 和预处理尚未实现。
-请查看英文的[兼容性矩阵](docs/compatibility.md)和[路线图](docs/roadmap.md)。
+需要注意一处实测的插件差异：当编译模型时**未启用** `enableProfiling()`，调用
+`request.profilingInfo()` 在 `CPU` 上返回耗时为 0 的节点列表，在 `NPU` 上返回空
+列表 `@[]`，而在 `GPU`（`GPU`、`GPU.0`、`GPU.1`）上会抛出 `OpenVinoError`；当使
+用 `[enableProfiling()]` 编译时，三类硬件插件均正常返回带计时的执行节点。
+
+macOS 尚未验证。异步推理、回调、动态形状 API 和预处理尚未实现。请查看英文的
+[兼容性矩阵](docs/compatibility.md)和[路线图](docs/roadmap.md)。
 
 ## 快速开始
 
@@ -34,10 +45,11 @@ GPU、NPU 和 macOS 尚未验证。异步推理、回调、动态形状 API 和�
    nimble install
    ```
 
-3. 运行仓库内的验证示例：
+3. 运行仓库内的验证示例（若有 GPU/NPU 硬件，还可运行硬件兼容性套件）：
 
    ```shell
    nimble examples
+   nimble testHardware
    ```
 
 英文[入门指南](docs/getting-started.md)包含 Windows/Linux 的动态库检查、

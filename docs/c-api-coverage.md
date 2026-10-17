@@ -1,26 +1,26 @@
 # OpenVINO C API coverage
 
-This document is the coverage contract between the pinned OpenVINO `2026.4.0`
-headers and `src/openvino/raw/`. It describes the current repository, not an
-old implementation plan. Every item marked **bound** is present in the raw
-layer and is exercised by the ABI or smoke checks; every item marked
-**deferred** is intentionally not part of `0.1.0`.
+This document is the coverage contract between the pinned OpenVINO `2026.4.1`
+(and `2026.4.0`) headers and `src/openvino/raw/`. It describes the current
+repository, not an old implementation plan. Every item marked **bound** is
+present in the raw layer and is exercised by the ABI or smoke checks; every
+item marked **deferred** is intentionally not part of `0.1.x`.
 
 ## Pinned source of truth
 
 | Item | Value |
 |---|---|
-| Upstream release | `2026.4.0` |
-| Upstream tag and commit | `2026.4.0`, `99c8149` |
+| Upstream release | `2026.4.1` (headers byte-identical to `2026.4.0`) |
+| Upstream tag and commit | `2026.4.1`, `e213a14` (`2026.4.0` commit `99c8149`) |
 | Header location | `runtime/include/openvino/c/*.h` in the release package |
 | Windows library | `openvino_c.dll` |
-| Linux libraries | `libopenvino_c.so` and `libopenvino_c.so.2640` |
+| Linux libraries | `libopenvino_c.so`, `libopenvino_c.so.2641` and `libopenvino_c.so.2640` |
 
-The fixed upstream references are [the release](https://github.com/openvinotoolkit/openvino/releases/tag/2026.4.0),
-[`ov_common.h`](https://raw.githubusercontent.com/openvinotoolkit/openvino/2026.4.0/src/bindings/c/include/openvino/c/ov_common.h),
-[`ov_core.h`](https://raw.githubusercontent.com/openvinotoolkit/openvino/2026.4.0/src/bindings/c/include/openvino/c/ov_core.h),
-[`ov_tensor.h`](https://raw.githubusercontent.com/openvinotoolkit/openvino/2026.4.0/src/bindings/c/include/openvino/c/ov_tensor.h),
-and [`ov_infer_request.h`](https://raw.githubusercontent.com/openvinotoolkit/openvino/2026.4.0/src/bindings/c/include/openvino/c/ov_infer_request.h).
+The fixed upstream references are [the release](https://github.com/openvinotoolkit/openvino/releases/tag/2026.4.1),
+[`ov_common.h`](https://raw.githubusercontent.com/openvinotoolkit/openvino/2026.4.1/src/bindings/c/include/openvino/c/ov_common.h),
+[`ov_core.h`](https://raw.githubusercontent.com/openvinotoolkit/openvino/2026.4.1/src/bindings/c/include/openvino/c/ov_core.h),
+[`ov_tensor.h`](https://raw.githubusercontent.com/openvinotoolkit/openvino/2026.4.1/src/bindings/c/include/openvino/c/ov_tensor.h),
+and [`ov_infer_request.h`](https://raw.githubusercontent.com/openvinotoolkit/openvino/2026.4.1/src/bindings/c/include/openvino/c/ov_infer_request.h).
 
 The 18 installed header SHA-256 values are recorded in the repository history
 and are checked against the pinned runtime by CI. The ABI probe also checks the
