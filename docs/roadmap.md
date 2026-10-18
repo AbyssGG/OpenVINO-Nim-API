@@ -3,6 +3,25 @@
 This roadmap separates work that is already usable from work that needs a
 design and tests. It is not a promise of a release date.
 
+## Available in 0.2.0
+
+Released on 2026-10-18 as `v0.2.0`.
+
+- Dynamic and partial shapes: `Dimension`, `PartialShape`,
+  `Port.partialShape`, and `Model.reshape` by input, index, name or several
+  names at once; one compiled dynamic model infers several batch sizes.
+- Asynchronous inference: `startAsync`, `wait`, `waitFor`, `cancel`,
+  `OpenVinoBusyError`, `OpenVinoCancelledError`, and `CompletionQueue` for
+  completion notification without running Nim code on OpenVINO threads.
+- Layout and preprocessing: `Layout` and a declarative `PreprocessPlan`
+  applied in one call, covering element type, layout, color, resize, mean,
+  scale, crop, pad and channel reversal.
+- Raw declarations for `ov_dimension.h`, `ov_rank.h`, `ov_partial_shape.h`,
+  `ov_layout.h`, the non-variadic `ov_prepostprocess.h`, reshape and the
+  asynchronous request functions, all covered by ABI probes and smoke tests.
+- Verified on CPU (Windows and Linux) and on Windows GPU (`GPU.0`, `GPU.1`)
+  and NPU; the NPU plugin needs bounded or static shapes and cannot cancel.
+
 ## Available in 0.1.1
 
 - Windows x86_64 and Linux x86_64 CPU inference with OpenVINO `2026.4.1` and
@@ -25,11 +44,10 @@ design and tests. It is not a promise of a release date.
 
 | Area | Why it needs design work |
 |---|---|
-| Asynchronous inference | Callbacks must not let Nim exceptions cross C and must define request/thread lifetime |
-| Dynamic and partial shapes | Reshape and `ov_partial_shape_t` add ownership and validation cases |
-| Layout and preprocessing | The C pre/post-processing API has a larger surface and variadic entry points |
-| Request pools and concurrency | Sharing rules need measured thread tests rather than assumptions |
+| Request pools and concurrency | Sharing rules need measured thread tests rather than assumptions; a simple pool over `CompletionQueue` is the natural start |
+| `asyncdispatch` integration | Needs evidence that waking an event loop from a non-Nim thread is safe on IOCP and epoll |
 | Remote contexts | Device-specific memory ownership cannot be represented by a generic pointer |
+| Mutable ports | Needed only for `reshape_by_ports` and port-based tensor binding |
 | GenAI and task-specific helpers | These belong in separate layers, not in the small core binding |
 
 ## Non-goals

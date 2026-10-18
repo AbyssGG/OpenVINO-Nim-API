@@ -39,7 +39,7 @@ const
     ## `RepositoryName`; the Nimble package identifier and Nim import root are
     ## both `openvino`, because Nimble identifiers may not contain a hyphen.
 
-  PackageVersion* = "0.1.1"
+  PackageVersion* = "0.2.0"
     ## SemVer version of this Nim package. Versioned independently of the
     ## OpenVINO runtime: see `TargetOpenVinoVersion`.
 

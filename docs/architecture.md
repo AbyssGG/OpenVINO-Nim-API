@@ -92,7 +92,39 @@ every call site:
 | `paths.nim` | UTF-8 to UTF-16 for the Windows wide-character entry points |
 
 `private` is not part of the public API. It is imported by the managed layer and
-by tests that need to assert something about a boundary rule.
+by tests that need to assert something about a boundary rule. Since `0.2.0` it
+also holds `partial_shapes.nim`, the conversion to and from
+`ov_partial_shape_t`, and `trampoline.nim`, described next.
+
+## Asynchronous completion: the request box and the trampoline
+
+OpenVINO's `ov_infer_request_set_callback` keeps a pointer to an
+`ov_callback_t` and calls its function on an OpenVINO worker thread. Two rules
+follow, recorded in `docs/decisions/0003-async-completion.md`:
+
+```text
+InferRequest ──Handle──> RequestBox (allocShared0, never moves)
+                           native: ov_infer_request_t*
+                           callback: ov_callback_t ──> completionTrampoline
+                           queue ─────────────┐
+                                              v
+CompletionQueue ──Handle──> QueueShared (allocShared0)
+                              OS mutex + condition variable
+                              ring of RequestBox pointers
+                              reference count (owner + attached requests)
+```
+
+- **Stable addresses.** `InferRequest` owns a shared-memory `RequestBox`
+  instead of the bare native pointer, so the `ov_callback_t` inside it never
+  moves. Releasing a request cancels it where the device allows, waits, frees
+  the native request, detaches it from its queue and only then frees the box.
+- **No Nim code on OpenVINO threads.** `private/trampoline.nim` is the only
+  function OpenVINO ever calls. It takes the queue's operating-system lock,
+  appends the box to a fixed ring unless it is already there, signals, and
+  unlocks; stack traces and runtime checks are off for the module, and
+  `nimble lint` rejects allocation, strings, `echo` and exceptions in it. The
+  caller's own thread receives completions with `CompletionQueue.next` and
+  collects each result, or its error, with `wait`.
 
 ## What is deliberately absent
 
@@ -106,7 +138,11 @@ Absences are decisions too, and each of these was asked for at some point:
   never creates a directory or enables caching on its own.
 - **No `compileOrImportModel`.** Choosing between compiling and importing a blob
   needs application knowledge about staleness and hardware identity.
-- **No async or batching in `0.1.0`.** The synchronous path is what is tested.
+- **No user callbacks.** OpenVINO calls completion callbacks on its own
+  threads. The package installs one internal C callback for
+  `CompletionQueue` and offers no way to run Nim code there; see below.
+- **No batching or request pools.** A pool over `CompletionQueue` is roadmap
+  work.
 - **No `pointer`-valued property API.** It would make every pointer-valued
   property look equally safe, and they are not.
 
@@ -115,6 +151,8 @@ Absences are decisions too, and each of these was asked for at some point:
 | Check | Task | What it would catch |
 |---|---|---|
 | Layer direction | `nimble lint` | `src/openvino.nim` re-exporting `raw` |
+| No C varargs | `nimble lint` | A `varargs` declaration in the raw layer, or the variadic color-format setter |
+| Trampoline discipline | `nimble lint` | Allocation, strings, `echo` or exceptions in code that runs on an OpenVINO thread |
 | Naming per layer | `nimble lint` | A managed name in upstream style, or the reverse |
 | Cast justification | `nimble lint` | A `cast` in `src` or `examples` with no invariant written within ten lines above it |
 | Declarations against headers | `nimble testAbi` | A struct field order, enum value or type width that drifted from the C headers |

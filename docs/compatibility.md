@@ -18,18 +18,22 @@ Two hosts, both running every task in the list at the end of this document.
 | Memory managers | ORC, ARC | ORC, ARC |
 | Build modes | debug, release | debug, release |
 
-What each check produced, the same on both hosts unless stated:
+What each check produced for `0.2.0`, the same on both hosts unless stated. The
+Windows host ran OpenVINO `2026.4.0` for this round and the Linux host the
+pinned `2026.4.1` wheel, so between them both runtimes were exercised:
 
 | Check | Result |
 |---|---|
-| `nimble testAbi` | 21 tests, driven from a C probe compiled against the installed headers |
-| `nimble testSmoke` | 9 tests; 55 required symbols resolve against the real runtime |
-| `nimble testLifecycle` | the lifetime and error-path suites under ORC and then ARC |
-| `nimble testIntegration` | 50 tests in debug and 50 in release; ReLU on CPU gives `@[0.0, 2.0, 0.0, 4.0]`, matching a hand-computed value |
-| `nimble testHardware` | Windows host: 45 tests per run across ORC/ARC and debug/release (180 assertions total) on `GPU`, `GPU.0` (`Intel(R) Graphics (iGPU)`), `GPU.1` (`NVIDIA GeForce RTX 5080 (dGPU)`) and `NPU` (`Intel(R) AI Boost`) |
-| `nimble examples` | all five examples compile and run |
+| `nimble testAbi` | 30 tests, driven from a C probe compiled against the installed headers, including the `0.2.0` callback, dimension and partial-shape layouts and the three preprocessing enumerations |
+| `nimble testSmoke` | 29 tests; 55 + 68 required symbols resolve against the real runtime, and the Phase 0 measurements M-01 to M-10 are pinned as regressions |
+| `nimble test` | the runtime-free unit tests, including partial shapes and preprocessing plans |
+| `nimble testLifecycle` | the lifetime and error-path suites, including asynchronous request and completion-queue lifetimes, under ORC and then ARC |
+| `nimble testIntegration` | 106 tests in debug and 106 in release: static, dynamic and bounded inference, asynchronous inference with a 4-request × 1000-round pipeline, and every preprocessing step checked numerically |
+| Async matrix | `tasync_inference` and `tasync_lifetime` pass under ORC and ARC, each in debug and release |
+| `nimble testHardware` | Windows host: 61 tests per run across ORC/ARC and debug/release (244 in total) on `GPU`, `GPU.0` (`Intel(R) Graphics (iGPU)`), `GPU.1` (`NVIDIA GeForce RTX 5080 (dGPU)`) and `NPU` (`Intel(R) AI Boost`) |
+| `nimble examples` | all eight examples compile and run |
 | `nimble packagingCheck` | installs into a clean directory; a consumer compiled outside the checkout, without `--path:src`, runs a real inference |
-| `nimble memcheck` | Linux only. valgrind 3.26.0: no definite leak and no invalid access, on our own code and on one real inference |
+| `nimble memcheck` | Linux only. valgrind: no definite leak and no invalid access on five targets: our own handle code, one inference, dynamic shapes with reshape, asynchronous inference through a completion queue, and a preprocessing plan |
 
 All 18 C headers in OpenVINO `2026.4.1` (build `22982`, commit `e213a14`) have
 identical SHA-256 digests to `2026.4.0` (build `22959`, commit `99c8149`). Both
@@ -67,6 +71,24 @@ multi-request lifetime loops under `--mm:orc` and `--mm:arc`, profiling with
 `enableProfiling()`, and compiled-model blob round-tripping (`exportTo` /
 `importModel`).
 
+### Dynamic shapes and asynchronous inference on devices (0.2.0, plan item M-11)
+
+Measured on the Windows host with OpenVINO `2026.4.0` by `nimble testHardware`,
+identically under ORC/ARC and debug/release:
+
+| Device | Unbounded `[?, 4]` | Bounded `[1..8, 4]` | Async through `CompletionQueue` | `cancel` |
+|---|---|---|---|---|
+| `CPU` | Batches 1, 3, 7 correct | Batches 1, 3, 7 correct; batch 9 refused | Correct (4 × 1000 pipeline) | Supported |
+| `GPU` / `GPU.0` | Batches 1, 3, 7 correct | Batches 1, 3, 7 correct | 100 completions, all correct | Supported |
+| `GPU.1` | Batches 1, 3, 7 correct | Batches 1, 3, 7 correct | 100 completions, all correct | Supported |
+| `NPU` | **Compile refused** ("Upper bounds are not specified"); the same model reshaped to `[3, 4]` is correct | Batches 1, 3, 7 correct | 100 completions, all correct | **Not supported**: `cancel` raises `OpenVinoError`; `close` on a running request still waits safely |
+
+A preprocessing plan converting `u8` input to the model's `f32` produced the
+expected values on every device.
+
+ThreadSanitizer could not be used on Linux: OpenVINO loads `libtbbbind` with
+`RTLD_DEEPBIND`, which the sanitizer runtime refuses.
+
 ## Not verified
 
 These are not claimed. Some are expected to work and simply have not been run;
@@ -76,7 +98,7 @@ others are known to be missing.
 |---|---|
 | macOS | Never run. No claim either way |
 | Linux GPU and NPU | Not tested on the Linux host (which was verified on CPU only) |
-| Concurrency | No test exists. See the Threads section of `docs/ownership.md` for what is claimed and on whose authority |
+| Concurrency | Only one Nim thread driving many asynchronous requests is tested. See the Threads section of `docs/ownership.md` for what is claimed and on whose authority |
 | `--mm:refc` | Never run. The handle model is written for ORC and ARC; refc is not claimed |
 | Nim 2.1.x | The manifest requires `>= 2.0.0`; CI runs `2.0.0` and `2.2.12`, and the Linux host ran `2.2.4` |
 | OpenVINO 2026.5 and later | Not released at the time of writing |

@@ -4,7 +4,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Nim](https://img.shields.io/badge/Nim-%E2%89%A52.0.0-yellow.svg)](https://nim-lang.org/)
 [![OpenVINO](https://img.shields.io/badge/OpenVINO-2026.4.x-6b4fbb.svg)](https://docs.openvino.ai/)
-[![Status](https://img.shields.io/badge/status-v0.1.1-brightgreen.svg)](https://github.com/AbyssGG/OpenVINO-Nim-API/releases/tag/v0.1.1)
+[![Status](https://img.shields.io/badge/status-v0.2.0-brightgreen.svg)](https://github.com/AbyssGG/OpenVINO-Nim-API/releases/tag/v0.2.0)
 
 **English** | [简体中文](README_zh-CN.md)
 
@@ -21,14 +21,26 @@ Corporation.** OpenVINO is a trademark of Intel Corporation.
 
 ## Status
 
+Version `0.2.0` was released on 2026-10-18 and adds asynchronous inference,
+dynamic and partial shapes with reshape, and declarative layout and
+preprocessing. Download the source archives from the
+[GitHub Release](https://github.com/AbyssGG/OpenVINO-Nim-API/releases/tag/v0.2.0).
+Its development record
+is [OPENVINO_NIM_0.2_DEVELOPMENT_PLAN.md](OPENVINO_NIM_0.2_DEVELOPMENT_PLAN.md),
+and the design decisions are ADRs
+[0003](docs/decisions/0003-async-completion.md),
+[0004](docs/decisions/0004-partial-shape-representation.md) and
+[0005](docs/decisions/0005-preprocessing-api.md).
+
 Version `0.1.1` was released on 2026-10-18 targeting OpenVINO `2026.4.1` (and
 verified against `2026.4.0`). Download the source archives from the
 [GitHub Release](https://github.com/AbyssGG/OpenVINO-Nim-API/releases/tag/v0.1.1).
 The foundational design and initial release work are tracked in
 [OPENVINO_NIM_0.1_DEVELOPMENT_PLAN.md](OPENVINO_NIM_0.1_DEVELOPMENT_PLAN.md).
 
-Synchronous inference works across CPU, GPU and NPU. `Core`, `Model`,
-`CompiledModel`, `InferRequest`, `Tensor`, properties, profiling and explicit
+Synchronous and asynchronous inference work across CPU, GPU and NPU. `Core`,
+`Model`, `CompiledModel`, `InferRequest`, `Tensor`, partial shapes, reshape,
+`CompletionQueue`, preprocessing plans, properties, profiling and explicit
 blob export/import are implemented and covered by tests that run real
 inference on CPU (`nimble testIntegration`) and on GPU and NPU hardware
 (`nimble testHardware`), including multi-hundred and thousand-iteration
@@ -51,7 +63,7 @@ already works unless it says so.
 
 ## Feature overview
 
-| Capability | 0.1.1 status | Notes |
+| Capability | 0.2.0 status | Notes |
 |---|---|---|
 | Managed Nim API | Available | `Core`, `Model`, `CompiledModel`, `InferRequest`, `Tensor`, shapes and properties |
 | Raw C ABI layer | Available | Import it explicitly with `openvino/raw`; pinned to OpenVINO `2026.4.1` headers |
@@ -59,8 +71,10 @@ already works unless it says so.
 | Synchronous GPU & NPU inference | Available (Windows x86_64) | Verified on Intel iGPU (`GPU.0`), NVIDIA dGPU (`GPU.1`) and Intel AI Boost (`NPU`) via `nimble testHardware` |
 | Runtime discovery and diagnostics | Available | Version, device listing, symbol checks and actionable loader errors |
 | Profiling and explicit blob I/O | Available | Verified on CPU, GPU and NPU; no implicit cache directory or device policy is added |
-| Async inference and callbacks | Roadmap | Needs a Nim-safe callback and thread-lifetime design |
-| Dynamic shapes and preprocessing | Roadmap | The corresponding C headers are intentionally not in the 0.1.x surface |
+| Asynchronous inference | Available (new in 0.2.0) | `startAsync`, `wait`, `waitFor`, `cancel` and `CompletionQueue`; no Nim code runs on OpenVINO threads, so user callbacks are deliberately not offered |
+| Dynamic shapes and reshape | Available (new in 0.2.0) | `PartialShape`, `Port.partialShape` and `Model.reshape`; the NPU plugin needs bounded or static shapes |
+| Layout and preprocessing | Available (new in 0.2.0) | `Layout` and a declarative `PreprocessPlan` applied in one call |
+| Request pools, remote contexts | Roadmap | See [the roadmap](docs/roadmap.md) |
 
 The roadmap is deliberately explicit about what is not implemented. See
 [the API overview](docs/api-overview.md) and [the roadmap](docs/roadmap.md)
@@ -101,7 +115,7 @@ below and is compiled from the same source as `examples/minimal.nim`.
 
 ## Release artifacts
 
-The `v0.1.1` Release follows the packaging contract in the development plan
+The `v0.2.0` Release follows the packaging contract in the development plan
 and contains exactly four canonical assets with one shared base name:
 
 ```text
@@ -328,12 +342,13 @@ Start with whichever question you have:
 | Which C entry points are bound? | [C API coverage](docs/c-api-coverage.md) |
 | What is the public API shape? | [API overview](docs/api-overview.md) |
 | How do I install and verify it? | [Getting started](docs/getting-started.md) |
-| What is planned after 0.1.0? | [Roadmap](docs/roadmap.md) |
+| What is planned after 0.2.0? | [Roadmap](docs/roadmap.md) |
 | I have Resonance code | [Migration guide](docs/resonance-migration.md) |
-| Why was it done this way? | [Symbol loading](docs/decisions/0001-symbol-loading.md), [handle model](docs/decisions/0002-handle-model.md) |
+| Why was it done this way? | [Symbol loading](docs/decisions/0001-symbol-loading.md), [handle model](docs/decisions/0002-handle-model.md), [async completion](docs/decisions/0003-async-completion.md), [partial shapes](docs/decisions/0004-partial-shape-representation.md), [preprocessing](docs/decisions/0005-preprocessing-api.md) |
 
 Project documents: [notice and provenance](NOTICE),
-[development plan](OPENVINO_NIM_0.1_DEVELOPMENT_PLAN.md),
+[0.1 development plan](OPENVINO_NIM_0.1_DEVELOPMENT_PLAN.md),
+[0.2 development plan](OPENVINO_NIM_0.2_DEVELOPMENT_PLAN.md),
 [development log in English and Chinese](DEVLOG.md),
 [style guide](STYLE_GUIDE.md), [contributing](CONTRIBUTING.md),
 [changelog](CHANGELOG.md),

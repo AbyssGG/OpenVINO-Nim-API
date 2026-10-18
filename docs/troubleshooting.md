@@ -128,6 +128,71 @@ before calling into C. For a crash, first check these lifetime conditions:
   [Ownership rules](ownership.md) lists the release function for each result.
 - One `InferRequest` used from several threads. Not supported and not tested.
 
+## `REQUEST_BUSY`: `OpenVinoBusyError`
+
+The request is still running an asynchronous inference. While it runs, a second
+`startAsync`, `infer`, binding a tensor and reading `inputTensor` or
+`outputTensor` all raise `OpenVinoBusyError` (status `REQUEST_BUSY`, `-8`).
+Call `wait` or `waitFor` first. `attach` raises it too, for a running request.
+It is a subtype of `OpenVinoError`, so existing handlers still catch it.
+
+## `waitFor` returns `false`
+
+That is a timeout (`RESULT_NOT_READY`, `-9`), not an error: the run is still in
+flight. Call `waitFor` again, or `wait` to block. A negative timeout is refused
+with `OpenVinoArgumentError`. A request that was never started returns `true`
+at once.
+
+## `wait` keeps raising `OpenVinoCancelledError`
+
+After `cancel`, OpenVINO reports `INFER_CANCELLED` (`-13`) from every `wait`
+until the request is started again; that is upstream behaviour, not a stuck
+request. If `cancel` itself raises `OpenVinoError`, the device does not support
+cancellation (the Intel NPU plugin in 2026.4); the run continues and `wait`
+returns its result normally.
+
+## `shape` fails on a dynamic port
+
+`Port.shape` has no answer for a dimension that is not fixed, so it raises
+`OpenVinoError`, and the message points to `partialShape`. Use
+`port.partialShape` or check `port.isDynamic`. An input whose batch is dynamic
+reads as an empty tensor, for example `[0, 4]`, until a tensor of a concrete
+shape is bound with `setInputTensor`, or `setShape` is called on the request's
+own input tensor.
+
+## `reshape` refuses a scalar or an unknown rank
+
+The OpenVINO 2026.4 C API turns a reshape to rank 0, or to a dynamic rank, into
+the rank-1 shape `[?]` without reporting an error, so the managed `reshape`
+refuses both with `OpenVinoArgumentError`. Zero-length dimensions such as
+`[0, 4]` are fine. `reshape(shape)` without a name or index also refuses a
+model with more than one input.
+
+## The NPU refuses a dynamic model
+
+The Intel NPU plugin needs an upper bound for every dimension. A model with an
+unbounded batch such as `[?, 4]` fails to compile ("Upper bounds are not
+specified"). Reshape to a bounded batch, for example
+`initPartialShape([boundedDim(1, 8), staticDim(4)])`, or to a static shape
+before compiling for `NPU`. GPU and CPU accept unbounded dimensions.
+
+## The source model changed after `applyPreprocessing`
+
+That is how OpenVINO's preprocessing works: the returned model and the source
+share one graph, which `build` modified. Both handles stay valid. Close the
+source model if you do not need it, and read a fresh model from disk if you need
+the original.
+
+## A preprocessing error does not name a step
+
+OpenVINO checks most steps only when the plan is built, so a channel count that
+does not match, a resize without a known layout or an unsupported color
+conversion is reported by `build`. The `OpenVinoError` context then contains a
+one-line summary of the whole plan, and the message ends with OpenVINO's own
+explanation, which usually names the problem. Errors from an individual call,
+such as an input index that does not exist, are located exactly, for example
+`input[5]`.
+
 ## Profiling shows nodes that are not in the model
 
 Profiling names come from the plugin after fusion and other graph

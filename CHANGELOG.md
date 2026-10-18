@@ -13,6 +13,66 @@ and the OpenVINO runtime baseline evolve independently:
 
 ## Unreleased
 
+## 0.2.0
+
+Released on 2026-10-18 as
+[`v0.2.0`](https://github.com/AbyssGG/OpenVINO-Nim-API/releases/tag/v0.2.0).
+
+### Nim API
+
+- Added asynchronous inference: `InferRequest.startAsync`, `wait`,
+  `waitFor(Duration): bool` (a timeout returns `false`) and `cancel`, and
+  `CompletionQueue` (`newCompletionQueue`, `attach`, `next`, `pending`,
+  `capacity`, `close`) for completion notification. The only callback
+  OpenVINO calls is a package-internal trampoline that runs no Nim runtime
+  code; users cannot register Nim callbacks
+  ([ADR 0003](docs/decisions/0003-async-completion.md)).
+- Added `OpenVinoBusyError` (`REQUEST_BUSY`) and `OpenVinoCancelledError`
+  (`INFER_CANCELLED`), both subtypes of `OpenVinoError`, raised wherever those
+  statuses occur, so existing `except OpenVinoError` handlers keep working.
+- Changed `InferRequest.close` and its destructor to be safe on a running
+  request: cancel where the device supports it, wait, then release.
+- Added `Dimension`, `PartialShape` and their constructors (`staticDim`,
+  `dynamicDim`, `boundedDim`, `atLeastDim`, `initPartialShape`,
+  `dynamicRankShape`), `Port.partialShape`, `Port.isDynamic`, and
+  `Model.reshape` by single input, index, name, or several names in one atomic
+  call. A scalar or dynamic-rank reshape is refused because the C API would
+  silently produce `[?]`
+  ([ADR 0004](docs/decisions/0004-partial-shape-representation.md)).
+- `Port.shape` on a dynamic port still raises `OpenVinoError`; its message now
+  points to `partialShape`.
+- Added `Layout` (`initLayout`), `ColorFormat`, `ResizeAlgorithm`,
+  `PaddingMode`, the declarative `PreprocessPlan` with chained builders, and
+  `applyPreprocessing`, which builds a new `Model` and modifies the source
+  model as OpenVINO does ([ADR 0005](docs/decisions/0005-preprocessing-api.md)).
+- `import openvino` now also exports `Duration`, `initDuration`, `Option`,
+  `isSome`, `isNone` and `get`, as needed for `waitFor` and `next`.
+- Added raw declarations for `ov_dimension.h`, `ov_rank.h`,
+  `ov_partial_shape.h`, `ov_layout.h`, the 39 non-variadic functions of
+  `ov_prepostprocess.h`, `ov_port_get_partial_shape`, four reshape functions,
+  the asynchronous request functions with `ov_callback_t`, and six single-port
+  tensor accessors. The variadic color-format setter is not bound.
+- Added fixtures `relu_dyn_x4_f32.xml`, `relu_bounded_f32.xml` and
+  `relu_1x3x4x4_f32.xml`; tests `tpartial_shape`, `tpreprocess_plan`,
+  `tdynamic_shape`, `tasync_inference`, `tpreprocess` and `tasync_lifetime`;
+  M-series runtime regressions in `tsmoke_runtime`; new ABI probe suites; and
+  examples `dynamic_shape.nim`, `async_infer.nim` and `preprocess.nim`.
+- `nimble lint` now rejects `varargs` in the raw layer and allocation, strings,
+  `echo` and exceptions in the completion trampoline. `nimble memcheck` also
+  covers the dynamic-shape, asynchronous and preprocessing examples.
+  `nimble testHardware` covers dynamic shapes, asynchronous inference and
+  preprocessing on GPU and NPU.
+
+### OpenVINO compatibility
+
+- No baseline change: OpenVINO `2026.4.1`, compatible with `2026.4.0`.
+- Measured and documented upstream behaviour the API works around: the
+  partial-shape constructors reject `{0, -1}`; reshape turns rank 0 and a
+  dynamic rank into `[?]`; `wait_for` reports a timeout on a never-started
+  request; preprocessing `build` modifies the source model.
+- Measured on hardware: the Intel NPU plugin refuses unbounded dynamic
+  dimensions (bounded ones work) and does not support cancellation.
+
 ## 0.1.1
 
 Released on 2026-10-18 as

@@ -638,6 +638,52 @@ seeded with the updated `packages_official.json` (resolving `openvino-0.1.1`),
 and opened [nim-lang/packages #3578](https://github.com/nim-lang/packages/pull/3578)
 where the upstream `testpr.yml` CI workflow passed.
 
+### 2026-10-18 Release candidate 0.2.0: asynchronous inference, dynamic shapes and preprocessing
+
+Developed `0.2.0` against `OPENVINO_NIM_0.2_DEVELOPMENT_PLAN.md` in six gated
+phases, each verified on Windows 11 (OpenVINO `2026.4.0`) and Ubuntu 26.04
+(the pinned `2026.4.1` wheel, gcc 15), and released as `v0.2.0` on 2026-10-18
+once CI had passed on the pushed commits.
+
+Phase 0 re-checked the plan against the upstream C binding sources at tag
+`2026.4.0` and measured ten open questions on the runtime. Upstream won twice.
+`ov_partial_shape_create*` reject `{0, -1}`, the very form a port reports for
+an unbounded dimension, so the managed write path builds the struct in Nim
+instead. The reshape functions silently turn a dynamic rank or rank 0 into the
+rank-1 shape `[?]`, so `Model.reshape` refuses both. Other measurements:
+every call on a busy request, including reading tensors, returns
+`REQUEST_BUSY`; `wait` after `cancel` keeps returning `INFER_CANCELLED`; `wait`
+on a never-started request returns `OK` while `wait_for` returns
+`RESULT_NOT_READY`; the completion callback has finished before `wait` returns
+(2000 of 2000); and preprocessing `build` modifies the source model.
+
+Phase 1 bound the raw layer (`ov_dimension.h`, `ov_rank.h`,
+`ov_partial_shape.h`, `ov_layout.h`, the 39 non-variadic functions of
+`ov_prepostprocess.h`, reshape and the asynchronous request functions), with
+ABI probes, 29 smoke tests pinning the measurements, and a lint rule against
+`varargs`. Linux gcc 15 rejected a generic test helper over structurally equal
+tuple tables, which became a template.
+
+Phase 2 added `Dimension`, `PartialShape`, `Port.partialShape` and four
+`Model.reshape` overloads. Phase 3 moved `InferRequest` onto a shared-memory
+request box, added `startAsync`, `wait`, `waitFor`, `cancel`,
+`OpenVinoBusyError`, `OpenVinoCancelledError` and `CompletionQueue`, and put
+the only code that runs on an OpenVINO thread into a module that calls the
+operating system's lock and condition variable directly and is policed by
+lint. The plan's idea of keeping bound tensors alive was dropped because
+OpenVINO already keeps its own reference. Phase 4 added `Layout` and the
+declarative `PreprocessPlan`; OpenVINO checks most steps only at `build`, so
+those errors carry a summary of the plan rather than a step index.
+
+Phase 5 ran the hardware suite on `GPU`, `GPU.0`, `GPU.1` and `NPU`. Every GPU
+target ran unbounded and bounded dynamic batches and the asynchronous queue.
+The NPU refuses an unbounded batch but accepts a bounded one, and cannot
+cancel: `cancel` raises there, while closing a running request stays safe
+because release always waits. valgrind found no leak or invalid access across
+five targets, including the asynchronous and preprocessing paths;
+ThreadSanitizer cannot run because OpenVINO loads `libtbbbind` with
+`RTLD_DEEPBIND`. The `0.1` tests passed unmodified throughout.
+
 ## 中文
 
 ### 2026-09-24 Phase 0：审计原型并冻结范围
@@ -1120,3 +1166,36 @@ formatter 运行、exit 0、树未变，两个平台都如此。教训与前面 
 `openvino-0.1.1`），随后提交官方 PR
 [nim-lang/packages #3578](https://github.com/nim-lang/packages/pull/3578) 并通过上游
 `testpr.yml` CI 校验。
+
+### 2026-10-18 0.2.0 候选版本：异步推理、动态 Shape 与预处理
+
+按 `OPENVINO_NIM_0.2_DEVELOPMENT_PLAN.md` 分六个带门禁的阶段开发 `0.2.0`，每个阶段都在
+Windows 11（OpenVINO `2026.4.0`）与 Ubuntu 26.04（固定的 `2026.4.1` wheel，gcc 15）上验证。
+推送后的 CI 全部通过后，于 2026-10-18 以 `v0.2.0` 发布。
+
+Phase 0 对照 tag `2026.4.0` 的上游 C 绑定源码复核计划，并在 runtime 上实测十个待定问题。
+两处以上游为准修正计划：`ov_partial_shape_create*` 拒绝 `{0, -1}`——恰恰是端口报告无界维度
+的形式——因此托管层写入路径改为在 Nim 中自建结构；reshape 函数会把动态 rank 和 rank 0 静默
+变成 rank 1 的 `[?]`，因此 `Model.reshape` 拒绝这两种情况。其他实测：忙请求上的所有调用（包括
+读取张量）都返回 `REQUEST_BUSY`；`cancel` 之后 `wait` 持续返回 `INFER_CANCELLED`；未启动请求
+上 `wait` 返回 `OK` 而 `wait_for` 返回 `RESULT_NOT_READY`；完成回调在 `wait` 返回前已执行完毕
+（2000/2000）；预处理 `build` 会修改源模型。
+
+Phase 1 绑定 raw 层（`ov_dimension.h`、`ov_rank.h`、`ov_partial_shape.h`、`ov_layout.h`、
+`ov_prepostprocess.h` 的 39 个非可变参数函数、reshape 与异步请求函数），配套 ABI probe、
+固化上述实测的 29 个 smoke 测试，以及禁止 `varargs` 的 lint 规则。Linux gcc 15 拒绝了一个
+作用于结构相同元组表的泛型测试辅助，改为 template。
+
+Phase 2 新增 `Dimension`、`PartialShape`、`Port.partialShape` 与四个 `Model.reshape` 重载。
+Phase 3 把 `InferRequest` 改为持有共享内存的请求盒，新增 `startAsync`、`wait`、`waitFor`、
+`cancel`、`OpenVinoBusyError`、`OpenVinoCancelledError` 与 `CompletionQueue`，并把唯一会在
+OpenVINO 线程上运行的代码放进一个直接调用操作系统锁与条件变量、由 lint 约束的模块。计划中
+“请求持有绑定张量引用”的设想被取消，因为 OpenVINO 自己已持有引用。Phase 4 新增 `Layout` 与
+声明式 `PreprocessPlan`；OpenVINO 把大多数步骤检查推迟到 `build`，这类错误附带整个计划摘要
+而非步骤序号。
+
+Phase 5 在 `GPU`、`GPU.0`、`GPU.1` 与 `NPU` 上运行硬件套件。所有 GPU 目标都跑通了无界与有界
+动态 batch 以及异步队列。NPU 拒绝无界 batch 但接受有界 batch，且不支持取消：`cancel` 会抛出
+异常，而关闭运行中的请求依然安全，因为释放路径总是等待。valgrind 在包括异步与预处理路径在内的
+五个目标上未发现泄漏或非法访问；ThreadSanitizer 无法运行，因为 OpenVINO 以 `RTLD_DEEPBIND`
+加载 `libtbbbind`。`0.1` 测试全程无修改通过。

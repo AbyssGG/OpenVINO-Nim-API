@@ -66,7 +66,7 @@ proc stringMetadata(name: string): string =
 #
 # `nimble releaseCheck` closes the loop by asserting each literal against
 # src/openvino/version.nim, so the single source of truth still wins.
-version = "0.1.1"
+version = "0.2.0"
 author = "WANG"
 description = "Community-maintained Nim bindings for the OpenVINO Runtime " &
   "C API. Not an official Intel or OpenVINO project."

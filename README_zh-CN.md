@@ -10,6 +10,17 @@ Corporation 的认可或附属关系。** OpenVINO 是 Intel Corporation 的商�
 
 ## 项目状态
 
+版本 `0.2.0` 已于 2026-10-18 发布（[GitHub Release](https://github.com/AbyssGG/OpenVINO-Nim-API/releases/tag/v0.2.0)），新增异步推理（`startAsync`、`wait`、
+`waitFor`、`cancel` 与 `CompletionQueue`，不在 OpenVINO 线程上运行任何 Nim 代码，
+因此不提供用户回调）、动态与部分形状（`PartialShape`、`Port.partialShape`、
+`Model.reshape`）以及声明式 Layout 与预处理（`PreprocessPlan`、
+`applyPreprocessing`）。开发记录见
+[OPENVINO_NIM_0.2_DEVELOPMENT_PLAN.md](OPENVINO_NIM_0.2_DEVELOPMENT_PLAN.md)，
+设计决定见 ADR [0003](docs/decisions/0003-async-completion.md)、
+[0004](docs/decisions/0004-partial-shape-representation.md)、
+[0005](docs/decisions/0005-preprocessing-api.md)。0.2.0 实测要点：NPU 插件要求
+有界或静态形状，且不支持 `cancel`（关闭运行中的请求仍然安全）。
+
 版本 `0.1.1` 已于 2026-10-18 发布，针对 OpenVINO `2026.4.1`（同时兼容并已验证
 `2026.4.0`）。请从
 [GitHub Release](https://github.com/AbyssGG/OpenVINO-Nim-API/releases/tag/v0.1.1)
@@ -30,7 +41,7 @@ Corporation 的认可或附属关系。** OpenVINO 是 Intel Corporation 的商�
 列表 `@[]`，而在 `GPU`（`GPU`、`GPU.0`、`GPU.1`）上会抛出 `OpenVinoError`；当使
 用 `[enableProfiling()]` 编译时，三类硬件插件均正常返回带计时的执行节点。
 
-macOS 尚未验证。异步推理、回调、动态形状 API 和预处理尚未实现。请查看英文的
+macOS 尚未验证。请求池与 remote context 仍在路线图中。请查看英文的
 [兼容性矩阵](docs/compatibility.md)和[路线图](docs/roadmap.md)。
 
 ## 快速开始
