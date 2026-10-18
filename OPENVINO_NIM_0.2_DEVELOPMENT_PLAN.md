@@ -719,12 +719,14 @@ ORC/ARC × debug/release 通过；1000 轮 × 4 请求压力测试稳定；Linux
 
 ### D. 文档、硬件与发布
 
-- [ ] D-01 §11 全部文档更新
-- [ ] D-02 ADR 0003–0005 定稿为 Accepted
-- [ ] D-03 `testHardware` GPU/NPU 动态与异步用例，`docs/compatibility.md` 更新
-- [ ] D-04 版本号 `0.2.0` 全仓一致，`releaseCheck` 通过
-- [ ] D-05 `docs`、`packagingCheck`、`releaseArchive` dry run 通过
-- [ ] D-06 `CHANGELOG.md`、`RELEASE_NOTES.md`、`DEVLOG.md`（双语）
+- [x] D-01 §11 全部文档更新。证据：`docs/c-api-coverage.md`、`ownership.md`、`api-overview.md`、`architecture.md`、`troubleshooting.md`、`roadmap.md`、`compatibility.md`、`README.md`、`README_zh-CN.md`；`tools/mdcheck.nim` 通过
+- [x] D-02 ADR 0003–0005 定稿为 Accepted。证据：三份 ADR 的 Status 行与 “Verification at acceptance” 节；ADR 0003 另含 Phase 5 硬件证据（NPU 不支持 cancel）
+- [x] D-03 `testHardware` GPU/NPU 动态与异步用例，`docs/compatibility.md` 更新。证据：Windows 主机 ORC/ARC × debug/release 共 244 项通过；M-11：GPU/GPU.0/GPU.1 支持无界与有界动态，NPU 拒绝无界、接受有界与静态，NPU 不支持 `cancel`；写入 compatibility.md 设备表
+- [x] D-04 版本号 `0.2.0` 全仓一致，`releaseCheck` 通过。证据：`version.nim`、`openvino.nimble`；`nimble releaseCheck` 两平台通过
+- [x] D-05 `docs`、`packagingCheck`、`releaseArchive` dry run 通过。证据：Windows `docs`、两平台 `packagingCheck` 通过；在 Linux 从 git bundle 克隆的提交 `d7c9933` 上 `ci/release-archive.py --date 2026-10-18 --dry-run` 生成 `openvino-nim-0-2-0-2026-10-18-ov2026-4-1` 的 4 个资产并校验，两次构建逐字节一致；`--self-test` 通过
+- [x] D-06 `CHANGELOG.md`、`RELEASE_NOTES.md`、`DEVLOG.md`（双语）。证据：三文件已更新，DEVLOG 中英条目数一致（mdcheck 校验）
+
+Gate 5（2026-10-18）：本机 Windows 与 Linux 全部任务、`testHardware`、`docs`、`packagingCheck`、`releaseCheck`、`releaseArchive` dry run 均通过；项目所有者已授权提交、推送、打 tag 与发布，GitHub Actions CI 全绿后发布 `v0.2.0`。
 
 ---
 
