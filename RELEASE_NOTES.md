@@ -41,11 +41,15 @@ Install OpenVINO Runtime `2026.4.x` separately and configure its library search
 path, then install the Nim package:
 
 ```shell
+# From the official Nimble package index (nim-lang/packages #3578):
+nimble refresh
 nimble install openvino
+
+# Or directly from the GitHub repository URL:
+nimble install https://github.com/AbyssGG/OpenVINO-Nim-API
 ```
 
-Until the package is present in the Nimble package index, install from a local
-checkout with `nimble install`.
+You can also install from a local checkout with `nimble install`.
 
 ## Release assets
 

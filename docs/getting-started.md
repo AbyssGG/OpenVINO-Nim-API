@@ -44,17 +44,25 @@ loader path as well.
 The C library alone is insufficient. `Core` also needs `plugins.xml`, device
 plugins and model frontends from the same runtime installation.
 
-## 2. Install the package from a checkout
+## 2. Install the package
 
 ```shell
+# From the official Nimble package index (nim-lang/packages #3578):
+nimble refresh
+nimble install openvino
+
+# Or directly from GitHub:
+nimble install https://github.com/AbyssGG/OpenVINO-Nim-API
+
+# Or from a local checkout (needed to run the repository's examples and tests):
 git clone https://github.com/AbyssGG/OpenVINO-Nim-API.git
 cd OpenVINO-Nim-API
 nimble install
 ```
 
-Version `0.1.1` is released, but its Nimble index entry is not published yet.
-Run `nimble install` from the checkout to install the package into Nimble's
-configured package path. The package and import name are both `openvino`.
+Version `0.1.1` is released and submitted to the official Nimble package index
+([nim-lang/packages #3578](https://github.com/nim-lang/packages/pull/3578)).
+The package and import name are both `openvino`.
 
 ## 3. Run the examples
 
@@ -129,6 +137,6 @@ operations block, and where the raw layer begins.
 | `OpenVinoLibraryError` says the library is missing | Loader path does not contain the C library | Re-run the official setup script in the same shell |
 | The C library loads but `newCore()` fails | Plugins, frontends or oneTBB are missing | Use one consistent OpenVINO installation layout |
 | A model file cannot be found | A relative path resolves from a different working directory | Run from the repository root or use an absolute model path |
-| `nimble install openvino` cannot find a package | `0.1.1` is not indexed yet | Install from the checkout with `nimble install` |
+| `nimble install openvino` cannot find a package | Local Nimble package list is outdated or index PR #3578 is pending merge | Run `nimble refresh`, or install via `nimble install https://github.com/AbyssGG/OpenVINO-Nim-API` |
 
 For detailed failure messages, see [Troubleshooting](troubleshooting.md).

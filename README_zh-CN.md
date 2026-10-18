@@ -37,15 +37,23 @@ macOS 尚未验证。异步推理、回调、动态形状 API 和预处理尚未
 
 1. 安装 OpenVINO Runtime `2026.4.x`。Windows 使用 CMD 调用 `setupvars.bat`；
    Linux 在 Bash 中使用 `source` 加载 `setupvars.sh`。后续命令在同一会话执行。
-2. 克隆仓库并安装本地 Nim 包：
+2. 使用 Nimble 安装包（或克隆仓库至本地以运行自带示例与测试套件）：
 
    ```shell
+   # 通过 Nimble 官方包索引安装（nim-lang/packages #3578）：
+   nimble refresh
+   nimble install openvino
+
+   # 或直接通过 GitHub 仓库 URL 安装：
+   nimble install https://github.com/AbyssGG/OpenVINO-Nim-API
+
+   # 或克隆仓库并在本地安装：
    git clone https://github.com/AbyssGG/OpenVINO-Nim-API.git
    cd OpenVINO-Nim-API
    nimble install
    ```
 
-3. 运行仓库内的验证示例（若有 GPU/NPU 硬件，还可运行硬件兼容性套件）：
+3. 在本地仓库目录中运行验证示例（若有 GPU/NPU 硬件，还可运行硬件兼容性套件）：
 
    ```shell
    nimble examples
@@ -55,8 +63,8 @@ macOS 尚未验证。异步推理、回调、动态形状 API 和预处理尚未
 英文[入门指南](docs/getting-started.md)包含 Windows/Linux 的动态库检查、
 测试命令和常见故障处理。
 
-Nimble 索引条目尚未发布，因此目前从仓库安装。安装后的包名和导入名均为
-`openvino`，代码中使用 `import openvino`。
+Nimble 官方包索引条目已提交（[nim-lang/packages #3578](https://github.com/nim-lang/packages/pull/3578)）。
+安装后的包名和导入名均为 `openvino`，代码中使用 `import openvino`。
 
 示例使用仓库自带的无权重 ReLU 模型，预期输出为 `@[0.0, 2.0, 0.0, 4.0]`。
 接入自己的模型时，需要修改输入个数、元素类型、形状、数据准备和结果校验；

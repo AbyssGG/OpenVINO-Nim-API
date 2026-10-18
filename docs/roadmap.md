@@ -18,6 +18,8 @@ design and tests. It is not a promise of a release date.
 - ABI probes, smoke tests, lifecycle tests under ORC and ARC, debug/release
   integration and hardware tests, examples and clean-directory packaging
   checks.
+- Official GitHub Releases (`v0.1.0`, `v0.1.1`) and Nimble package index entry
+  (`openvino`, [nim-lang/packages #3578](https://github.com/nim-lang/packages/pull/3578)).
 
 ## Next priorities
 
@@ -29,7 +31,6 @@ design and tests. It is not a promise of a release date.
 | Request pools and concurrency | Sharing rules need measured thread tests rather than assumptions |
 | Remote contexts | Device-specific memory ownership cannot be represented by a generic pointer |
 | GenAI and task-specific helpers | These belong in separate layers, not in the small core binding |
-| Public package/release | Create a tag, GitHub Release and Nimble index entry only with explicit owner authorization |
 
 ## Non-goals
 

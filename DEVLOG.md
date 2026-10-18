@@ -625,6 +625,19 @@ returns zero-time entries on `CPU`, an empty sequence (`@[]`) on `NPU`, and
 raises `OpenVinoError` (`status = -1`) on `GPU`. When compiled with
 `[enableProfiling()]`, all three plugins return timed execution entries.
 
+### 2026-10-18 Nimble package index submission: openvino
+
+Re-queried the official Nimble package list (`nim-lang/packages` `master` at
+`4cc3e9e`): 0 existing packages or aliases matched `openvino`. Added the
+`openvino` package entry pointing at
+`https://github.com/AbyssGG/OpenVINO-Nim-API` (`method: "git"`,
+`license: "Apache-2.0"`), verified `nim r -d:ssl -d:release package_scanner.nim
+packages.json --old=packages_old.json --check-urls` (`Problematic packages
+count: 0`), tested `nimble install openvino` against a temporary `--nimbleDir`
+seeded with the updated `packages_official.json` (resolving `openvino-0.1.1`),
+and opened [nim-lang/packages #3578](https://github.com/nim-lang/packages/pull/3578)
+where the upstream `testpr.yml` CI workflow passed.
+
 ## 中文
 
 ### 2026-09-24 Phase 0：审计原型并冻结范围
@@ -1095,3 +1108,15 @@ formatter 运行、exit 0、树未变，两个平台都如此。教训与前面 
 `CPU` 上返回耗时为 0 的节点列表，在 `NPU` 上返回空序列 `@[]`，而在 `GPU` 上抛出
 `OpenVinoError`（`status = -1`）；当传入 `[enableProfiling()]` 编译时，三类插件均返回带
 计时的执行节点。
+
+### 2026-10-18 Nimble 官方包索引提交：openvino
+
+再次核对官方 Nimble 包索引（`nim-lang/packages` `master` `4cc3e9e`）：不存在任何名为
+`openvino` 的包或别名。新增指向 `https://github.com/AbyssGG/OpenVINO-Nim-API` 的
+`openvino` 索引条目（`method: "git"`、`license: "Apache-2.0"`），本机通过
+`nim r -d:ssl -d:release package_scanner.nim packages.json --old=packages_old.json --check-urls`
+（`Problematic packages count: 0`），并在独立 `--nimbleDir` 中用更新后的
+`packages_official.json` 实测 `nimble install openvino`（成功解析并安装
+`openvino-0.1.1`），随后提交官方 PR
+[nim-lang/packages #3578](https://github.com/nim-lang/packages/pull/3578) 并通过上游
+`testpr.yml` CI 校验。

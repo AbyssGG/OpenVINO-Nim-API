@@ -71,15 +71,25 @@ before designing an application around a future feature.
 1. Install OpenVINO Runtime `2026.4.x`. On Windows, run `setupvars.bat` in
    Command Prompt (CMD); on Linux, source `setupvars.sh` in Bash. Keep using
    that shell for the remaining commands.
-2. Clone this repository and install the local Nim package:
+2. Install the Nim package via Nimble (or from a local checkout to run the
+   bundled examples and test suites):
 
    ```shell
+   # From the official Nimble index (nim-lang/packages #3578):
+   nimble refresh
+   nimble install openvino
+
+   # Or directly from GitHub before refreshing / while the index PR is open:
+   nimble install https://github.com/AbyssGG/OpenVINO-Nim-API
+
+   # Or from a local checkout:
    git clone https://github.com/AbyssGG/OpenVINO-Nim-API.git
    cd OpenVINO-Nim-API
    nimble install
    ```
 
-3. Run the verified examples against the included four-value ReLU fixture:
+3. From a local checkout, run the verified examples against the included
+   four-value ReLU fixture:
 
    ```shell
    nimble examples
@@ -189,15 +199,24 @@ commands and pip-specific loader setup.
 
 ## Installing the package
 
-The Nimble package index entry is not published yet. Run this command from
-the repository root after cloning the checkout:
+The package is registered under the Nimble identifier `openvino`
+([nim-lang/packages #3578](https://github.com/nim-lang/packages/pull/3578)).
+Install it from the Nimble index, directly by repository URL, or from a local
+checkout:
 
 ```shell
+# From the official Nimble package index:
+nimble refresh
+nimble install openvino
+
+# Or directly from the GitHub repository URL:
+nimble install https://github.com/AbyssGG/OpenVINO-Nim-API
+
+# Or from the root of a local checkout:
 nimble install
 ```
 
 The installed package is named `openvino`; import it with `import openvino`.
-Use `nimble install openvino` after the package index entry is published.
 
 ## Minimal synchronous inference
 
