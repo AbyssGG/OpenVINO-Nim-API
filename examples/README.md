@@ -13,6 +13,7 @@ download models or depend on a YOLO/GenAI application.
 | `profiling.nim` | Per-node profiling and property configuration | None |
 | `dynamic_shape.nim` | Partial shapes, reshape, and one compiled model inferring batches 1, 3 and 7 | None |
 | `async_infer.nim` | `startAsync`/`waitFor`, a four-request `CompletionQueue` pipeline, and cancellation | None |
+| `preprocess.nim` | A `PreprocessPlan` turning u8 BGR NHWC 2x2 images into the model's f32 RGB NCHW 4x4 input | None |
 
 Run the complete set after configuring OpenVINO:
 

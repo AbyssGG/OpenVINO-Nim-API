@@ -503,6 +503,7 @@ task docs, "Generate API documentation for every public module":
     "src/openvino/compiled_model.nim",
     "src/openvino/infer_request.nim",
     "src/openvino/core.nim",
+    "src/openvino/preprocess.nim",
     "src/openvino/raw.nim"
   ]
   for modulePath in publicModules:
@@ -613,13 +614,15 @@ task memcheck, "Run the Linux memory and invalid-access check under valgrind":
   # OpenVINO fills must be released exactly once. The fourth runs requests
   # asynchronously through a completion queue, so the trampoline, the shared
   # request and queue memory, and cancellation are checked for invalid access
-  # and for leaks.
+  # and for leaks. The fifth applies a preprocessing plan, which creates and
+  # releases a preprocessor, its child objects and several layouts.
   # Names are written out rather than derived from the paths, because
   # NimScript's os subset does not provide splitFile.
   for entry in [("tests/unit/thandle_lifetime.nim", "handles"),
                 ("examples/minimal.nim", "inference"),
                 ("examples/dynamic_shape.nim", "dynamic"),
-                ("examples/async_infer.nim", "async")]:
+                ("examples/async_infer.nim", "async"),
+                ("examples/preprocess.nim", "preprocess")]:
     let
       target = entry[0]
       name = entry[1]

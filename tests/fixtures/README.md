@@ -97,6 +97,34 @@ The batch dimension is written `1..8`. The integration test reads the bounds
 back, infers batch 8 with the same input pattern as above, and expects binding a
 batch of 9 to fail.
 
+## `relu_1x3x4x4_f32.xml`
+
+| Property | Value |
+|---|---|
+| Format | OpenVINO IR, `version="11"` |
+| Weights file | None |
+| Input | `input`, `f32`, shape `[1, 3, 4, 4]` (NCHW) |
+| Output | `output`, `f32`, shape `[1, 3, 4, 4]` |
+| Computation | `output[i] = max(0, input[i])` |
+| SHA-256 | `e444bf85a3cbf9c3736d05a9c566a485a5d20ac9c06da518332303193b397081` |
+| Size | 1113 bytes, LF line endings |
+| Origin | Written for this project from `relu_1x4_f32.xml`. Original work, Apache-2.0 |
+
+Used by `tests/integration/tpreprocess.nim` and `examples/preprocess.nim`,
+where the interesting part is the preprocessing OpenVINO inserts in front of
+the ReLU. Each test computes its expected output in Nim from the step it
+checks; for example, reversing channels of the ramp `0, 1, …, 47` (NCHW) must
+give channel 0 equal to the input's channel 2:
+
+```text
+input    channel 0 = [ 0 ..  15], channel 2 = [32 .. 47]
+expected channel 0 = [32 .. 47], channel 2 = [ 0 ..  15]
+```
+
+and the example's 2x2 BGR image of `(100, 150, 200)`, converted to RGB, mean
+`[10, 20, 30]` and scale `2`, must give `R = 95`, `G = 65`, `B = 35` at every
+output position.
+
 ## Adding a fixture
 
 A new fixture needs, in this file: a `## ` heading naming the file, its format,
