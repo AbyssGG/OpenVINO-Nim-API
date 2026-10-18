@@ -65,6 +65,19 @@ type
     ## or element-type mismatch, and a call on an object that was already
     ## closed.
 
+  OpenVinoBusyError* = object of OpenVinoError
+    ## The request is running an asynchronous inference, so it cannot start
+    ## another, infer synchronously, or have its tensors read or bound until
+    ## the run has been waited for. Status `REQUEST_BUSY`.
+    ##
+    ## A subtype of `OpenVinoError`, so `0.1.x` handlers still catch it.
+
+  OpenVinoCancelledError* = object of OpenVinoError
+    ## The inference being waited for was cancelled. Status `INFER_CANCELLED`.
+    ##
+    ## Raised by `wait` and `waitFor` after `cancel`, until the request is
+    ## started again.
+
 proc lastNativeDetail(): string =
   ## Copies and releases the runtime's last error message.
   ##
@@ -106,8 +119,14 @@ proc newOpenVinoError*(operation: string; status: ov_status_e;
   # Only now is it safe to make another OpenVINO call. `ov_get_error_info`
   # returns a static, process-lifetime pointer and must never be released.
   let info = $ov_get_error_info(status)
-  result = newException(OpenVinoError,
-    formatMessage(operation, status, info, detail, context))
+  let message = formatMessage(operation, status, info, detail, context)
+  # The two asynchronous states get their own subtypes so that a caller can
+  # catch them without comparing status codes.
+  result =
+    if status == REQUEST_BUSY: newException(OpenVinoBusyError, message)
+    elif status == INFER_CANCELLED: newException(OpenVinoCancelledError,
+                                                 message)
+    else: newException(OpenVinoError, message)
   result.operation = operation
   result.status = status
   result.statusInfo = info
@@ -127,6 +146,15 @@ proc raiseArgumentError*(message: string) {.noreturn.} =
   ## Raises `OpenVinoArgumentError`. Used for failures detected before any C
   ## call, so no status code or native detail exists.
   raise newException(OpenVinoArgumentError, message)
+
+proc raiseBusyError*(operation, message: string) {.noreturn.} =
+  ## Raises `OpenVinoBusyError` for a running request detected without a
+  ## failing C call, for example before attaching it to a completion queue.
+  var err = newException(OpenVinoBusyError, operation & " failed: " & message)
+  err.operation = operation
+  err.status = REQUEST_BUSY
+  err.statusInfo = $ov_get_error_info(REQUEST_BUSY)
+  raise err
 
 proc raiseClosedError*(kind: string) {.noreturn.} =
   ## Raises `OpenVinoArgumentError` for use of an object after `close`.

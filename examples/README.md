@@ -12,6 +12,7 @@ download models or depend on a YOLO/GenAI application.
 | `tensor_basics.nim` | Shapes, element types and safe/unsafe data paths | None |
 | `profiling.nim` | Per-node profiling and property configuration | None |
 | `dynamic_shape.nim` | Partial shapes, reshape, and one compiled model inferring batches 1, 3 and 7 | None |
+| `async_infer.nim` | `startAsync`/`waitFor`, a four-request `CompletionQueue` pipeline, and cancellation | None |
 
 Run the complete set after configuring OpenVINO:
 

@@ -253,6 +253,29 @@ task lint, "Run style, whitespace and layering checks":
         "ov_preprocess_input_tensor_info_set_color_format_with_subname must " &
         "not be bound; use the _with_subnames array form")
 
+  # The completion trampoline runs on an OpenVINO thread that Nim did not
+  # create. Its module may not allocate, build strings or sequences, print or
+  # raise, so a change that does is caught here as text before it can become
+  # a rare crash. Comment lines are skipped; review covers what text cannot.
+  const
+    trampolinePath = "src/openvino/private/trampoline.nim"
+    trampolineForbidden = ["new", "alloc", "&", "$", "echo", "@[", "seq[",
+                           "string", "raise ", "try:", "Exception"]
+    trampolineRequired = "{.push raises: [], gcsafe"
+  let trampolineSource = readFile(trampolinePath)
+  if not trampolineSource.contains(trampolineRequired):
+    failures.add(trampolinePath & ": must start its declarations with '" &
+      trampolineRequired & "'")
+  var lineNumber = 0
+  for line in trampolineSource.splitLines():
+    inc lineNumber
+    if line.strip().startsWith("#"):
+      continue
+    for needle in trampolineForbidden:
+      if line.contains(needle):
+        failures.add(trampolinePath & ":" & $lineNumber & ": '" & needle &
+          "' is not allowed in code that runs on an OpenVINO thread")
+
   # Every `cast` must state the invariant that makes it sound, within the three
   # lines above it. The rule is mechanical so that "it was obvious at the time"
   # cannot be the justification: a cast is where the compiler stops helping, so
@@ -587,12 +610,16 @@ task memcheck, "Run the Linux memory and invalid-access check under valgrind":
   # InferRequest and Tensor once each without paying for valgrind over a
   # thousand iterations. The third (0.2.0) adds partial-shape reads, reshape
   # and inference at three batch sizes, where every `ov_partial_shape_t`
-  # OpenVINO fills must be released exactly once.
+  # OpenVINO fills must be released exactly once. The fourth runs requests
+  # asynchronously through a completion queue, so the trampoline, the shared
+  # request and queue memory, and cancellation are checked for invalid access
+  # and for leaks.
   # Names are written out rather than derived from the paths, because
   # NimScript's os subset does not provide splitFile.
   for entry in [("tests/unit/thandle_lifetime.nim", "handles"),
                 ("examples/minimal.nim", "inference"),
-                ("examples/dynamic_shape.nim", "dynamic")]:
+                ("examples/dynamic_shape.nim", "dynamic"),
+                ("examples/async_infer.nim", "async")]:
     let
       target = entry[0]
       name = entry[1]
