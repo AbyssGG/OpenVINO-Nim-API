@@ -11,6 +11,7 @@ download models or depend on a YOLO/GenAI application.
 | `sync_infer.nim` | Model metadata and verified inference with four `float32` inputs | `<model.xml> <device>` |
 | `tensor_basics.nim` | Shapes, element types and safe/unsafe data paths | None |
 | `profiling.nim` | Per-node profiling and property configuration | None |
+| `dynamic_shape.nim` | Partial shapes, reshape, and one compiled model inferring batches 1, 3 and 7 | None |
 
 Run the complete set after configuring OpenVINO:
 

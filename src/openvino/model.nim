@@ -3,15 +3,21 @@
 ## Models read from disk, before compilation.
 ##
 ## A `Model` is the network as OpenVINO parsed it. It reports how many inputs
-## and outputs it has and describes each one. Compiling it for a device is
-## `Core.compileModel`.
+## and outputs it has, describes each one, and can be reshaped. Compiling it
+## for a device is `Core.compileModel`.
+
+import std/[sets, strutils]
 
 import errors
 import node
+import partial_shape
 import private/conversions
 import private/handles
+import private/partial_shapes
+import raw/dimension
 import raw/model as rawModel
 import raw/node as rawNode
+import raw/partial_shape as rawPartialShape
 
 export node
 
@@ -115,11 +121,92 @@ proc output*(model: Model; name: string): Port =
 proc isDynamic*(model: Model): bool =
   ## Reports whether any dimension of the model is dynamic.
   ##
-  ## A dynamic model can be compiled, but `Port.shape` will fail for its
-  ## dynamic ports, because `0.1.0` has no partial-shape type.
+  ## A dynamic model can be compiled. `Port.shape` fails for its dynamic
+  ## ports; read them with `Port.partialShape`.
   ##
   ## Raises `OpenVinoArgumentError` if the model is closed.
   ov_model_is_dynamic(model.handle.native())
+
+proc checkInputName(name: string) =
+  ## Rejects names that cannot reach C intact.
+  if name.len == 0:
+    raiseArgumentError("an input name cannot be empty")
+  if '\0' in name:
+    raiseArgumentError("input name " & name.escape &
+      " contains a NUL character")
+
+proc reshape*(model: Model; inputIndex: int; shape: PartialShape) =
+  ## Reshapes the input at `inputIndex` to `shape`. **Modifies the model in
+  ## place**; a `CompiledModel` compiled earlier is not affected.
+  ##
+  ## Dynamic and bounded dimensions are allowed, so `[?, 4]` makes the batch
+  ## dimension dynamic. A dynamic rank and rank 0 are refused, because the
+  ## OpenVINO 2026.4 C API would silently reshape to `[?]` instead.
+  ##
+  ## Raises `OpenVinoArgumentError` for a bad index, a refused shape or a
+  ## closed model, and `OpenVinoError` when OpenVINO rejects the new shape.
+  let raw = checkedIndex(inputIndex, model.inputCount, "input")
+  checkReshapeable(shape, "input " & $inputIndex)
+  var dimensions = toRawDimensions(shape)
+  var shapes = [borrowRawShape(dimensions)]
+  var indexes = [raw]
+  checkStatus(ov_model_reshape_by_port_indexes(model.handle.native(),
+                                               addr indexes[0],
+                                               addr shapes[0], 1),
+              "reshape model input", "index=" & $inputIndex & " shape=" &
+                $shape)
+
+proc reshape*(model: Model; shape: PartialShape) =
+  ## Reshapes the only input of a single-input model. See the by-index form.
+  ##
+  ## Raises `OpenVinoArgumentError` when the model does not have exactly one
+  ## input, rather than silently reshaping input 0 of several.
+  let count = model.inputCount
+  if count != 1:
+    raiseArgumentError("reshape without an input name or index needs a " &
+      "model with exactly one input; this one has " & $count)
+  model.reshape(0, shape)
+
+proc reshape*(model: Model; inputName: string; shape: PartialShape) =
+  ## Reshapes the input named `inputName`. See the by-index form.
+  ##
+  ## Raises `OpenVinoError` when no input has that name.
+  checkInputName(inputName)
+  checkReshapeable(shape, "input " & inputName.escape)
+  var dimensions = toRawDimensions(shape)
+  checkStatus(ov_model_reshape_input_by_name(model.handle.native(),
+                                             inputName.cstring,
+                                             borrowRawShape(dimensions)),
+              "reshape model input", inputName & " shape=" & $shape)
+
+proc reshape*(model: Model; shapes: openArray[(string, PartialShape)]) =
+  ## Reshapes several inputs, by name, in **one** OpenVINO call, so either all
+  ## of them change or none does. Useful when inputs must agree, for example
+  ## on a batch size.
+  ##
+  ## Raises `OpenVinoArgumentError` for an empty list, a repeated name, or any
+  ## refused shape, before calling OpenVINO.
+  if shapes.len == 0:
+    raiseArgumentError("reshape needs at least one input")
+  var seen = initHashSet[string]()
+  var dimensions = newSeq[seq[ov_dimension_t]](shapes.len)
+  for index, (name, shape) in shapes:
+    checkInputName(name)
+    if seen.containsOrIncl(name):
+      raiseArgumentError("input " & name.escape &
+        " appears more than once in one reshape")
+    checkReshapeable(shape, "input " & name.escape)
+    dimensions[index] = toRawDimensions(shape)
+  # The name strings and the dimension arrays are owned by `shapes` and
+  # `dimensions`, both alive until the call returns.
+  var names = newSeq[cstring](shapes.len)
+  var rawShapes = newSeq[ov_partial_shape_t](shapes.len)
+  for index in 0 ..< shapes.len:
+    names[index] = shapes[index][0].cstring
+    rawShapes[index] = borrowRawShape(dimensions[index])
+  checkStatus(ov_model_reshape(model.handle.native(), addr names[0],
+                               addr rawShapes[0], csize_t(shapes.len)),
+              "reshape model inputs", $shapes.len & " inputs")
 
 proc friendlyName*(model: Model): string =
   ## Returns the model's own name.

@@ -53,6 +53,50 @@ through bit-identically. An implementation that transposed, scaled or reordered
 anything would fail on this input, which is why the values include two signs and
 a fraction rather than four positive integers.
 
+## `relu_dyn_x4_f32.xml`
+
+| Property | Value |
+|---|---|
+| Format | OpenVINO IR, `version="11"` |
+| Weights file | None |
+| Input | `input`, `f32`, shape `[?, 4]` (dynamic batch) |
+| Output | `output`, `f32`, shape `[?, 4]` |
+| Computation | `output[i] = max(0, input[i])` |
+| SHA-256 | `32cc3bd988edf144c3d63c4df0d4e9b84eea1ca6918673d0d13d6d5563343746` |
+| Size | 968 bytes, LF line endings |
+| Origin | Written for this project from `relu_1x4_f32.xml`. Original work, Apache-2.0 |
+
+The same three nodes as `relu_1x4_f32.xml`, with the batch dimension written as
+`?` in the `Parameter` shape and `-1` in the port dimensions.
+`tests/integration/tdynamic_shape.nim` runs one compiled model with batches 1, 3
+and 7. Element `i` of the input is `-(i + 0.5)` for even `i` and `i + 0.25` for
+odd `i`, so for batch 1:
+
+```text
+input    [-0.5,  1.25, -2.5,  3.25]
+expected [ 0.0,  1.25,  0.0,  3.25]
+```
+
+and every larger batch continues the same pattern, with the even positions
+becoming zero.
+
+## `relu_bounded_f32.xml`
+
+| Property | Value |
+|---|---|
+| Format | OpenVINO IR, `version="11"` |
+| Weights file | None |
+| Input | `input`, `f32`, shape `[1..8, 4]` (bounded batch) |
+| Output | `output`, `f32`, shape `[1..8, 4]` |
+| Computation | `output[i] = max(0, input[i])` |
+| SHA-256 | `8cae307370e0bf8a71232ebff052633761f1e4f527d9c97be9158c5e73165cd2` |
+| Size | 972 bytes, LF line endings |
+| Origin | Written for this project from `relu_1x4_f32.xml`. Original work, Apache-2.0 |
+
+The batch dimension is written `1..8`. The integration test reads the bounds
+back, infers batch 8 with the same input pattern as above, and expects binding a
+batch of 9 to fail.
+
 ## Adding a fixture
 
 A new fixture needs, in this file: a `## ` heading naming the file, its format,

@@ -472,6 +472,7 @@ task docs, "Generate API documentation for every public module":
     "src/openvino/version.nim",
     "src/openvino/errors.nim",
     "src/openvino/shape.nim",
+    "src/openvino/partial_shape.nim",
     "src/openvino/tensor.nim",
     "src/openvino/node.nim",
     "src/openvino/properties.nim",
@@ -584,11 +585,14 @@ task memcheck, "Run the Linux memory and invalid-access check under valgrind":
   # touches only this package's own code, so leak checking is meaningful. The
   # second is one real inference: it covers Core, Model, CompiledModel,
   # InferRequest and Tensor once each without paying for valgrind over a
-  # thousand iterations.
+  # thousand iterations. The third (0.2.0) adds partial-shape reads, reshape
+  # and inference at three batch sizes, where every `ov_partial_shape_t`
+  # OpenVINO fills must be released exactly once.
   # Names are written out rather than derived from the paths, because
   # NimScript's os subset does not provide splitFile.
   for entry in [("tests/unit/thandle_lifetime.nim", "handles"),
-                ("examples/minimal.nim", "inference")]:
+                ("examples/minimal.nim", "inference"),
+                ("examples/dynamic_shape.nim", "dynamic")]:
     let
       target = entry[0]
       name = entry[1]

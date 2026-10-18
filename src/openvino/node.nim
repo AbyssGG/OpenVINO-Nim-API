@@ -2,17 +2,23 @@
 
 ## Model input and output ports, and the metadata they carry.
 ##
-## Only the read-only port is exposed. The mutable port exists in the C API for
-## reshaping, which `0.1.0` does not support, and the two have separate release
-## functions: treating them as one type is how a binding gets a mismatched free.
+## Only the read-only port is exposed. The C API also has a mutable port, with
+## its own release function: treating the two as one type is how a binding
+## gets a mismatched free. Reshaping goes through `Model.reshape` by name or
+## index, so the mutable port is still not needed.
 
 import errors
+import partial_shape
 import private/conversions
 import private/handles
+import private/partial_shapes
 import raw/common
 import raw/node as rawNode
+import raw/partial_shape as rawPartialShape
 import raw/shape as rawShape
 import shape
+
+export partial_shape
 
 type Port* = object
   ## A read-only input or output port of a model or compiled model.
@@ -73,11 +79,35 @@ proc shape*(port: Port): Shape =
   ## returning.
   ##
   ## Raises `OpenVinoError` for a port whose shape is dynamic, because a dynamic
-  ## shape has no static form and `0.1.0` does not model one.
+  ## shape has no static form. Use `partialShape` for such a port, or check
+  ## `isDynamic` first.
   var raw: ov_shape_t
-  checkStatus(ov_const_port_get_shape(port.handle.native(), addr raw),
-              "get port shape")
+  let status = ov_const_port_get_shape(port.handle.native(), addr raw)
+  if status != OK:
+    raise newOpenVinoError("get port shape", status,
+      "a dynamic port has no static shape; use partialShape")
   result = initShape(takeShape(raw))
+
+proc partialShape*(port: Port): PartialShape =
+  ## Returns the port's shape, including dynamic and bounded dimensions and a
+  ## dynamic rank.
+  ##
+  ## An unbounded dimension reads as `?`. Copies the dimensions and releases
+  ## OpenVINO's allocation before returning.
+  ##
+  ## Raises `OpenVinoArgumentError` if the port is closed.
+  var raw: ov_partial_shape_t
+  checkStatus(ov_port_get_partial_shape(port.handle.native(), addr raw),
+              "get port partial shape")
+  result = takePartialShape(raw)
+
+proc isDynamic*(port: Port): bool =
+  ## Reports whether any part of the port's shape is dynamic.
+  ##
+  ## Decided from `partialShape`, so a zero-length dimension counts as static.
+  ##
+  ## Raises `OpenVinoArgumentError` if the port is closed.
+  port.partialShape.isDynamic
 
 proc unsafeRawHandle*(port: Port): ptr ov_output_const_port_t =
   ## Returns the borrowed native handle for use with `openvino/raw`.
