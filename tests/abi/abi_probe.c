@@ -13,9 +13,22 @@
 
 #include "openvino/c/ov_common.h"
 #include "openvino/c/ov_core.h"
+#include "openvino/c/ov_dimension.h"
 #include "openvino/c/ov_infer_request.h"
+#include "openvino/c/ov_layout.h"
+#include "openvino/c/ov_partial_shape.h"
+#include "openvino/c/ov_prepostprocess.h"
 #include "openvino/c/ov_property.h"
+#include "openvino/c/ov_rank.h"
 #include "openvino/c/ov_shape.h"
+
+/*
+ * Alignment without C11 _Alignof, which not every C compiler Nim drives
+ * accepts in its default mode: the offset of a member that follows a single
+ * char is the member type's alignment.
+ */
+#define OV_NIM_PROBE_ALIGNOF(type) \
+  offsetof(struct { char c; type member; }, member)
 
 /*
  * One entry per enumerator. Writing the name next to the enumerator itself
@@ -72,6 +85,32 @@ static const ov_nim_probe_entry_t g_profiling_status_table[] = {
     OV_NIM_PROBE_ENTRY(NOT_RUN),
     OV_NIM_PROBE_ENTRY(OPTIMIZED_OUT),
     OV_NIM_PROBE_ENTRY(EXECUTED),
+};
+
+static const ov_nim_probe_entry_t g_color_format_table[] = {
+    OV_NIM_PROBE_ENTRY(UNDEFINE),
+    OV_NIM_PROBE_ENTRY(NV12_SINGLE_PLANE),
+    OV_NIM_PROBE_ENTRY(NV12_TWO_PLANES),
+    OV_NIM_PROBE_ENTRY(I420_SINGLE_PLANE),
+    OV_NIM_PROBE_ENTRY(I420_THREE_PLANES),
+    OV_NIM_PROBE_ENTRY(RGB),
+    OV_NIM_PROBE_ENTRY(BGR),
+    OV_NIM_PROBE_ENTRY(GRAY),
+    OV_NIM_PROBE_ENTRY(RGBX),
+    OV_NIM_PROBE_ENTRY(BGRX),
+};
+
+static const ov_nim_probe_entry_t g_resize_algorithm_table[] = {
+    OV_NIM_PROBE_ENTRY(RESIZE_LINEAR),
+    OV_NIM_PROBE_ENTRY(RESIZE_CUBIC),
+    OV_NIM_PROBE_ENTRY(RESIZE_NEAREST),
+};
+
+static const ov_nim_probe_entry_t g_padding_mode_table[] = {
+    OV_NIM_PROBE_ENTRY(CONSTANT),
+    OV_NIM_PROBE_ENTRY(EDGE),
+    OV_NIM_PROBE_ENTRY(REFLECT),
+    OV_NIM_PROBE_ENTRY(SYMMETRIC),
 };
 
 static int table_count(const ov_nim_probe_entry_t* table, size_t bytes) {
@@ -188,6 +227,62 @@ size_t ov_nim_probe_sizeof_profiling_info_list(void) {
 
 size_t ov_nim_probe_sizeof_callback(void) { return sizeof(ov_callback_t); }
 
+size_t ov_nim_probe_alignof_callback(void) {
+  return OV_NIM_PROBE_ALIGNOF(ov_callback_t);
+}
+
+size_t ov_nim_probe_offsetof_callback_func(void) {
+  return offsetof(ov_callback_t, callback_func);
+}
+
+size_t ov_nim_probe_offsetof_callback_args(void) {
+  return offsetof(ov_callback_t, args);
+}
+
+size_t ov_nim_probe_sizeof_dimension(void) { return sizeof(ov_dimension_t); }
+
+size_t ov_nim_probe_alignof_dimension(void) {
+  return OV_NIM_PROBE_ALIGNOF(ov_dimension_t);
+}
+
+size_t ov_nim_probe_offsetof_dimension_min(void) {
+  return offsetof(ov_dimension_t, min);
+}
+
+size_t ov_nim_probe_offsetof_dimension_max(void) {
+  return offsetof(ov_dimension_t, max);
+}
+
+size_t ov_nim_probe_sizeof_rank(void) { return sizeof(ov_rank_t); }
+
+size_t ov_nim_probe_sizeof_partial_shape(void) {
+  return sizeof(ov_partial_shape_t);
+}
+
+size_t ov_nim_probe_alignof_partial_shape(void) {
+  return OV_NIM_PROBE_ALIGNOF(ov_partial_shape_t);
+}
+
+size_t ov_nim_probe_offsetof_partial_shape_rank(void) {
+  return offsetof(ov_partial_shape_t, rank);
+}
+
+size_t ov_nim_probe_offsetof_partial_shape_dims(void) {
+  return offsetof(ov_partial_shape_t, dims);
+}
+
+size_t ov_nim_probe_sizeof_color_format(void) {
+  return sizeof(ov_color_format_e);
+}
+
+size_t ov_nim_probe_sizeof_resize_algorithm(void) {
+  return sizeof(ov_preprocess_resize_algorithm_e);
+}
+
+size_t ov_nim_probe_sizeof_padding_mode(void) {
+  return sizeof(ov_padding_mode_e);
+}
+
 int ov_nim_probe_status_count(void) {
   return table_count(g_status_table, sizeof(g_status_table));
 }
@@ -227,4 +322,47 @@ const char* ov_nim_probe_profiling_status_name(int index) {
 int ov_nim_probe_profiling_status_value(int index) {
   return table_value(g_profiling_status_table,
                      ov_nim_probe_profiling_status_count(), index);
+}
+
+int ov_nim_probe_color_format_count(void) {
+  return table_count(g_color_format_table, sizeof(g_color_format_table));
+}
+
+const char* ov_nim_probe_color_format_name(int index) {
+  return table_name(g_color_format_table, ov_nim_probe_color_format_count(),
+                    index);
+}
+
+int ov_nim_probe_color_format_value(int index) {
+  return table_value(g_color_format_table, ov_nim_probe_color_format_count(),
+                     index);
+}
+
+int ov_nim_probe_resize_algorithm_count(void) {
+  return table_count(g_resize_algorithm_table,
+                     sizeof(g_resize_algorithm_table));
+}
+
+const char* ov_nim_probe_resize_algorithm_name(int index) {
+  return table_name(g_resize_algorithm_table,
+                    ov_nim_probe_resize_algorithm_count(), index);
+}
+
+int ov_nim_probe_resize_algorithm_value(int index) {
+  return table_value(g_resize_algorithm_table,
+                     ov_nim_probe_resize_algorithm_count(), index);
+}
+
+int ov_nim_probe_padding_mode_count(void) {
+  return table_count(g_padding_mode_table, sizeof(g_padding_mode_table));
+}
+
+const char* ov_nim_probe_padding_mode_name(int index) {
+  return table_name(g_padding_mode_table, ov_nim_probe_padding_mode_count(),
+                    index);
+}
+
+int ov_nim_probe_padding_mode_value(int index) {
+  return table_value(g_padding_mode_table, ov_nim_probe_padding_mode_count(),
+                     index);
 }

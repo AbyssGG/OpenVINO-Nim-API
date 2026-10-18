@@ -52,6 +52,25 @@ size_t ov_nim_probe_sizeof_profiling_info_status_field(void);
 
 size_t ov_nim_probe_sizeof_profiling_info_list(void);
 size_t ov_nim_probe_sizeof_callback(void);
+size_t ov_nim_probe_alignof_callback(void);
+size_t ov_nim_probe_offsetof_callback_func(void);
+size_t ov_nim_probe_offsetof_callback_args(void);
+
+/* Dynamic shapes (0.2.0). */
+size_t ov_nim_probe_sizeof_dimension(void);
+size_t ov_nim_probe_alignof_dimension(void);
+size_t ov_nim_probe_offsetof_dimension_min(void);
+size_t ov_nim_probe_offsetof_dimension_max(void);
+size_t ov_nim_probe_sizeof_rank(void);
+size_t ov_nim_probe_sizeof_partial_shape(void);
+size_t ov_nim_probe_alignof_partial_shape(void);
+size_t ov_nim_probe_offsetof_partial_shape_rank(void);
+size_t ov_nim_probe_offsetof_partial_shape_dims(void);
+
+/* Preprocessing enumerations (0.2.0). */
+size_t ov_nim_probe_sizeof_color_format(void);
+size_t ov_nim_probe_sizeof_resize_algorithm(void);
+size_t ov_nim_probe_sizeof_padding_mode(void);
 
 /*
  * Status codes, read from ov_status_e itself. The name table and the value
@@ -74,5 +93,18 @@ int ov_nim_probe_element_type_value(int index);
 int ov_nim_probe_profiling_status_count(void);
 const char* ov_nim_probe_profiling_status_name(int index);
 int ov_nim_probe_profiling_status_value(int index);
+
+/* Preprocessing enumerators, read from their enums. */
+int ov_nim_probe_color_format_count(void);
+const char* ov_nim_probe_color_format_name(int index);
+int ov_nim_probe_color_format_value(int index);
+
+int ov_nim_probe_resize_algorithm_count(void);
+const char* ov_nim_probe_resize_algorithm_name(int index);
+int ov_nim_probe_resize_algorithm_value(int index);
+
+int ov_nim_probe_padding_mode_count(void);
+const char* ov_nim_probe_padding_mode_name(int index);
+int ov_nim_probe_padding_mode_value(int index);
 
 #endif /* OPENVINO_NIM_TESTS_ABI_PROBE_H_ */

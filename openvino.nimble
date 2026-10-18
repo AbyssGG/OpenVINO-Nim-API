@@ -235,6 +235,24 @@ task lint, "Run style, whitespace and layering checks":
   if entry.contains("export raw") or entry.contains("export openvino/raw"):
     failures.add("src/openvino.nim: must not re-export the raw layer")
 
+  # No C varargs function is bound, so Nim never guesses a platform varargs
+  # ABI. The `varargs` pragma is the only way to declare one, and the 0.2
+  # preprocessing header has one variadic function whose array twin is bound
+  # instead; naming it catches a declaration that dropped the pragma.
+  for path in rawSources():
+    let content = readFile(path)
+    for line in content.splitLines():
+      if line.strip().startsWith("#"):
+        continue
+      if line.contains("varargs"):
+        failures.add(path & ": the raw layer must not declare a C varargs " &
+          "function")
+        break
+    if content.contains("set_color_format_with_subname*"):
+      failures.add(path & ": the variadic " &
+        "ov_preprocess_input_tensor_info_set_color_format_with_subname must " &
+        "not be bound; use the _with_subnames array form")
+
   # Every `cast` must state the invariant that makes it sound, within the three
   # lines above it. The rule is mechanical so that "it was obvious at the time"
   # cannot be the justification: a cast is where the compiler stops helping, so

@@ -4,7 +4,9 @@ This document is the coverage contract between the pinned OpenVINO `2026.4.1`
 (and `2026.4.0`) headers and `src/openvino/raw/`. It describes the current
 repository, not an old implementation plan. Every item marked **bound** is
 present in the raw layer and is exercised by the ABI or smoke checks; every
-item marked **deferred** is intentionally not part of `0.1.x`.
+item marked **deferred** is intentionally not bound. The `0.2.0` additions
+(asynchronous inference, partial shapes, reshape, layouts and preprocessing)
+are bound in the raw layer; their managed API is under development.
 
 ## Pinned source of truth
 
@@ -56,12 +58,23 @@ a12a4c241bccbc9cd3cf68f39b13c91701a78cd062a97004ae8f1612b10d4650  ov_shape.h
 | `ov_common.h` | `raw/common`, `raw/error` | Status codes, element types, static error text, last-error copy and `ov_free` |
 | `ov_core.h` | `raw/core` | Runtime version, Core creation, device listing, model read, non-variadic compile/property APIs and blob import |
 | `ov_property.h` | `raw/property` | Exported profiling, device, cache, stream, thread, hint and log-level key symbols currently exposed by OpenVINO |
-| `ov_model.h` | `raw/model` | Model lifetime, input/output counts, const ports by index/name, dynamic flag and friendly name |
-| `ov_node.h` | `raw/node` | Const-port names, element types, static shapes and const-port release |
+| `ov_model.h` | `raw/model` | Model lifetime, input/output counts, const ports by index/name, dynamic flag, friendly name, and reshape by names, by name, single input and port indexes |
+| `ov_node.h` | `raw/node` | Const-port names, element types, static and partial shapes and const-port release |
 | `ov_shape.h` | `raw/shape` | Shape allocation/release; `ov_shape_t` is passed by value where the header requires it |
 | `ov_tensor.h` | `raw/tensor` | Safe OpenVINO allocation, borrowed host pointer construction, shape/type/size/data access and release |
 | `ov_compiled_model.h` | `raw/compiled_model` | Request creation, I/O counts and ports, non-variadic properties, export and release |
-| `ov_infer_request.h` | `raw/infer_request` | Tensor binding by index/name/const port, synchronous infer, profiling list and release |
+| `ov_infer_request.h` | `raw/infer_request` | Tensor binding by index/name/const port and for the single input or output, synchronous infer, `start_async`, `wait`, `wait_for`, `cancel`, `set_callback` with `ov_callback_t`, profiling list and release |
+| `ov_dimension.h`, `ov_rank.h` | `raw/dimension` | `ov_dimension_t`, `ov_rank_t` and both `_is_dynamic` predicates (bound, not used by the managed layer) |
+| `ov_partial_shape.h` | `raw/partial_shape` | `ov_partial_shape_t` and all eight functions; the managed layer uses only `ov_partial_shape_free` |
+| `ov_layout.h` | `raw/layout` | Layout create, format and release |
+| `ov_prepostprocess.h` | `raw/prepostprocess` | All 39 non-variadic functions, the seven opaque child types and the color format, resize algorithm and padding mode enumerations |
+
+The `0.2.0` additions were checked against the upstream C binding sources at
+tag `2026.4.0` and measured on the runtime in Phase 0 of the 0.2 plan. The
+evidence, including the upstream defects listed below, is recorded in
+[ADR 0003](decisions/0003-async-completion.md),
+[ADR 0004](decisions/0004-partial-shape-representation.md) and
+[ADR 0005](decisions/0005-preprocessing-api.md).
 
 ## ABI-sensitive facts
 
@@ -81,17 +94,35 @@ a12a4c241bccbc9cd3cf68f39b13c91701a78cd062a97004ae8f1612b10d4650  ov_shape.h
   explicit UTF-16 element widths. The managed path layer validates conversion.
 - No C varargs call is bound. The managed layer uses the `_props` and
   `_properties` forms so that Nim never has to guess a platform varargs ABI.
+  For preprocessing, `ov_preprocess_input_tensor_info_set_color_format_with_subname`
+  is excluded and its array form `_with_subnames` is bound; `nimble lint`
+  rejects any `varargs` declaration in the raw layer.
+- `ov_dimension_t` is `{int64 min; int64 max}` (16 bytes) and
+  `ov_partial_shape_t` is a rank followed by a dims pointer (24 bytes on
+  x86_64). `ov_partial_shape_t` is passed by value to the reshape functions,
+  `_to_shape`, `_is_dynamic` and `_to_string`.
+- Upstream defects the managed layer avoids: `ov_partial_shape_create*`
+  reject the `{0,-1}` unbounded form that ports report; the reshape functions
+  turn a dynamic rank or rank 0 into `[?]`; `ov_partial_shape_to_shape` leaks
+  on failure; the `_is_dynamic` predicates call zero-length dimensions and
+  rank 0 dynamic.
+- `ov_callback_t` is a `cdecl` function pointer then an argument pointer.
+  OpenVINO keeps the pointer to the struct, so it must outlive the request.
+- `ov_infer_request_wait_for` takes milliseconds and returns
+  `RESULT_NOT_READY` on timeout, including on a never-started request where
+  `wait` returns `OK`.
+- `ov_preprocess_prepostprocessor_build` returns a model sharing, and having
+  modified, the source model's graph. Child objects point into their parent and
+  must be released first.
 
 ## Deliberately deferred
 
 | Header or API family | Reason |
 |---|---|
-| `ov_partial_shape.h`, `ov_dimension.h`, `ov_rank.h` | Dynamic shapes and reshape need a separate validation and ownership design |
-| `ov_layout.h` | Layout conversion is not in the 0.1.0 managed contract |
-| `ov_prepostprocess.h` | Larger preprocessing surface and variadic entry points |
+| `ov_preprocess_input_tensor_info_set_color_format_with_subname` | Variadic; the array form `_with_subnames` is bound instead |
+| `ov_preprocess_input_tensor_info_set_memory_type` in the managed API | Bound raw; GPU surfaces belong to remote contexts |
 | `ov_remote_context.h` | Device-specific memory ownership |
-| Async wait/cancel and callbacks | Thread lifetime and exception-boundary design is not complete |
-| Mutable ports and reshape functions | Static const-port metadata is sufficient for the current path |
+| Mutable ports, `ov_model_reshape_by_ports`, `_set_tensor_by_port`, `_get_tensor_by_port` | Need `ov_output_port_t`; name- and index-based forms cover the managed API |
 | String tensors and cache-encryption callbacks | Need dedicated managed representations and lifetime rules |
 | `ov_shutdown` and device-version lists | Process-wide or multi-result teardown is not needed by the supported path |
 

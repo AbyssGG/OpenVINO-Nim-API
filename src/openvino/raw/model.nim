@@ -5,15 +5,20 @@
 ## Source of truth: `ov_model.h` from OpenVINO `2026.4.0`, SHA-256
 ## `c30d0f655c3065197fbec3a7575a65214bb75b8b51984351ff54ac0f74232ae6`.
 ##
-## Only the const-port accessors are bound. The mutable-port and reshape
-## entry points belong to dynamic shapes, which are out of scope for `0.1.0`.
-## Note that `ov_model_reshape_input_by_name` and `ov_model_reshape_single_input`
-## take `ov_partial_shape_t` by value, a fact recorded in
-## `docs/c-api-coverage.md` so that it is not rediscovered the hard way later.
+## The const-port accessors and the name- and index-based reshape functions
+## are bound. `ov_model_reshape_by_ports` and the mutable-port accessors are
+## not, because they need `ov_output_port_t`.
+##
+## The reshape functions take a `const ov_model_t*` but **modify the model in
+## place**. They convert the partial shape without validating it, and when its
+## rank is dynamic, or is 0, they reshape to a rank-1 `[?]` instead (measured
+## in Phase 0 of the 0.2 plan; see
+## `docs/decisions/0004-partial-shape-representation.md`).
 
 import common
 import loader
 import node
+import partial_shape
 
 {.push styleChecks: off.}
 
@@ -76,5 +81,30 @@ proc ov_model_get_friendly_name*(model: ptr ov_model_t;
   ##
   ## Allocates the string, so the caller must copy it and release the original
   ## with `ov_free`.
+
+proc ov_model_reshape*(model: ptr ov_model_t; tensor_names: ptr cstring;
+                       partial_shapes: ptr ov_partial_shape_t;
+                       size: csize_t): ov_status_e {.openvinoImport.}
+  ## Reshapes `size` inputs, named by `tensor_names`, in one call.
+  ##
+  ## Both arrays are read during the call only. Modifies `model` in place.
+
+proc ov_model_reshape_input_by_name*(model: ptr ov_model_t;
+                                     tensor_name: cstring;
+                                     partial_shape: ov_partial_shape_t):
+    ov_status_e {.openvinoImport.}
+  ## Reshapes the input named `tensor_name`. Takes the shape **by value**.
+
+proc ov_model_reshape_single_input*(model: ptr ov_model_t;
+                                    partial_shape: ov_partial_shape_t):
+    ov_status_e {.openvinoImport.}
+  ## Reshapes input 0. Takes the shape **by value**.
+
+proc ov_model_reshape_by_port_indexes*(model: ptr ov_model_t;
+                                       port_indexes: ptr csize_t;
+                                       partial_shape: ptr ov_partial_shape_t;
+                                       size: csize_t): ov_status_e
+  {.openvinoImport.}
+  ## Reshapes `size` inputs selected by index, in one call.
 
 {.pop.}

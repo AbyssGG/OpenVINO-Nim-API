@@ -8,11 +8,12 @@
 ## The const and the mutable port are **separate types with separate release
 ## functions**, and the metadata getters accept only the const one. Treating
 ## them as interchangeable is the kind of guess the development plan forbids.
-## Only the const port is bound, because `0.1.0` reads metadata and does not
-## reshape.
+## Only the const port is bound; reshaping goes through the model by name or
+## index, so the mutable port is still not needed.
 
 import common
 import loader
+import partial_shape
 import shape
 
 {.push styleChecks: off.}
@@ -50,6 +51,15 @@ proc ov_const_port_get_shape*(port: ptr ov_output_const_port_t;
   ##
   ## OpenVINO allocates the dimension storage, so a successful call must be
   ## paired with `ov_shape_free`.
+
+proc ov_port_get_partial_shape*(port: ptr ov_output_const_port_t;
+                                partial_shape: ptr ov_partial_shape_t):
+    ov_status_e {.openvinoImport.}
+  ## Reads the port's partial shape. Takes a **const** port.
+  ##
+  ## An unbounded dimension reads as `{0, -1}`. OpenVINO allocates `dims`
+  ## when the rank is static, so a successful call must be paired with
+  ## `ov_partial_shape_free`.
 
 proc ov_output_const_port_free*(port: ptr ov_output_const_port_t)
   {.openvinoImport.}

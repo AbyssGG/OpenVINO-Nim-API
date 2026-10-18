@@ -15,6 +15,10 @@
 import std/unittest
 
 import openvino/raw/common
+import openvino/raw/dimension
+import openvino/raw/infer_request
+import openvino/raw/partial_shape
+import openvino/raw/prepostprocess
 
 {.compile: "abi_probe.c".}
 
@@ -53,6 +57,23 @@ proc ov_nim_probe_sizeof_profiling_info_status_field(): csize_t
 
 proc ov_nim_probe_sizeof_profiling_info_list(): csize_t
 proc ov_nim_probe_sizeof_callback(): csize_t
+proc ov_nim_probe_alignof_callback(): csize_t
+proc ov_nim_probe_offsetof_callback_func(): csize_t
+proc ov_nim_probe_offsetof_callback_args(): csize_t
+
+proc ov_nim_probe_sizeof_dimension(): csize_t
+proc ov_nim_probe_alignof_dimension(): csize_t
+proc ov_nim_probe_offsetof_dimension_min(): csize_t
+proc ov_nim_probe_offsetof_dimension_max(): csize_t
+proc ov_nim_probe_sizeof_rank(): csize_t
+proc ov_nim_probe_sizeof_partial_shape(): csize_t
+proc ov_nim_probe_alignof_partial_shape(): csize_t
+proc ov_nim_probe_offsetof_partial_shape_rank(): csize_t
+proc ov_nim_probe_offsetof_partial_shape_dims(): csize_t
+
+proc ov_nim_probe_sizeof_color_format(): csize_t
+proc ov_nim_probe_sizeof_resize_algorithm(): csize_t
+proc ov_nim_probe_sizeof_padding_mode(): csize_t
 
 proc ov_nim_probe_status_count(): cint
 proc ov_nim_probe_status_name(index: cint): cstring
@@ -66,7 +87,40 @@ proc ov_nim_probe_profiling_status_count(): cint
 proc ov_nim_probe_profiling_status_name(index: cint): cstring
 proc ov_nim_probe_profiling_status_value(index: cint): cint
 
+proc ov_nim_probe_color_format_count(): cint
+proc ov_nim_probe_color_format_name(index: cint): cstring
+proc ov_nim_probe_color_format_value(index: cint): cint
+
+proc ov_nim_probe_resize_algorithm_count(): cint
+proc ov_nim_probe_resize_algorithm_name(index: cint): cstring
+proc ov_nim_probe_resize_algorithm_value(index: cint): cint
+
+proc ov_nim_probe_padding_mode_count(): cint
+proc ov_nim_probe_padding_mode_name(index: cint): cstring
+proc ov_nim_probe_padding_mode_value(index: cint): cint
+
 {.pop.}
+
+template boundValue(table: untyped; name: string): untyped =
+  ## Looks up a bound enumerator by its upstream spelling, raising `KeyError`
+  ## so that an enumerator present in the header but missing here fails.
+  ##
+  ## A template rather than a generic procedure: the enum tables are
+  ## structurally equal tuple arrays, and Nim 2.2.4 emits them as distinct C
+  ## structs, which gcc 14 and later reject as incompatible pointer types when
+  ## they are passed to one instantiation.
+  block:
+    var
+      found = false
+      value: typeof(table[0].value)
+    for entry in table:
+      if entry.name == name:
+        value = entry.value
+        found = true
+        break
+    if not found:
+      raise newException(KeyError, "no bound enumerator named " & name)
+    value
 
 suite "scalar ABI":
   test "the bound ov_status_e has the same width as the C enum":
@@ -210,3 +264,86 @@ suite "profiling status enumerators":
     check ov_nim_probe_profiling_status_value(1) == 1
     check $ov_nim_probe_profiling_status_name(2) == "EXECUTED"
     check ov_nim_probe_profiling_status_value(2) == 2
+
+suite "callback layout (0.2.0)":
+  test "ov_callback_t is a function pointer then an argument pointer":
+    check ov_nim_probe_sizeof_callback() == csize_t(sizeof(ov_callback_t))
+    check ov_nim_probe_alignof_callback() == csize_t(alignof(ov_callback_t))
+    check ov_nim_probe_offsetof_callback_func() ==
+      csize_t(offsetOf(ov_callback_t, callback_func))
+    check ov_nim_probe_offsetof_callback_args() ==
+      csize_t(offsetOf(ov_callback_t, args))
+    check ov_nim_probe_offsetof_callback_func() == 0
+    check ov_nim_probe_offsetof_callback_args() == csize_t(sizeof(pointer))
+
+suite "dynamic shape layout (0.2.0)":
+  test "ov_dimension_t is two int64 values, min then max":
+    checkpoint("c sizeof=" & $ov_nim_probe_sizeof_dimension() &
+      " alignof=" & $ov_nim_probe_alignof_dimension())
+    check ov_nim_probe_sizeof_dimension() == csize_t(sizeof(ov_dimension_t))
+    check ov_nim_probe_alignof_dimension() == csize_t(alignof(ov_dimension_t))
+    check ov_nim_probe_offsetof_dimension_min() ==
+      csize_t(offsetOf(ov_dimension_t, min))
+    check ov_nim_probe_offsetof_dimension_max() ==
+      csize_t(offsetOf(ov_dimension_t, max))
+    check ov_nim_probe_offsetof_dimension_min() == 0
+    check ov_nim_probe_offsetof_dimension_max() == ov_nim_probe_sizeof_int64()
+
+  test "ov_rank_t has the same size as ov_dimension_t":
+    check ov_nim_probe_sizeof_rank() == ov_nim_probe_sizeof_dimension()
+    check csize_t(sizeof(ov_rank_t)) == ov_nim_probe_sizeof_rank()
+
+  test "ov_partial_shape_t is a rank followed by a dims pointer":
+    checkpoint("c sizeof=" & $ov_nim_probe_sizeof_partial_shape() &
+      " alignof=" & $ov_nim_probe_alignof_partial_shape() &
+      " dims@" & $ov_nim_probe_offsetof_partial_shape_dims())
+    check ov_nim_probe_sizeof_partial_shape() ==
+      csize_t(sizeof(ov_partial_shape_t))
+    check ov_nim_probe_alignof_partial_shape() ==
+      csize_t(alignof(ov_partial_shape_t))
+    check ov_nim_probe_offsetof_partial_shape_rank() ==
+      csize_t(offsetOf(ov_partial_shape_t, rank))
+    check ov_nim_probe_offsetof_partial_shape_dims() ==
+      csize_t(offsetOf(ov_partial_shape_t, dims))
+    check ov_nim_probe_offsetof_partial_shape_rank() == 0
+    check ov_nim_probe_offsetof_partial_shape_dims() ==
+      ov_nim_probe_sizeof_dimension()
+
+suite "preprocessing enumerations (0.2.0)":
+  test "the three enums have the bound cint width":
+    check ov_nim_probe_sizeof_color_format() ==
+      csize_t(sizeof(ov_color_format_e))
+    check ov_nim_probe_sizeof_resize_algorithm() ==
+      csize_t(sizeof(ov_preprocess_resize_algorithm_e))
+    check ov_nim_probe_sizeof_padding_mode() ==
+      csize_t(sizeof(ov_padding_mode_e))
+
+  test "every color format read from the header matches the bound value":
+    check cint(ColorFormats.len) == ov_nim_probe_color_format_count()
+    for index in 0 ..< ov_nim_probe_color_format_count():
+      let name = $ov_nim_probe_color_format_name(index)
+      checkpoint("color format " & name)
+      check boundValue(ColorFormats, name) ==
+        ov_color_format_e(ov_nim_probe_color_format_value(index))
+
+  test "every resize algorithm read from the header matches the bound value":
+    check cint(ResizeAlgorithms.len) == ov_nim_probe_resize_algorithm_count()
+    for index in 0 ..< ov_nim_probe_resize_algorithm_count():
+      let name = $ov_nim_probe_resize_algorithm_name(index)
+      checkpoint("resize algorithm " & name)
+      check boundValue(ResizeAlgorithms, name) ==
+        ov_preprocess_resize_algorithm_e(
+          ov_nim_probe_resize_algorithm_value(index))
+
+  test "every padding mode read from the header matches the bound value":
+    check cint(PaddingModes.len) == ov_nim_probe_padding_mode_count()
+    for index in 0 ..< ov_nim_probe_padding_mode_count():
+      let name = $ov_nim_probe_padding_mode_name(index)
+      checkpoint("padding mode " & name)
+      check boundValue(PaddingModes, name) ==
+        ov_padding_mode_e(ov_nim_probe_padding_mode_value(index))
+
+  test "the enumerators start at zero in header order":
+    check UNDEFINE == 0 and BGRX == 9
+    check RESIZE_LINEAR == 0 and RESIZE_NEAREST == 2
+    check CONSTANT == 0 and SYMMETRIC == 3
