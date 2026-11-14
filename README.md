@@ -4,7 +4,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Nim](https://img.shields.io/badge/Nim-%E2%89%A52.0.0-yellow.svg)](https://nim-lang.org/)
 [![OpenVINO](https://img.shields.io/badge/OpenVINO-2026.4.x-6b4fbb.svg)](https://docs.openvino.ai/)
-[![Status](https://img.shields.io/badge/status-v0.2.0-brightgreen.svg)](https://github.com/AbyssGG/OpenVINO-Nim-API/releases/tag/v0.2.0)
+[![Latest release](https://img.shields.io/badge/latest%20release-v0.2.1-brightgreen.svg)](https://github.com/AbyssGG/OpenVINO-Nim-API/releases/tag/v0.2.1)
 
 **English** | [简体中文](README_zh-CN.md)
 
@@ -21,8 +21,8 @@ Corporation.** OpenVINO is a trademark of Intel Corporation.
 
 ## Status
 
-Version `0.2.1` contains correctness and memory safety fixes; see the
-[release notes](RELEASE_NOTES.md).
+Version `0.2.1` was released on 2026-11-15 with correctness and memory safety fixes. See the
+[GitHub Release](https://github.com/AbyssGG/OpenVINO-Nim-API/releases/tag/v0.2.1) and [release notes](RELEASE_NOTES.md).
 
 Version `0.2.0` was released on 2026-10-18 and adds asynchronous inference,
 dynamic and partial shapes with reshape, and declarative layout and
