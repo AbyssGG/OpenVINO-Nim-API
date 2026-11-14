@@ -31,6 +31,22 @@ Phase numbers refer to
 
 ## English
 
+### 2026-11-15 0.2.1 correctness fixes
+
+Validate all static dimensions before applying the zero-size shortcut; reject
+embedded NULs at C string boundaries; and measure completion queue timeouts
+using elapsed monotonic time rather than constructing an overflowing deadline.
+Regression tests cover each reproduced failure, including a long timeout and
+valid zero-sized shapes whose other dimensions would otherwise overflow.
+
+### 2026-11-15 Tensor copy ownership safety
+
+The typed tensor copy functions checked element widths but also accepted Nim
+types containing managed references. Copying raw tensor bytes over such a
+value can corrupt reference ownership. They now reject types for which Nim's
+`supportsCopyMem` is false, before accessing the tensor or runtime. A
+runtime-free regression covers all four entry points and a nested string.
+
 ### 2026-09-24 Phase 0: audit the prototype and freeze the scope
 
 Audited the Resonance prototype that this package replaces, and verified the
@@ -685,6 +701,19 @@ ThreadSanitizer cannot run because OpenVINO loads `libtbbbind` with
 `RTLD_DEEPBIND`. The `0.1` tests passed unmodified throughout.
 
 ## 中文
+
+### 2026-11-15 0.2.1 正确性修复
+
+先校验全部静态维度再处理零元素形状；拒绝 C 字符串边界中的 NUL；完成队列用单调时间
+的已耗时计算超时，避免构造溢出的截止时间。回归测试覆盖每个复现的问题，包括超长超时
+和其他维度乘积会溢出的合法零元素形状。
+
+### 2026-11-15 张量复制的引用安全
+
+张量类型化复制原先只检查元素宽度，也会接受包含 Nim 托管引用的类型。将张量字节直接
+覆盖这些值可能破坏引用的所有权。现在四个入口在访问张量或运行时之前，拒绝 Nim 的
+`supportsCopyMem` 判定不能按字节复制的类型；无需运行时的回归测试覆盖了四个入口和
+嵌套字符串。
 
 ### 2026-09-24 Phase 0：审计原型并冻结范围
 

@@ -13,6 +13,7 @@
 ## the kind of thing that silently stops matching after an upstream rename.
 
 import errors
+import private/conversions
 import raw/property
 
 type Property* = object
@@ -31,6 +32,8 @@ proc initProperty*(key, value: string): Property =
   ## otherwise reject with a less specific message.
   if key.len == 0:
     raiseArgumentError("a property key cannot be empty")
+  checkCString(key, "property key")
+  checkCString(value, "property value")
   result = Property(key: key, value: value)
 
 proc key*(property: Property): string =

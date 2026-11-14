@@ -49,6 +49,13 @@ suite "building a shape":
     except OpenVinoArgumentError as err:
       check "dimension 1" in err.msg
 
+  test "zero does not hide a negative dimension or create overflow":
+    expect OpenVinoArgumentError:
+      discard initShape(0, -1)
+    expect OpenVinoArgumentError:
+      discard initShape(0, 1, -1)
+    check initShape([high(int64), 2'i64, 0'i64]).elementCount == 0
+
   test "an element count that would overflow is refused":
     expect OpenVinoArgumentError:
       discard initShape([high(int64), int64(8)])
@@ -91,6 +98,12 @@ suite "element types":
       discard initShape(1, 4).byteSize(etDynamic)
 
 suite "properties":
+  test "embedded NUL in a key or value is rejected":
+    expect OpenVinoArgumentError:
+      discard initProperty("key\0suffix", "value")
+    expect OpenVinoArgumentError:
+      discard initProperty("key", "value\0suffix")
+
   test "a key and value are kept verbatim":
     let property = initProperty("CACHE_DIR", "/tmp/cache")
     check property.key == "CACHE_DIR"

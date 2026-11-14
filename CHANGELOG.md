@@ -13,6 +13,19 @@ and the OpenVINO runtime baseline evolve independently:
 
 ## Unreleased
 
+## 0.2.1
+
+Patch release with correctness and memory safety fixes.
+
+### Nim API
+
+- Reject tensor copies involving types that contain Nim-managed references.
+  Raw byte copies of these values can corrupt ownership and memory.
+- Reject negative shape dimensions even when another dimension is zero.
+- Reject embedded NUL characters in C-bound names, properties, device names
+  and paths instead of silently truncating them.
+- Avoid a deadline overflow when a completion queue has a long timeout.
+
 ## 0.2.0
 
 Released on 2026-10-18 as
