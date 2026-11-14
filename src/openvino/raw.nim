@@ -3,17 +3,19 @@
 ## Explicit entry point for the OpenVINO C ABI layer.
 ##
 ## `import openvino/raw` gives access to declarations that mirror the pinned
-## OpenVINO `2026.4.0` C headers. Nothing here is safe by construction: the
-## types are raw pointers, ownership is the caller's problem, and failures
-## arrive as `ov_status_e` values rather than exceptions.
+## OpenVINO Runtime `2026.4.1` C headers and, under `raw/genai`, GenAI
+## `2026.4.1.0` C headers. Nothing here is safe by construction: the
+## types are raw pointers, ownership is the caller's problem, and native calls
+## report upstream C status values rather than managed Nim exceptions.
 ##
 ## Prefer `import openvino`, which exposes the managed API. Reach for this
 ## layer only when the managed API cannot express what you need. The `0.x`
 ## series promises that these declarations match the pinned headers; it does
 ## **not** promise source stability for them.
 ##
-## The one place this layer raises is symbol resolution, in
-## `openvino/raw/loader`. The reason is recorded in
+## Lazy symbol resolution may raise `OpenVinoLibraryError` from
+## `openvino/raw/loader` or `GenAiLibraryError` from `openvino/raw/genai`.
+## The reason for explicit loading is recorded in
 ## `docs/decisions/0001-symbol-loading.md`.
 ##
 ## Coverage, including what is deliberately not bound, is listed in
@@ -24,6 +26,7 @@ import raw/compiled_model
 import raw/core
 import raw/dimension
 import raw/error
+import raw/genai
 import raw/infer_request
 import raw/layout
 import raw/loader
@@ -40,6 +43,7 @@ export compiled_model
 export core
 export dimension
 export error
+export genai
 export infer_request
 export layout
 export loader

@@ -24,29 +24,36 @@ import shape
 
 export shape
 
-type Tensor* = object
-  ## A tensor and its storage.
-  ##
-  ## Owns one `ov_tensor_t`. Copying a `Tensor` shares the same native object
-  ## and the same closed state, so closing through one copy closes all of them;
-  ## see `docs/decisions/0002-handle-model.md`.
-  ##
-  ## Threads: a tensor is mutable storage with no lock, so sharing one across
-  ## threads is the caller's problem entirely. Two threads writing through
-  ## `copyFrom`, or one writing while another calls `setShape`, is a data race
-  ## on the storage and, after a reshape, possibly on a freed buffer. Give each
-  ## thread its own tensor.
-  handle: Handle[ov_tensor_t]
-  ownsStorage: bool
+type
+  StorageOwnership* = enum
+    ## What the wrapper can establish about the storage, not the C handle.
+    soUnknown
+    soOpenVinoOwned
+    soCallerOwned
+
+  Tensor* = object
+    ## A tensor and its storage.
+    ##
+    ## Owns one `ov_tensor_t`. Copying a `Tensor` shares the same native object
+    ## and the same closed state, so closing through one copy closes all of them;
+    ## see `docs/decisions/0002-handle-model.md`.
+    ##
+    ## Threads: a tensor is mutable storage with no lock, so sharing one across
+    ## threads is the caller's problem entirely. Two threads writing through
+    ## `copyFrom`, or one writing while another calls `setShape`, is a data race
+    ## on the storage and, after a reshape, possibly on a freed buffer. Give each
+    ## thread its own tensor.
+    handle: Handle[ov_tensor_t]
+    storageOwnership: StorageOwnership
 
 proc releaseTensor(native: ptr ov_tensor_t) {.nimcall.} =
   ## Release function handed to the handle model.
   ov_tensor_free(native)
 
-proc wrap(native: ptr ov_tensor_t; ownsStorage: bool): Tensor =
+proc wrap(native: ptr ov_tensor_t; ownership: StorageOwnership): Tensor =
   ## Takes ownership of `native`. Only called after a successful create.
   Tensor(handle: newHandle(native, releaseTensor, "tensor"),
-         ownsStorage: ownsStorage)
+         storageOwnership: ownership)
 
 template withRawShape(shapeValue: Shape; rawName: untyped; body: untyped) =
   ## Builds an `ov_shape_t` for `shapeValue`, runs `body`, then releases it.
@@ -78,6 +85,13 @@ proc close*(tensor: Tensor) =
   ## invalid afterwards.
   tensor.handle.close()
 
+proc unsafeNativeHandle*(tensor: Tensor): ptr ov_tensor_t =
+  ## Returns the borrowed C tensor handle for APIs such as GenAI VLM.
+  ##
+  ## The pointer is valid only while this tensor remains open. Do not release
+  ## it, retain it after the call, or use it after `close()`.
+  tensor.handle.native()
+
 proc isClosed*(tensor: Tensor): bool =
   ## Reports whether the tensor has been closed. Never raises.
   tensor.handle.isClosed()
@@ -94,7 +108,7 @@ proc newTensor*(elementType: ElementType; tensorShape: Shape): Tensor =
   withRawShape(tensorShape, raw):
     checkStatus(ov_tensor_create(elementType.toRaw(), raw, addr native),
                 "create tensor", $elementType & " " & $tensorShape)
-  result = wrap(native, ownsStorage = true)
+  result = wrap(native, soOpenVinoOwned)
 
 proc elementType*(tensor: Tensor): ElementType =
   ## Returns the tensor's element type.
@@ -294,23 +308,30 @@ proc unsafeTensorFromPointer*(elementType: ElementType; tensorShape: Shape;
                                               addr native),
                 "create tensor over borrowed memory",
                 $elementType & " " & $tensorShape)
-  result = wrap(native, ownsStorage = false)
+  result = wrap(native, soCallerOwned)
+
+proc storageOwnership*(tensor: Tensor): StorageOwnership =
+  ## Reports whether the storage is known to be OpenVINO- or caller-owned.
+  ## Request-returned tensors have unknown ownership: their bindings can have
+  ## been replaced, including through the raw API. Never infer that caller
+  ## memory may be freed from an unknown result.
+  tensor.storageOwnership
 
 proc ownsStorage*(tensor: Tensor): bool =
   ## Reports whether OpenVINO allocated this tensor's storage.
   ##
-  ## False only for a tensor made by `unsafeTensorFromPointer`, whose storage
-  ## belongs to the caller. Useful in assertions and diagnostics.
-  tensor.ownsStorage
+  ## False also means ownership is unknown; use `storageOwnership` to
+  ## distinguish this from caller-owned storage.
+  tensor.storageOwnership == soOpenVinoOwned
 
 proc wrapOwnedTensor*(native: ptr ov_tensor_t): Tensor =
   ## Takes ownership of a tensor handle that OpenVINO returned.
   ##
   ## Internal to the package. Used for the handles that
   ## `ov_infer_request_get_*_tensor_by_index` produces, which the caller owns
-  ## and must release even though the storage behind them belongs to the
-  ## request.
-  wrap(native, ownsStorage = true)
+  ## and must release. Their storage may be owned by OpenVINO or by the caller;
+  ## the C handle alone does not establish which.
+  wrap(native, soUnknown)
 
 proc unsafeRawHandle*(tensor: Tensor): ptr ov_tensor_t =
   ## Returns the borrowed native handle, for interoperating with code that uses

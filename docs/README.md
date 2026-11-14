@@ -11,6 +11,7 @@ provides a bilingual entry point.
 |---|---|
 | I am new to the project | [Getting started](getting-started.md) |
 | I need the public types and functions | [API overview](api-overview.md) |
+| I need optional text, vision or speech generation | [GenAI guide](genai.md) |
 | I need the generated symbol pages | [API index](api-index.html) after `nimble docs` |
 | I need to know what really works | [Compatibility](compatibility.md) |
 | I need to diagnose a loader or runtime failure | [Troubleshooting](troubleshooting.md) |
@@ -27,8 +28,9 @@ From the repository root:
 nimble docs
 ```
 
-The task generates a page for every public managed module, the explicit raw
-entry point, and a merged symbol index under `build/docs`. The output is an
+The task generates a page for every public managed module, including optional
+GenAI, both explicit raw entry points, and a merged symbol index under
+`build/docs`. The output is an
 artifact in CI and can also be opened locally at `build/docs/index.html`.
 
 ## Optional GitHub Pages deployment

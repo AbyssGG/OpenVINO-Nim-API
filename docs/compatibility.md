@@ -89,6 +89,16 @@ expected values on every device.
 ThreadSanitizer could not be used on Linux: OpenVINO loads `libtbbbind` with
 `RTLD_DEEPBIND`, which the sanitizer runtime refuses.
 
+### Optional GenAI verification (0.2.2)
+
+The separate OpenVINO GenAI `2026.4.1.0` C API was tested on Linux x86_64 with
+the matching Runtime and Tokenizers libraries under ORC and ARC. Real CPU
+generation succeeded with TinyLlama 1.1B INT4 and Whisper Tiny; the suite also
+checks all 153 C API symbols, chat history, streaming stop/error handling,
+properties, transcription chunks, scores and metrics. VLM execution against a
+real model and GenAI on Windows, macOS, GPU or NPU have not been tested. See
+[the GenAI guide](genai.md) for setup and scope.
+
 ## Not verified
 
 These are not claimed. Some are expected to work and simply have not been run;

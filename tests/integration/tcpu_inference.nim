@@ -595,6 +595,7 @@ suite "external buffers and the unsafe path":
     let value = newTensor(etF32, initShape(1, 4))
     defer: value.close()
     check value.ownsStorage()
+    check value.storageOwnership == soOpenVinoOwned
 
   test "tensorFrom copies, so the source may change afterwards":
     var source = @[float32(1), 2, 3, 4]
@@ -617,6 +618,7 @@ suite "external buffers and the unsafe path":
     let value = unsafeTensorFromPointer(etF32, initShape(1, 4), buffer)
     defer: value.close()
     check not value.ownsStorage()
+    check value.storageOwnership == soCallerOwned
     check value.toSeq(float32) == @[float32(0), 1, 2, 3]
 
     # Writing through the caller's own pointer is visible to the tensor. That is
@@ -646,6 +648,10 @@ suite "external buffers and the unsafe path":
 
     let input = unsafeTensorFromPointer(etF32, initShape(1, 4), buffer)
     request.setInputTensor(0, input)
+    let returned = request.inputTensor(0)
+    check returned.storageOwnership == soUnknown
+    check not returned.ownsStorage
+    returned.close()
     request.infer()
     let output = request.outputTensor(0)
     check output.toSeq(float32) == @[float32(0.0), 2.0, 0.0, 4.0]
@@ -657,6 +663,32 @@ suite "external buffers and the unsafe path":
     input.close()
     request.close()
     check buffer[1] == 2.0
+
+  test "request-returned tensors report unknown ownership after rebinding":
+    var buffer = [float32(1), 2, 3, 4]
+    let core = newCore()
+    defer: core.close()
+    let compiled = core.compileModel(modelPath, device)
+    defer: compiled.close()
+    let request = compiled.createInferRequest()
+    defer: request.close()
+    let owned = tensorFrom(etF32, initShape(1, 4), buffer)
+    defer: owned.close()
+    let external = unsafeTensorFromPointer(etF32, initShape(1, 4),
+                                           addr buffer[0])
+    defer: external.close()
+    for value in [owned, external, owned]:
+      request.setInputTensor("input", value)
+      let returned = request.inputTensor(0)
+      check returned.storageOwnership == soUnknown
+      check not returned.ownsStorage
+      check returned.toSeq(float32) == @buffer
+      returned.close()
+    request.infer()
+    let output = request.outputTensor(0)
+    defer: output.close()
+    check output.storageOwnership == soUnknown
+    check not output.ownsStorage
 
   test "closing an unsafe tensor does not free the caller's buffer":
     # Made observable by writing through the pointer after the tensor is gone.

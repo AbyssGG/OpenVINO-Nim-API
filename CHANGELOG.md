@@ -11,7 +11,40 @@ and the OpenVINO runtime baseline evolve independently:
 - **OpenVINO compatibility** changes to the pinned runtime and header
   baseline.
 
-## Unreleased
+## 0.2.2
+
+Release focused on the optional OpenVINO GenAI C API and remaining correctness
+fixes.
+
+### Nim API
+
+- Added 150 fixed-signature raw declarations from the OpenVINO GenAI
+  `2026.4.1.0` C headers, tracked all 153 C symbols, and added a managed API
+  for LLM text and chat generation, VLM, Whisper, generation settings,
+  JSON/chat containers, results, synchronous streaming callbacks and
+  performance metrics. Raw declarations are available from
+  `openvino/raw/genai`; importing `openvino` does not load the optional GenAI
+  library.
+- Added a private C adapter for the three variadic pipeline constructors. It
+  forwards at most 16 string property pairs without a Nim C-varargs ABI.
+- Added GenAI loader configuration, runtime and model setup documentation, and
+  real-model LLM and Whisper integration checks under ORC and ARC.
+- Reject embedded NUL characters in GenAI model paths, device names, prompts,
+  JSON, settings and pipeline properties before passing strings to C.
+- Clear an empty stop-string list through a non-null sentinel pointer required
+  by the upstream C implementation.
+- Report request-returned tensor storage ownership as unknown rather than
+  incorrectly claiming OpenVINO owns a potentially caller-provided buffer.
+  `storageOwnership` distinguishes unknown, OpenVINO-owned and caller-owned;
+  `ownsStorage` returns true only when ownership is known.
+
+### OpenVINO compatibility
+
+- GenAI declarations target OpenVINO GenAI `2026.4.1.0`, paired with Runtime
+  `2026.4.1`. Real LLM and Whisper generation was verified on Linux x86_64
+  with CPU; VLM, Windows/macOS, GPU and NPU GenAI execution remain unverified.
+- The scope is the complete pinned GenAI C API. C++-only image/video
+  generation, speech generation, embeddings and reranking are not exposed.
 
 ## 0.2.1
 

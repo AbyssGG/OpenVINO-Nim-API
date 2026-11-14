@@ -16,6 +16,7 @@
 import std/os
 
 import openvino
+import openvino/raw/genai as rawGenAi
 
 proc main() =
   if paramCount() < 1:
@@ -25,6 +26,8 @@ proc main() =
 
   echo "package : ", PackageName, " ", PackageVersion
   echo "targets : OpenVINO ", TargetOpenVinoVersion
+  echo "GenAI C symbols: ", rawGenAi.GenAiApiSymbols.len
+  echo "GenAI stays unloaded: ", default(LlmPipeline).isClosed()
 
   let version = runtimeVersion()
   echo "runtime : ", version.build

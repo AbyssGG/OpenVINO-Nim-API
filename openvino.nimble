@@ -66,10 +66,10 @@ proc stringMetadata(name: string): string =
 #
 # `nimble releaseCheck` closes the loop by asserting each literal against
 # src/openvino/version.nim, so the single source of truth still wins.
-version = "0.2.1"
+version = "0.2.2"
 author = "WANG"
-description = "Community-maintained Nim bindings for the OpenVINO Runtime " &
-  "C API. Not an official Intel or OpenVINO project."
+description = "Community-maintained Nim bindings for the OpenVINO Runtime and " &
+  "GenAI C APIs. Not an official Intel or OpenVINO project."
 license = "Apache-2.0"
 srcDir = "src"
 
@@ -464,6 +464,20 @@ task testIntegration, "Run the CPU inference loop through the public API":
     for path in sources:
       exec "nim c --hints:off --path:src " & buildMode & " -r " & path
 
+task testGenAi, "Run real-model OpenVINO GenAI integration checks":
+  for variable in ["OPENVINO_GENAI_TEST_MODEL",
+                   "OPENVINO_GENAI_TEST_WHISPER_MODEL",
+                   "OPENVINO_GENAI_TEST_AUDIO_F32",
+                   "OPENVINO_TOKENIZERS_PATH_GENAI"]:
+    if getEnv(variable).len == 0:
+      echo "Set ", variable,
+        " before running this optional real-model GenAI test."
+      quit(1)
+  for memoryManager in ["orc", "arc"]:
+    echo "--- memory manager: ", memoryManager, " ---"
+    exec "nim c --hints:off --path:src --mm:" & memoryManager &
+      " -r tests/genai/tgenai_integration.nim"
+
 task testHardware, "Run the GPU and NPU inference suites on a hardware host":
   # Optional hardware verification. Kept separate from `testIntegration` so
   # CPU-only CI runners do not fail for lack of an accelerator, while still
@@ -503,11 +517,16 @@ task docs, "Generate API documentation for every public module":
     "src/openvino/compiled_model.nim",
     "src/openvino/infer_request.nim",
     "src/openvino/core.nim",
+    "src/openvino/genai.nim",
     "src/openvino/preprocess.nim",
-    "src/openvino/raw.nim"
+    "src/openvino/raw.nim",
+    "src/openvino/raw/genai.nim"
   ]
   for modulePath in publicModules:
-    exec "nim doc --hints:off --index:on --path:src " &
+    let outputName =
+      if modulePath == "src/openvino/raw/genai.nim": "--out:genai_raw.html "
+      else: ""
+    exec "nim doc --hints:off --index:on --path:src " & outputName &
       "--outdir:build/docs " & modulePath
   # Each module writes its own .idx file. Merge those indexes after all pages
   # exist so the generated search page covers the managed and explicit raw

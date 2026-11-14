@@ -28,10 +28,12 @@
 
 import openvino/core
 import openvino/errors
+import openvino/genai
 import openvino/preprocess
 import openvino/version
 
 export core
 export errors
+export genai
 export preprocess
 export version
