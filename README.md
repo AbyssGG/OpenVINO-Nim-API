@@ -21,8 +21,8 @@ Corporation.** OpenVINO is a trademark of Intel Corporation.
 
 ## Status
 
-Version `0.2.1` is in development and contains correctness and memory safety
-fixes. The latest published release remains `0.2.0`.
+Version `0.2.1` contains correctness and memory safety fixes; see the
+[release notes](RELEASE_NOTES.md).
 
 Version `0.2.0` was released on 2026-10-18 and adds asynchronous inference,
 dynamic and partial shapes with reshape, and declarative layout and

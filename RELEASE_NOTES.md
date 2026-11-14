@@ -1,8 +1,7 @@
-# OpenVINO Nim API 0.2.1 (in development)
+# OpenVINO Nim API 0.2.1
 
-This patch release is being prepared. It fixes correctness and memory safety
-issues in the community-maintained Nim bindings for the OpenVINO Runtime C API.
-It has not been published.
+This patch release fixes correctness and memory safety issues in the
+community-maintained Nim bindings for the OpenVINO Runtime C API.
 
 ## Fixes
 
@@ -16,7 +15,7 @@ It has not been published.
 
 The package targets OpenVINO `2026.4.1` and requires Nim `2.0.0` or newer.
 The changes reject inputs that could previously cause incorrect behaviour.
-The release's full platform and hardware validation has not yet been completed.
+The 0.2.1 changes have not been tested on GPU or NPU hardware.
 See [the compatibility matrix](docs/compatibility.md) for previous releases.
 
 For the complete change list, see [CHANGELOG.md](CHANGELOG.md).

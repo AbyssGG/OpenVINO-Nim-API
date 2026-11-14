@@ -15,7 +15,7 @@ and the OpenVINO runtime baseline evolve independently:
 
 ## 0.2.1
 
-Release in preparation.
+Patch release with correctness and memory safety fixes.
 
 ### Nim API
 
