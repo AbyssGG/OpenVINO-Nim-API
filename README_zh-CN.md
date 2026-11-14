@@ -15,6 +15,8 @@ Whisper，并修复剩余正确性问题。详见[发布说明](RELEASE_NOTES.md
 [GenAI 指南](docs/genai.md)。GenAI 需要单独安装匹配的本机库；目前仅在 Linux
 x86_64 CPU 上对真实 LLM 和 Whisper 模型完成验证。
 
+版本 `0.2.1` 已于 2026-11-15 发布，包含正确性和内存安全修复，详见[GitHub Release](https://github.com/AbyssGG/OpenVINO-Nim-API/releases/tag/v0.2.1) 和[发布说明](RELEASE_NOTES.md)。
+
 版本 `0.2.0` 已于 2026-10-18 发布（[GitHub Release](https://github.com/AbyssGG/OpenVINO-Nim-API/releases/tag/v0.2.0)），新增异步推理（`startAsync`、`wait`、
 `waitFor`、`cancel` 与 `CompletionQueue`，不在 OpenVINO 线程上运行任何 Nim 代码，
 因此不提供用户回调）、动态与部分形状（`PartialShape`、`Port.partialShape`、

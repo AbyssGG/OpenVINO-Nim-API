@@ -8,7 +8,7 @@
 
 **English** | [简体中文](README_zh-CN.md)
 
-Nim bindings for the [OpenVINO](https://docs.openvino.ai/) Runtime C API.
+Nim bindings for the [OpenVINO](https://docs.openvino.ai/) Runtime and GenAI C APIs.
 
 OpenVINO Nim API provides two layers. The managed API is idiomatic Nim with
 private native handles, Nim exceptions and documented ownership rules. The
@@ -26,6 +26,9 @@ language and Whisper workloads, and fixes remaining correctness issues. See
 the [release notes](RELEASE_NOTES.md) and [GenAI guide](docs/genai.md). GenAI
 uses separately installed matching native libraries; only Linux x86_64 CPU
 LLM and Whisper execution has been verified so far.
+
+Version `0.2.1` was released on 2026-11-15 with correctness and memory safety fixes. See the
+[GitHub Release](https://github.com/AbyssGG/OpenVINO-Nim-API/releases/tag/v0.2.1) and [release notes](RELEASE_NOTES.md).
 
 Version `0.2.0` was released on 2026-10-18 and adds asynchronous inference,
 dynamic and partial shapes with reshape, and declarative layout and
