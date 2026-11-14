@@ -10,7 +10,7 @@ Corporation 的认可或附属关系。** OpenVINO 是 Intel Corporation 的商�
 
 ## 项目状态
 
-版本 `0.2.1` 包含正确性和内存安全修复，详见[发布说明](RELEASE_NOTES.md)。
+版本 `0.2.1` 已于 2026-11-15 发布，包含正确性和内存安全修复，详见[GitHub Release](https://github.com/AbyssGG/OpenVINO-Nim-API/releases/tag/v0.2.1) 和[发布说明](RELEASE_NOTES.md)。
 
 版本 `0.2.0` 已于 2026-10-18 发布（[GitHub Release](https://github.com/AbyssGG/OpenVINO-Nim-API/releases/tag/v0.2.0)），新增异步推理（`startAsync`、`wait`、
 `waitFor`、`cancel` 与 `CompletionQueue`，不在 OpenVINO 线程上运行任何 Nim 代码，
