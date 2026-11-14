@@ -2,13 +2,18 @@
 
 [English](README.md) | **简体中文**
 
-OpenVINO Runtime C API 的 Nim 绑定。项目主文档以英文维护，本页提供中文
+OpenVINO Runtime 与 GenAI C API 的 Nim 绑定。项目主文档以英文维护，本页提供中文
 入口和关键说明；API 名称、代码示例和兼容性结论以英文文档为准。
 
 **本项目由社区维护，不是 Intel 或 OpenVINO 官方项目，也没有得到 Intel
 Corporation 的认可或附属关系。** OpenVINO 是 Intel Corporation 的商标。
 
 ## 项目状态
+
+版本 `0.2.2` 增加可选的 OpenVINO GenAI C API，覆盖文本/聊天生成、视觉语言生成和
+Whisper，并修复剩余正确性问题。详见[发布说明](RELEASE_NOTES.md)和
+[GenAI 指南](docs/genai.md)。GenAI 需要单独安装匹配的本机库；目前仅在 Linux
+x86_64 CPU 上对真实 LLM 和 Whisper 模型完成验证。
 
 版本 `0.2.1` 已于 2026-11-15 发布，包含正确性和内存安全修复，详见[GitHub Release](https://github.com/AbyssGG/OpenVINO-Nim-API/releases/tag/v0.2.1) 和[发布说明](RELEASE_NOTES.md)。
 
@@ -102,6 +107,7 @@ Nimble 官方包索引条目已提交（[nim-lang/packages #3578](https://github
 - [英文入门指南](docs/getting-started.md)
 - [英文 API overview](docs/api-overview.md)
 - [英文 C API coverage](docs/c-api-coverage.md)
+- [英文 GenAI guide](docs/genai.md)
 - [英文 compatibility matrix](docs/compatibility.md)
 - [英文 troubleshooting](docs/troubleshooting.md)
 - [贡献指南](CONTRIBUTING.md)

@@ -4,11 +4,11 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Nim](https://img.shields.io/badge/Nim-%E2%89%A52.0.0-yellow.svg)](https://nim-lang.org/)
 [![OpenVINO](https://img.shields.io/badge/OpenVINO-2026.4.x-6b4fbb.svg)](https://docs.openvino.ai/)
-[![Latest release](https://img.shields.io/badge/latest%20release-v0.2.1-brightgreen.svg)](https://github.com/AbyssGG/OpenVINO-Nim-API/releases/tag/v0.2.1)
+[![Status](https://img.shields.io/badge/status-v0.2.2-brightgreen.svg)](https://github.com/AbyssGG/OpenVINO-Nim-API/releases/tag/v0.2.2)
 
 **English** | [简体中文](README_zh-CN.md)
 
-Nim bindings for the [OpenVINO](https://docs.openvino.ai/) Runtime C API.
+Nim bindings for the [OpenVINO](https://docs.openvino.ai/) Runtime and GenAI C APIs.
 
 OpenVINO Nim API provides two layers. The managed API is idiomatic Nim with
 private native handles, Nim exceptions and documented ownership rules. The
@@ -20,6 +20,12 @@ OpenVINO project, and it is not endorsed by or affiliated with Intel
 Corporation.** OpenVINO is a trademark of Intel Corporation.
 
 ## Status
+
+Version `0.2.2` adds the optional OpenVINO GenAI C API for text/chat, visual
+language and Whisper workloads, and fixes remaining correctness issues. See
+the [release notes](RELEASE_NOTES.md) and [GenAI guide](docs/genai.md). GenAI
+uses separately installed matching native libraries; only Linux x86_64 CPU
+LLM and Whisper execution has been verified so far.
 
 Version `0.2.1` was released on 2026-11-15 with correctness and memory safety fixes. See the
 [GitHub Release](https://github.com/AbyssGG/OpenVINO-Nim-API/releases/tag/v0.2.1) and [release notes](RELEASE_NOTES.md).
@@ -66,10 +72,10 @@ already works unless it says so.
 
 ## Feature overview
 
-| Capability | 0.2.0 status | Notes |
+| Capability | 0.2.2 status | Notes |
 |---|---|---|
 | Managed Nim API | Available | `Core`, `Model`, `CompiledModel`, `InferRequest`, `Tensor`, shapes and properties |
-| Raw C ABI layer | Available | Import it explicitly with `openvino/raw`; pinned to OpenVINO `2026.4.1` headers |
+| Raw C ABI layers | Available | Import `openvino/raw` for Runtime `2026.4.1` or `openvino/raw/genai` for GenAI `2026.4.1.0` headers |
 | Synchronous CPU inference | Available | Windows and Linux x86_64 are verified in CI and on clean hosts |
 | Synchronous GPU & NPU inference | Available (Windows x86_64) | Verified on Intel iGPU (`GPU.0`), NVIDIA dGPU (`GPU.1`) and Intel AI Boost (`NPU`) via `nimble testHardware` |
 | Runtime discovery and diagnostics | Available | Version, device listing, symbol checks and actionable loader errors |
@@ -77,6 +83,7 @@ already works unless it says so.
 | Asynchronous inference | Available (new in 0.2.0) | `startAsync`, `wait`, `waitFor`, `cancel` and `CompletionQueue`; no Nim code runs on OpenVINO threads, so user callbacks are deliberately not offered |
 | Dynamic shapes and reshape | Available (new in 0.2.0) | `PartialShape`, `Port.partialShape` and `Model.reshape`; the NPU plugin needs bounded or static shapes |
 | Layout and preprocessing | Available (new in 0.2.0) | `Layout` and a declarative `PreprocessPlan` applied in one call |
+| Optional OpenVINO GenAI C API | Available (new in 0.2.2) | All 153 pinned C symbols represented by 150 raw declarations and a C adapter for three variadic constructors; managed LLM/chat, VLM and Whisper APIs; real-model CPU checks cover LLM and Whisper on Linux x86_64 |
 | Request pools, remote contexts | Roadmap | See [the roadmap](docs/roadmap.md) |
 
 The roadmap is deliberately explicit about what is not implemented. See

@@ -1,12 +1,10 @@
 # OpenVINO C API coverage
 
 This document is the coverage contract between the pinned OpenVINO `2026.4.1`
-(and `2026.4.0`) headers and `src/openvino/raw/`. It describes the current
-repository, not an old implementation plan. Every item marked **bound** is
-present in the raw layer and is exercised by the ABI or smoke checks; every
-item marked **deferred** is intentionally not bound. The `0.2.0` additions
-(asynchronous inference, partial shapes, reshape, layouts and preprocessing)
-are bound in the raw layer; their managed API is under development.
+(and `2026.4.0`) headers, the GenAI `2026.4.1.0` C headers, and
+`src/openvino/raw/`. It describes the current repository, not an old
+implementation plan. A header being bound does not mean every function has a
+real-model behaviour test; the test section states what has been exercised.
 
 ## Pinned source of truth
 
@@ -27,6 +25,47 @@ and [`ov_infer_request.h`](https://raw.githubusercontent.com/openvinotoolkit/ope
 The 18 installed header SHA-256 values are recorded in the repository history
 and are checked against the pinned runtime by CI. The ABI probe also checks the
 values and layout that cannot be established by a Nim declaration alone.
+
+## GenAI C API source of truth
+
+| Item | Value |
+|---|---|
+| Upstream release | OpenVINO GenAI `2026.4.1.0` |
+| Upstream tag and commit | `2026.4.1.0`, `ab01d1771e4adaa0e1e08e9d630def170572506c` |
+| Header location | `src/c/include/openvino/genai/c/*.h` |
+| Runtime library | `openvino_genai_c` plus matching GenAI, Runtime and Tokenizers libraries |
+| Raw module | `openvino/raw/genai` |
+| Managed module | `openvino/genai` |
+
+The eight functional GenAI headers are `chat_history.h`,
+`generation_config.h`, `json_container.h`, `llm_pipeline.h`, `perf_metrics.h`,
+`vlm_pipeline.h`, `whisper_generation_config.h`, and `whisper_pipeline.h`.
+Their 153 function symbols are tracked by `GenAiApiSymbols`; 150 fixed-signature
+functions use lazy dynamic bindings. The three pipeline constructors use C
+varargs. A private C adapter invokes them without declaring C varargs to Nim,
+and forwards at most 16 string property pairs. All normal C calls remain
+lazily resolved, and importing `openvino` does not load GenAI.
+
+The Linux GenAI library candidates are `libopenvino_genai_c.so`, then
+`libopenvino_genai_c.so.2641` and earlier patch SONAMEs. Windows and macOS
+candidates are declared, but GenAI has only been tested on Linux x86_64 here.
+Set `OPENVINO_GENAI_C_LIBRARY` or compile with
+`-d:openvinoGenAiLib=<full path>` when the library is not on the loader path.
+The tokenizer plugin path remains the GenAI runtime's responsibility and is
+selected with `OPENVINO_TOKENIZERS_PATH_GENAI`.
+
+The eight functional header digests from the pinned source tree are:
+
+```text
+d4e84166e9ee7cb8ba18569eb16a58a05bef298ce3cbf40a15c4a04d232fe3de  chat_history.h
+8a75b60cef8df22f10901804fa59d89c93994cc33f7444231bd0173904a1dc52  generation_config.h
+e920475198b8a4ca416194d1f361ff128c04aaf82939a9aea2989ce7e2a42b39  json_container.h
+3e63cc496170ad137f38bd30dc16a15b172210553521d5038066284fd54c2c49  llm_pipeline.h
+2376f39a0a5f2dcd3055b86366c3267a2c34fd027fe74315d2a2760415f0c9ff  perf_metrics.h
+5a4ac6ba23b676a9ac523f3f573121ddf7dce7a8a418efdd8b3220618f39714a  vlm_pipeline.h
+1789c97d2d46fd92e7ae64c4b41b066b33995cc6966341d25cf8aad53f1332b3  whisper_generation_config.h
+9072eb2e1b2f3b0f525e1177cfe4de64dcff2bb641fff99ef8d17b82db8dddfb  whisper_pipeline.h
+```
 
 The recorded header digests are:
 
@@ -68,6 +107,7 @@ a12a4c241bccbc9cd3cf68f39b13c91701a78cd062a97004ae8f1612b10d4650  ov_shape.h
 | `ov_partial_shape.h` | `raw/partial_shape` | `ov_partial_shape_t` and all eight functions; the managed layer uses only `ov_partial_shape_free` |
 | `ov_layout.h` | `raw/layout` | Layout create, format and release |
 | `ov_prepostprocess.h` | `raw/prepostprocess` | All 39 non-variadic functions, the seven opaque child types and the color format, resize algorithm and padding mode enumerations |
+| GenAI's eight C headers | `raw/genai` and `genai` | All 153 C symbols, including the three variadic constructors via the adapter; managed LLM/chat, VLM, Whisper, JSON, settings, results, callbacks and metrics |
 
 The `0.2.0` additions were checked against the upstream C binding sources at
 tag `2026.4.0` and measured on the runtime in Phase 0 of the 0.2 plan. The
@@ -75,6 +115,22 @@ evidence, including the upstream defects listed below, is recorded in
 [ADR 0003](decisions/0003-async-completion.md),
 [ADR 0004](decisions/0004-partial-shape-representation.md) and
 [ADR 0005](decisions/0005-preprocessing-api.md).
+
+## GenAI test coverage
+
+The runtime-free unit suite checks that importing the optional managed and raw
+modules does not load native libraries, and checks the tracked symbol set. The
+real-model `nimble testGenAi` suite resolves all 153 symbols, tests JSON/chat
+ownership, generation settings, LLM text/chat/streaming/property forwarding
+and Whisper transcription/chunks/metrics on CPU under ORC and ARC. Local
+validation used the pinned Linux x86_64 GenAI C API, Tokenizers and Runtime
+libraries plus TinyLlama and OpenVINO Whisper Tiny models. It has not run VLM
+generation against a model, nor Windows/macOS, GPU or NPU GenAI.
+
+The C++ GenAI API includes pipeline families that the pinned C headers do not
+expose, such as image/video generation, speech generation and embedding or
+reranking APIs. They are outside this C binding's coverage; see
+[the GenAI guide](genai.md).
 
 ## ABI-sensitive facts
 
@@ -92,11 +148,13 @@ evidence, including the upstream defects listed below, is recorded in
   is zero.
 - The Windows Unicode path entry points are declared only on Windows and use
   explicit UTF-16 element widths. The managed path layer validates conversion.
-- No C varargs call is bound. The managed layer uses the `_props` and
-  `_properties` forms so that Nim never has to guess a platform varargs ABI.
-  For preprocessing, `ov_preprocess_input_tensor_info_set_color_format_with_subname`
-  is excluded and its array form `_with_subnames` is bound; `nimble lint`
-  rejects any `varargs` declaration in the raw layer.
+- No C varargs function is declared with Nim's `varargs` pragma. The
+  OpenVINO Runtime layer uses non-variadic property forms; the three GenAI
+  pipeline constructors use a private C adapter that forwards up to 16
+  property pairs. For preprocessing,
+  `ov_preprocess_input_tensor_info_set_color_format_with_subname` is excluded
+  and its array form `_with_subnames` is bound. `nimble lint` rejects Nim
+  `varargs` declarations in the raw layer.
 - `ov_dimension_t` is `{int64 min; int64 max}` (16 bytes) and
   `ov_partial_shape_t` is a rank followed by a dims pointer (24 bytes on
   x86_64). `ov_partial_shape_t` is passed by value to the reshape functions,

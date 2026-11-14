@@ -20,6 +20,13 @@ e213a14). The SHA-256 of all 18 headers is recorded in docs/c-api-coverage.md an
 docs/resonance-audit.md, and tests/abi compares the declarations against headers
 compiled by a C compiler rather than against a transcription.
 
+The optional modules under src/openvino/raw/genai were written by hand against
+the OpenVINO GenAI C headers from tag 2026.4.1.0, commit
+ab01d1771e4adaa0e1e08e9d630def170572506c. Their eight functional header
+SHA-256 digests and the 153-symbol coverage contract are recorded in
+docs/c-api-coverage.md. The generated C bridge for the three variadic pipeline
+constructors is original adapter code; no upstream source file is copied.
+
 Whether that requires attribution here was considered rather than assumed. The
 conclusion, recorded so that a reader need not repeat the reasoning:
 
@@ -38,11 +45,11 @@ conclusion, recorded so that a reader need not repeat the reasoning:
     upstream work has one whose contents are attributable. This file therefore
     states the relationship and the provenance rather than copying anything.
 
-No third-party source code is bundled. The package depends on the OpenVINO
-runtime at run time only, loads it by name through the dynamic loader, and never
-ships or installs it. The only third-party artefact this repository references is
-the pinned OpenVINO wheel that CI downloads by URL and sha256, which is recorded
-in ci/install-openvino.py and is not redistributed.
+No third-party source code or native library is bundled. The package depends on
+OpenVINO Runtime at run time and optionally on matching GenAI and Tokenizers
+libraries; it loads them through the dynamic loader and never ships or installs
+them. CI downloads the pinned OpenVINO wheel by URL and SHA-256, as recorded in
+ci/install-openvino.py; that artifact is not redistributed.
 
 
 Test fixtures

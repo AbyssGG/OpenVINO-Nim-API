@@ -40,6 +40,17 @@ Released on 2026-10-18 as `v0.2.0`.
 - Official GitHub Releases (`v0.1.0`, `v0.1.1`) and Nimble package index entry
   (`openvino`, [nim-lang/packages #3578](https://github.com/nim-lang/packages/pull/3578)).
 
+## Available in 0.2.2
+
+- Optional raw bindings for all 153 symbols in the OpenVINO GenAI
+  `2026.4.1.0` C headers, with lazy library loading.
+- Managed LLM/chat, VLM and Whisper APIs, generation settings, JSON containers,
+  streaming callbacks, results and metrics.
+- Real-model CPU validation covers LLM and Whisper on Linux x86_64. VLM with a
+  real model and GenAI execution on Windows, macOS, GPU or NPU remain untested.
+- GenAI's C++-only image/video generation, speech generation, embeddings and
+  reranking families remain outside the C binding scope.
+
 ## Next priorities
 
 | Area | Why it needs design work |
@@ -48,7 +59,7 @@ Released on 2026-10-18 as `v0.2.0`.
 | `asyncdispatch` integration | Needs evidence that waking an event loop from a non-Nim thread is safe on IOCP and epoll |
 | Remote contexts | Device-specific memory ownership cannot be represented by a generic pointer |
 | Mutable ports | Needed only for `reshape_by_ports` and port-based tensor binding |
-| GenAI and task-specific helpers | These belong in separate layers, not in the small core binding |
+| GenAI C++-only pipeline families | No equivalent C interface exists in the pinned headers; see [the GenAI guide](genai.md) |
 
 ## Non-goals
 

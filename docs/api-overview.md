@@ -1,14 +1,15 @@
 # API overview
 
-OpenVINO Nim API has a small managed surface and an explicit raw C layer. The
-managed surface is the compatibility target for application code; raw modules
-mirror the pinned OpenVINO 2026.4 C headers and are intentionally less safe.
+OpenVINO Nim API has a managed surface and explicit raw C layers. The managed
+surface is the compatibility target for application code; raw modules mirror
+the pinned OpenVINO Runtime 2026.4 and GenAI 2026.4.1.0 C headers and are
+intentionally less safe.
 
 ## Managed modules
 
 | Module | Main symbols | Responsibility |
 |---|---|---|
-| `openvino` | `newCore`, `RuntimeVersion`, exceptions | Stable import root; raw declarations are not re-exported |
+| `openvino` | `newCore`, `RuntimeVersion`, exceptions, GenAI API | Stable import root; raw declarations are not re-exported |
 | `openvino/core` | `Core`, `runtimeVersion`, `availableDevices` | Runtime loading, model reading, compiling and import |
 | `openvino/model` | `Model`, `inputCount`, `outputCount`, `reshape` | Model metadata, const ports and reshaping |
 | `openvino/node` | `Port`, `name`, `elementType`, `shape`, `partialShape`, `isDynamic` | Read-only input and output port metadata |
@@ -21,6 +22,7 @@ mirror the pinned OpenVINO 2026.4 C headers and are intentionally less safe.
 | `openvino/properties` | `Property`, `enableProfiling`, `cacheDirectory` | Safe string-valued runtime properties |
 | `openvino/errors` | `OpenVinoError`, `OpenVinoBusyError`, `OpenVinoCancelledError`, `OpenVinoArgumentError`, `OpenVinoLibraryError`, `OpenVinoVersionError` | Runtime, busy, cancelled, argument, loader and version failures |
 | `openvino/version` | `PackageVersion`, `TargetOpenVinoVersion` | Package metadata and the pinned runtime baseline |
+| `openvino/genai` | `LlmPipeline`, `VlmPipeline`, `WhisperPipeline`, configs, results | Optional managed GenAI C API; loaded only when used |
 
 All managed handles have an idempotent `close()` and a destructor backstop.
 Copying a managed value shares the native handle and closed state; it does not
@@ -124,6 +126,14 @@ as the request exists, and its function must not allocate, raise or touch Nim
 memory. The exact symbol list and header checksums are in
 [C API coverage](c-api-coverage.md).
 
+The managed GenAI API covers the pinned GenAI C functions for text generation
+and chat, visual-language generation, Whisper transcription, JSON containers,
+generation settings, results and metrics. It is optional: importing
+`openvino` does not load GenAI, and the GenAI C library plus its matching
+Runtime and Tokenizers components are required only when a GenAI operation is
+called. Streaming handlers run synchronously on the calling thread. See the
+[GenAI guide](genai.md) for installation, examples and the C++-only boundary.
+
 ## Typical call sequence
 
 1. Create a `Core` with `newCore()`.
@@ -147,6 +157,11 @@ sequence. Typed access rejects types containing Nim-managed references and
 checks element width and size, but does not convert data or distinguish
 integer and floating-point types of the same width.
 Match the Nim data type to the model's declared element type.
+
+`storageOwnership` reports `soOpenVinoOwned`, `soCallerOwned` or `soUnknown`.
+Request-returned tensors have unknown storage ownership: keep any external
+buffer alive until all uses of the bound tensor have finished. `ownsStorage`
+returns true only for known OpenVINO-owned storage.
 
 For repeated inference, keep the compiled model and request, update input
 storage with `copyFrom`, and call `infer()` again. `copyFrom` requires exactly

@@ -319,7 +319,8 @@ proc `$`*(output: OutputPostprocess): string =
   result.add("}")
 
 proc `$`*(plan: PreprocessPlan): string =
-  ## A summary of every input and output description, separated by `; `.
+  ## A summary of every input and output description, separated by a semicolon
+  ## and a space.
   var parts: seq[string] = @[]
   for input in plan.inputs:
     parts.add($input)
