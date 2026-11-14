@@ -181,6 +181,8 @@ proc getProperty*(core: Core; device, key: string): string =
   ## Copies the value and releases OpenVINO's allocation before returning.
   ##
   ## Raises `OpenVinoError` for an unknown device or an unsupported property.
+  checkCString(device, "device name")
+  checkCString(key, "property key")
   var native: cstring = nil
   checkStatus(ov_core_get_property(core.handle.native(), device.cstring,
                                   key.cstring, addr native),
@@ -193,6 +195,7 @@ proc setProperties*(core: Core; device: string;
   ##
   ## Raises `OpenVinoError` when the device rejects a property, and
   ## `OpenVinoArgumentError` if the core is closed.
+  checkCString(device, "device name")
   let native = core.handle.native()
   withRawProperties(values, rawProperties, count):
     checkStatus(ov_core_set_properties(native, device.cstring, count,
@@ -210,6 +213,8 @@ proc readModel*(core: Core; modelPath: string; weightsPath = ""): Model =
   ##
   ## Raises `OpenVinoArgumentError` when the path does not exist,
   ## `OpenVinoError` when OpenVINO cannot parse the model.
+  checkCString(modelPath, "model path")
+  checkCString(weightsPath, "weights path")
   if not fileExists(modelPath):
     raiseArgumentError("model file does not exist: " & modelPath)
   if weightsPath.len > 0 and not fileExists(weightsPath):
@@ -259,6 +264,7 @@ proc compileModel*(core: Core; source: Model; device: string;
   ##
   ## Raises `OpenVinoError` for an unknown device or a model the device cannot
   ## take, and `OpenVinoArgumentError` if either object is closed.
+  checkCString(device, "device name")
   let
     coreNative = core.handle.native()
     modelNative = source.unsafeRawHandle()
@@ -278,6 +284,8 @@ proc compileModel*(core: Core; modelPath: string; device: string;
   ## `compileModel`, but without producing a `Model` you would then close.
   ##
   ## Raises `OpenVinoArgumentError` when the path does not exist.
+  checkCString(modelPath, "model path")
+  checkCString(device, "device name")
   if not fileExists(modelPath):
     raiseArgumentError("model file does not exist: " & modelPath)
   let coreNative = core.handle.native()
@@ -313,6 +321,7 @@ proc importModel*(core: Core; blob: string; device: string): CompiledModel =
   ##
   ## Raises `OpenVinoArgumentError` for an empty blob, `OpenVinoError` when the
   ## blob is not usable.
+  checkCString(device, "device name")
   if blob.len == 0:
     raiseArgumentError("cannot import a compiled model from an empty blob")
   var native: ptr ov_compiled_model_t = nil

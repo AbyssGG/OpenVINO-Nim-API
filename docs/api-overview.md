@@ -143,8 +143,9 @@ completed. Tensors created by OpenVINO, including by `tensorFrom`, may be
 closed once bound: the request keeps its own reference. Tensor getters return
 new handles that you must close, even when their storage belongs to the
 request. `tensorFrom` copies input data; `toSeq` returns an independent Nim
-sequence. Typed access checks element width and size, but does not convert
-data or distinguish integer and floating-point types of the same width.
+sequence. Typed access rejects types containing Nim-managed references and
+checks element width and size, but does not convert data or distinguish
+integer and floating-point types of the same width.
 Match the Nim data type to the model's declared element type.
 
 For repeated inference, keep the compiled model and request, update input

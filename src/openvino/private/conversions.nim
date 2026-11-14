@@ -17,6 +17,11 @@ import ../raw/core
 import ../raw/error
 import ../raw/shape
 
+proc checkCString*(value, what: string) =
+  ## Reject embedded terminators before passing a Nim string to C.
+  if '\0' in value:
+    raiseArgumentError(what & " contains a NUL character")
+
 proc takeString*(native: var cstring): string =
   ## Copies an OpenVINO-allocated string and releases the original.
   ##
@@ -98,13 +103,17 @@ proc checkedElementCount*(dimensions: openArray[int64]): int64 =
   ## Raises `OpenVinoArgumentError` on a negative dimension or on overflow.
   ## Overflow is checked before it happens rather than detected afterwards,
   ## because a wrapped count would be used to size a buffer.
-  result = 1
+  var hasZero = false
   for index, dimension in dimensions:
     if dimension < 0:
       raiseArgumentError("dimension " & $index & " is negative: " &
         $dimension)
     if dimension == 0:
-      return 0
+      hasZero = true
+  if hasZero:
+    return 0
+  result = 1
+  for dimension in dimensions:
     if result > high(int64) div dimension:
       raiseArgumentError("shape " & $(@dimensions) &
         " overflows a signed 64-bit element count")

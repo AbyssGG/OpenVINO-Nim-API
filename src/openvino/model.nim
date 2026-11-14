@@ -102,6 +102,7 @@ proc input*(model: Model; name: string): Port =
   ## Returns the input port named `name`.
   ##
   ## Raises `OpenVinoError` when no input has that name.
+  checkCString(name, "input name")
   var native: ptr ov_output_const_port_t = nil
   checkStatus(ov_model_const_input_by_name(model.handle.native(),
                                           name.cstring, addr native),
@@ -112,6 +113,7 @@ proc output*(model: Model; name: string): Port =
   ## Returns the output port named `name`.
   ##
   ## Raises `OpenVinoError` when no output has that name.
+  checkCString(name, "output name")
   var native: ptr ov_output_const_port_t = nil
   checkStatus(ov_model_const_output_by_name(model.handle.native(),
                                            name.cstring, addr native),

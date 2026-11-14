@@ -201,6 +201,20 @@ suite "busy and cancelled":
     request.wait()
 
 suite "completion queue":
+  test "a very long timeout can collect a completion without overflow":
+    let core = newCore()
+    defer: core.close()
+    let compiled = core.compileSmall()
+    defer: compiled.close()
+    let request = compiled.createInferRequest()
+    defer: request.close()
+    let queue = newCompletionQueue(1)
+    defer: queue.close()
+    queue.attach(request, 42)
+    request.startAsync()
+    check queue.next(initDuration(seconds = 10_000_000_000'i64)).get == 42
+    request.wait()
+
   test "next returns the id of the request that finished":
     let core = newCore()
     defer: core.close()

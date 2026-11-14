@@ -136,6 +136,7 @@ proc getProperty*(model: CompiledModel; key: string): string =
   ##
   ## Raises `OpenVinoError` when the property is unknown to the device, and
   ## `OpenVinoArgumentError` if the compiled model is closed.
+  checkCString(key, "property key")
   var native: cstring = nil
   checkStatus(ov_compiled_model_get_property(model.handle.native(),
                                             key.cstring, addr native),
@@ -151,6 +152,7 @@ proc exportTo*(model: CompiledModel; path: string) =
   ##
   ## Raises `OpenVinoError` when the path cannot be written or the device does
   ## not support export.
+  checkCString(path, "export path")
   checkStatus(ov_compiled_model_export_model(model.handle.native(),
                                             path.cstring),
               "export compiled model", path)

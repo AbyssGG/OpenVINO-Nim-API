@@ -12,6 +12,8 @@
 ## guarantee. There is no unnamed middle ground, because a borrowing entry point
 ## that looked safe would be the most dangerous thing in this package.
 
+import std/typetraits
+
 import errors
 import private/conversions
 import private/handles
@@ -188,6 +190,12 @@ proc requireTypedAccess(tensor: Tensor; elementSize: int;
       " elements of " & $elementSize & " bytes; refusing typed access")
   result = count
 
+proc requireCopyableElement[T]() =
+  ## Never overwrite or duplicate Nim-managed references with raw bytes.
+  when not supportsCopyMem(T):
+    raiseArgumentError("tensor access requires a type safe for byte copying: " &
+      $T)
+
 proc copyFrom*[T](tensor: Tensor; source: openArray[T]) =
   ## Copies `source` into the tensor's storage.
   ##
@@ -195,9 +203,11 @@ proc copyFrom*[T](tensor: Tensor; source: openArray[T]) =
   ## nothing of the caller's is borrowed afterwards.
   ##
   ## Raises `OpenVinoArgumentError` when the tensor is closed, when `T` does not
-  ## match the element type's width, or when the lengths differ. Requiring an
+  ## match the element type's width, when `T` contains managed references, or
+  ## when the lengths differ. Requiring an
   ## exact length rather than accepting a shorter one is deliberate: a partial
   ## fill would leave the rest holding whatever was there before.
+  requireCopyableElement[T]()
   let count = requireTypedAccess(tensor, sizeof(T), $T)
   if source.len != count:
     raiseArgumentError("tensor holds " & $count & " elements but " &
@@ -211,7 +221,9 @@ proc copyTo*[T](tensor: Tensor; destination: var openArray[T]) =
   ## Copies the tensor's contents into `destination`.
   ##
   ## Raises `OpenVinoArgumentError` when the tensor is closed, when `T` does not
-  ## match the element type's width, or when the lengths differ.
+  ## match the element type's width, when `T` contains managed references, or
+  ## when the lengths differ.
+  requireCopyableElement[T]()
   let count = requireTypedAccess(tensor, sizeof(T), $T)
   if destination.len != count:
     raiseArgumentError("tensor holds " & $count & " elements but " &
@@ -228,7 +240,8 @@ proc toSeq*[T](tensor: Tensor; _: typedesc[T]): seq[T] =
   ## lifetime obligation.
   ##
   ## Raises `OpenVinoArgumentError` when the tensor is closed or `T` does not
-  ## match the element type.
+  ## match the element type's width or contains managed references.
+  requireCopyableElement[T]()
   let count = requireTypedAccess(tensor, sizeof(T), $T)
   result = newSeq[T](count)
   if count > 0:
@@ -243,7 +256,9 @@ proc tensorFrom*[T](elementType: ElementType; tensorShape: Shape;
   ## collected freely.
   ##
   ## Raises `OpenVinoArgumentError` when `T` does not match `elementType`, or
-  ## when `source.len` does not equal the shape's element count.
+  ## when `T` contains managed references, or when `source.len` does not equal
+  ## the shape's element count.
+  requireCopyableElement[T]()
   result = newTensor(elementType, tensorShape)
   try:
     result.copyFrom(source)

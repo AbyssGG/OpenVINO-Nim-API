@@ -172,6 +172,7 @@ proc setInputTensor*(request: InferRequest; name: string; value: Tensor) =
   ##
   ## Raises `OpenVinoError` when no port has that name, and
   ## `OpenVinoArgumentError` if either object is closed.
+  checkCString(name, "tensor name")
   checkStatus(ov_infer_request_set_tensor(request.nativeRequest(),
                                           name.cstring,
                                           value.unsafeRawHandle()),
@@ -450,13 +451,14 @@ proc next*(queue: CompletionQueue; timeout: Duration): Option[int] =
   ## closed queue.
   let milliseconds = timeoutMilliseconds(timeout)
   let shared = queue.handle.native()
-  let deadline = getMonoTime() + initDuration(milliseconds = milliseconds)
+  let started = getMonoTime()
   acquireQueue(shared)
   try:
     while pendingCount(shared) == 0:
-      let remaining = (deadline - getMonoTime()).inMilliseconds
-      if remaining <= 0:
+      let elapsed = (getMonoTime() - started).inMilliseconds
+      if elapsed >= milliseconds:
         return none(int)
+      let remaining = milliseconds - elapsed
       # Waits in chunks of at most one hour, which the platform waits accept.
       waitForCompletion(shared, min(remaining, 3_600_000'i64))
     result = some(popCompletion(shared))
